@@ -1,0 +1,44 @@
+name: constraint_based_dynamics
+
+dynamics:
+  _target_: cmrl.models.ParallelGaussianMLP
+  device: ${device}
+  num_layers: 4
+  in_size: ???
+  out_size: ???
+  parallel_size: ???
+  target_transform: ???
+  ensemble_size: 7
+  hid_size: 100
+  deterministic: false
+  propagation_method: random_model
+  learn_logvar_bounds: false  # so far this works better
+  activation_fn_conf:
+    _target_: torch.nn.SiLU
+
+discovery:
+  _target_: cmrl.models.ParallelGaussianMLP
+  device: ${device}
+  num_layers: 4
+  in_size: ???
+  out_size: ???
+  parallel_size: ???
+  target_transform: ???
+  ensemble_size: 7
+  hid_size: 100
+  deterministic: false
+  propagation_method: random_model
+  learn_logvar_bounds: false  # so far this works better
+  activation_fn_conf:
+    _target_: torch.nn.SiLU
+
+oracle: ${task.oracle}
+
+normalize: true
+normalize_double_precision: true
+target_is_delta: true
+learned_rewards: true
+num_elites: 5
+
+model_lr: 0.001
+model_wd: 0.00001

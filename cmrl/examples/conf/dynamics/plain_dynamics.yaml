@@ -1,0 +1,55 @@
+name: plain_dynamics
+
+transition:
+  _target_: cmrl.models.transition.PlainEnsembleGaussianTransition
+  # transition info
+  obs_size: ???
+  action_size: ???
+  deterministic: false
+  # algorithm parameters
+  ensemble_num: ${task.ensemble_num}
+  residual: true
+  learn_logvar_bounds: false  # so far this works better
+  # network parameters
+  num_layers: 4
+  hid_size: 200
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+  # others
+  device: ${device}
+
+learned_reward: ${task.learning_reward}
+reward_mech:
+  _target_: cmrl.models.BaseRewardMech
+  # transition info
+  obs_size: ???
+  action_size: ???
+  deterministic: false
+  # algorithm parameters
+  learn_logvar_bounds: false  # so far this works better
+  ensemble_num: ${task.ensemble_num}
+  # network parameters
+  num_layers: 4
+  hid_size: 200
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+  # others
+  device: ${device}
+
+learned_termination: ${task.learning_terminal}
+termination_mech:
+  _target_: cmrl.models.BaseTerminationMech
+  # transition info
+  obs_size: ???
+  action_size: ???
+  deterministic: false
+
+optim_lr: ${task.model_learning.optim_lr}
+weight_decay: ${task.model_learning.weight_decay}
+
+normalize: true
+normalize_double_precision: true
+target_is_delta: true
+learned_rewards: true
+num_elites: 5
+

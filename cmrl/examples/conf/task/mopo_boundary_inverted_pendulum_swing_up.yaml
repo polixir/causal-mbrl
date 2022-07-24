@@ -1,0 +1,55 @@
+env: "emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=1&time_step=0.02___${task.dataset}"
+dataset: "expert-replay"
+
+# basic RL params
+num_steps: 1000000
+epoch_length: 1000
+
+# dynamics
+learning_reward: true
+learning_terminal: false
+ensemble_num: 7
+elites_num: 5
+
+# conditional independence test(causal discovery)
+oracle: true
+cit_threshold: 0.02
+test_freq: 1000
+# causal
+update_causal_mask_ratio: 0.25
+discovery_schedule: [1, 30, 250, 250]
+
+# mopo
+penalty_coeff: 5
+
+# dyna
+freq_train_model: 1000
+# model learning
+model_learning:
+  patience: 5
+  optim_lr: 0.001
+  weight_decay: 0.00001
+  batch_size: 256
+  validation_ratio: 0.2
+  shuffle_each_epoch: true
+  bootstrap_permutes: false
+  longest_epoch: -1
+  improvement_threshold: 0.1
+# model using
+effective_model_rollouts_per_step: 50
+rollout_schedule: [1, 15, 5, 5]
+num_sac_updates_per_step: 1
+sac_updates_every_steps: 1
+num_epochs_to_retain_sac_buffer: 1
+
+# SAC
+sac_gamma: 0.99
+sac_tau: 0.005
+sac_alpha: 0.2
+sac_policy: "Gaussian"
+sac_target_update_interval: 1
+sac_automatic_entropy_tuning: true
+sac_hidden_size: 256
+sac_lr: 0.0003
+sac_batch_size: 256
+sac_target_entropy: -1
