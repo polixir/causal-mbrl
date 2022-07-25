@@ -126,11 +126,11 @@ class FakeEnv:
             if self.learned_reward:
                 batch_reward, _ = self.get(dynamics_pred, "reward_mech", deterministic=deterministic)
             else:
-                batch_reward = self.reward_fn(self._current_batch_obs, batch_action, batch_next_obs)
+                batch_reward = self.reward_fn(batch_next_obs, self._current_batch_obs, batch_action)
             if self.learned_termination:
                 batch_terminal, _ = self.get(dynamics_pred, "termination_mech", deterministic=deterministic)
             else:
-                batch_terminal = self.termination_fn(self._current_batch_obs, batch_action, batch_next_obs)
+                batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, batch_action)
 
             if self.penalty_coeff != 0:
                 batch_reward -= penalty.reshape(batch_reward.shape) * self.penalty_coeff

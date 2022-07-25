@@ -19,11 +19,6 @@ from cmrl.util.replay_buffer import ReplayBuffer, TransitionIterator, BootstrapI
 from cmrl.types import InteractionBatch
 
 
-def p(d):
-    for k in d:
-        print(k, d[k].shape)
-
-
 class PlainEnsembleDynamics(BaseDynamics):
     def __init__(self,
                  transition: BaseEnsembleTransition,
@@ -73,7 +68,7 @@ class PlainEnsembleDynamics(BaseDynamics):
                     best_val_loss, val_loss, mech, model_learning_cfg.improvement_threshold,
                 )
                 if maybe_best_weights:
-                    best_val_loss = val_loss
+                    best_val_loss = val_loss.clone()
                     best_weights = maybe_best_weights
                     epochs_since_update = 0
                 else:
