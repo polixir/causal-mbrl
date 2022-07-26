@@ -20,7 +20,7 @@ update_causal_mask_ratio: 0.25
 discovery_schedule: [1, 30, 250, 250]
 
 # mopo
-penalty_coeff: 5
+penalty_coeff: 0
 
 # dyna
 freq_train_model: 1000

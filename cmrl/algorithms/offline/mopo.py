@@ -214,9 +214,8 @@ def train(
                 if rewards.mean() > best_eval_reward:
                     video_recorder.save(f"{epoch}.mp4")
                     best_eval_reward = rewards.mean()
-                    agent.sac_agent.save_checkpoint(
-                        ckpt_path=os.path.join(work_dir, "sac.pth")
-                    )
+                    agent.sac_agent.save_checkpoint(ckpt_path=os.path.join(work_dir, "sac_best.pth"))
+                agent.sac_agent.save_checkpoint(suffix=env_steps)
 
             env_steps += 1
     return np.float32(best_eval_reward)

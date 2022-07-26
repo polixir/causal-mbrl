@@ -29,17 +29,24 @@ class SAC(object):
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:
-                self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
+                if args.target_entropy is None:
+                    self.target_entropy = -torch.prod(
+                        torch.Tensor(action_space.shape).to(self.device)
+                    ).item()
+                else:
+                    self.target_entropy = args.target_entropy
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
-            self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+            self.policy = GaussianPolicy(
+                num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
-            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(
+                self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
     def select_action(self, state, batched=False, evaluate=False):
@@ -154,11 +161,10 @@ class SAC(object):
         )
 
     # Save model parameters
-    def save_checkpoint(self, env_name=None, suffix="", ckpt_path=None):
-        if not os.path.exists('checkpoints/'):
-            os.makedirs('checkpoints/')
+    def save_checkpoint(self, suffix="", ckpt_path=None):
+        os.makedirs('sac_checkpoints/', exist_ok=True)
         if ckpt_path is None:
-            ckpt_path = "checkpoints/sac_checkpoint_{}_{}".format(env_name, suffix)
+            ckpt_path = "sac_checkpoints/checkpoint_{}.pth".format(suffix)
         print('Saving models to {}'.format(ckpt_path))
         torch.save({'policy_state_dict': self.policy.state_dict(),
                     'critic_state_dict': self.critic.state_dict(),
@@ -185,4 +191,3 @@ class SAC(object):
                 self.policy.train()
                 self.critic.train()
                 self.critic_target.train()
-

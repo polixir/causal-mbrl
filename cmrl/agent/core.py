@@ -1,6 +1,6 @@
 import abc
 import pathlib
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 import gym
 import hydra
@@ -100,7 +100,9 @@ def complete_agent_cfg(
     return agent_cfg
 
 
-def load_agent(agent_path: Union[str, pathlib.Path], env: gym.Env) -> Agent:
+def load_agent(agent_path: Union[str, pathlib.Path],
+               env: gym.Env,
+               ckpt:Optional[str]=None) -> Agent:
     """Loads an agent from a Hydra config file at the given path.
 
     For agent of type "pytorch_sac.agent.sac.SACAgent", the directory
@@ -128,7 +130,10 @@ def load_agent(agent_path: Union[str, pathlib.Path], env: gym.Env) -> Agent:
 
         complete_agent_cfg(env, cfg.algorithm.agent)
         agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
-        agent.load_checkpoint(ckpt_path=agent_path / "sac.pth")
+        if ckpt is not None:
+            agent.load_checkpoint(ckpt_path=agent_path / "sac_checkpoints" / "checkpoint_{}.pth".format(ckpt))
+        else:
+            agent.load_checkpoint(ckpt_path=agent_path / "sac_bast.pth")
         return SACAgent(agent)
     else:
         raise ValueError("Invalid agent configuration.")

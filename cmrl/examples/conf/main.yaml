@@ -1,7 +1,7 @@
 defaults:
   - algorithm: mopo
   - dynamics: plain_dynamics
-  - task: mopo_boundary_inverted_pendulum_swing_up
+  - task: boundary_IP_swing_up
   - _self_
 
 seed: 0
