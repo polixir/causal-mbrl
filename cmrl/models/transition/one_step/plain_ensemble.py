@@ -41,7 +41,7 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
             action_size: int,
             deterministic: bool = False,
             # algorithm parameters
-            ensemble_num: int = 1,
+            ensemble_num: int = 7,
             elite_num: int = 5,
             residual: bool = True,
             learn_logvar_bounds: bool = False,
@@ -98,11 +98,10 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
 
     def forward(
             self,
-            batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, state_size
+            batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, obs_size
             batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
             only_elite: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        # print(batch_obs.shape, batch_action.shape)
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
 

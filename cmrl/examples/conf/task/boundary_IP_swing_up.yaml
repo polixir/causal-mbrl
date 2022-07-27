@@ -9,7 +9,7 @@ epoch_length: 1000
 learning_reward: false
 learning_terminal: false
 ensemble_num: 7
-elites_num: 5
+elite_num: 5
 
 # conditional independence test(causal discovery)
 oracle: true

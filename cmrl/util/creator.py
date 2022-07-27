@@ -7,7 +7,7 @@ import numpy as np
 import omegaconf
 
 from cmrl.util.replay_buffer import ReplayBuffer
-from cmrl.models.dynamics.plain_dynamics import PlainEnsembleDynamics
+from cmrl.models.dynamics import PlainEnsembleDynamics, ConstraintBasedDynamics
 from cmrl.util.logger import Logger
 
 
@@ -109,6 +109,13 @@ def create_dynamics(dynamics_cfg: omegaconf.DictConfig,
                     act_shape: Tuple[int, ...],
                     logger: Optional[Logger] = None,
                     model_dir: Optional[Union[str, pathlib.Path]] = None):
+    if dynamics_cfg.name == "plain_dynamics":
+        dynamics_class = PlainEnsembleDynamics
+    elif dynamics_cfg.name == "constraint_based_dynamics":
+        dynamics_class = ConstraintBasedDynamics
+    else:
+        raise NotImplementedError
+
     transition_cfg, reward_cfg, termination_cfg = get_complete_cfg(dynamics_cfg, obs_shape, act_shape)
     transition = hydra.utils.instantiate(transition_cfg, _recursive_=False)
 
@@ -123,7 +130,7 @@ def create_dynamics(dynamics_cfg: omegaconf.DictConfig,
     else:
         termination_mech = None
 
-    dynamics_model = PlainEnsembleDynamics(
+    dynamics_model = dynamics_class(
         transition=transition,
         learned_reward=dynamics_cfg.learned_reward,
         reward_mech=reward_mech,

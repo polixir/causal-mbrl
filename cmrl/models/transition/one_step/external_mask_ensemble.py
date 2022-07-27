@@ -68,9 +68,8 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         self.num_layers = num_layers
         self.hid_size = hid_size
 
-        self.input_mask = Optional[Union[Sequence, np.ndarray]]
+        self.input_mask: Optional[torch.Tensor] = torch.ones((obs_size, obs_size + action_size)).to(device)
         self.add_save_attr("input_mask")
-
 
         def create_activation():
             if activation_fn_cfg is None:

@@ -11,15 +11,16 @@ import itertools
 from typing import Optional, Union, Tuple, Callable, Dict, List, cast
 import copy
 from cmrl.models.nns import EnsembleMLP
+from cmrl.models.util import to_tensor
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
 from cmrl.models.dynamics import BaseDynamics
 from cmrl.util.logger import Logger
 from cmrl.util.replay_buffer import ReplayBuffer, TransitionIterator, BootstrapIterator
-from cmrl.types import InteractionBatch
+from cmrl.types import InteractionBatch, TensorType
 
 
-class PlainEnsembleDynamics(BaseDynamics):
+class ConstraintBasedDynamics(BaseDynamics):
     def __init__(self,
                  transition: BaseEnsembleTransition,
                  learned_reward: bool = True,
@@ -31,15 +32,27 @@ class PlainEnsembleDynamics(BaseDynamics):
                  weight_decay: float = 1e-5,
                  optim_eps: float = 1e-8,
                  logger: Optional[Logger] = None, ):
-        super(PlainEnsembleDynamics, self).__init__(transition=transition,
-                                                    learned_reward=learned_reward,
-                                                    reward_mech=reward_mech,
-                                                    learned_termination=learned_termination,
-                                                    termination_mech=termination_mech,
-                                                    optim_lr=optim_lr,
-                                                    weight_decay=weight_decay,
-                                                    optim_eps=optim_eps,
-                                                    logger=logger)
+        super(ConstraintBasedDynamics, self).__init__(transition=transition,
+                                                      learned_reward=learned_reward,
+                                                      reward_mech=reward_mech,
+                                                      learned_termination=learned_termination,
+                                                      termination_mech=termination_mech,
+                                                      optim_lr=optim_lr,
+                                                      weight_decay=weight_decay,
+                                                      optim_eps=optim_eps,
+                                                      logger=logger)
+
+        for mech in self.learn_mech:
+            if hasattr(getattr(self, mech), "input_mask"):
+                setattr(self, "{}_oracle_mask".format(mech), None)
+                setattr(self, "{}_history_mask".format(mech),
+                        torch.ones(getattr(self, mech).input_mask.shape).to(self.device))
+
+    def set_oracle_mask(self,
+                        mech: str,
+                        mask: TensorType):
+        assert hasattr(self, "{}_oracle_mask".format(mech))
+        setattr(self, "{}_oracle_mask".format(mech), to_tensor(mask))
 
     def learn(self,
               # data
@@ -64,6 +77,9 @@ class PlainEnsembleDynamics(BaseDynamics):
         longest_epoch = longest_epoch
 
         for mech in self.learn_mech:
+            if hasattr(self, "{}_oracle_mask".format(mech)):
+                getattr(self, mech).set_input_mask(getattr(self, "{}_oracle_mask".format(mech)))
+
             train_losses, val_losses = [], []
             best_weights: Optional[Dict] = None
             epoch_iter = range(longest_epoch) if longest_epoch > 0 else itertools.count()

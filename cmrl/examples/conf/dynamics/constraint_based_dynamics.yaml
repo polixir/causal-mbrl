@@ -1,44 +1,53 @@
 name: constraint_based_dynamics
 
-dynamics:
-  _target_: cmrl.models.ParallelGaussianMLP
-  device: ${device}
-  num_layers: 4
-  in_size: ???
-  out_size: ???
-  parallel_size: ???
-  target_transform: ???
-  ensemble_size: 7
-  hid_size: 100
+transition:
+  _target_: cmrl.models.transition.ExternalMaskEnsembleGaussianTransition
+  # transition info
+  obs_size: ???
+  action_size: ???
   deterministic: false
-  propagation_method: random_model
+  # algorithm parameters
+  ensemble_num: ${task.ensemble_num}
+  elite_num: ${task.elite_num}
+  residual: true
   learn_logvar_bounds: false  # so far this works better
-  activation_fn_conf:
-    _target_: torch.nn.SiLU
-
-discovery:
-  _target_: cmrl.models.ParallelGaussianMLP
-  device: ${device}
+  # network parameters
   num_layers: 4
-  in_size: ???
-  out_size: ???
-  parallel_size: ???
-  target_transform: ???
-  ensemble_size: 7
-  hid_size: 100
-  deterministic: false
-  propagation_method: random_model
-  learn_logvar_bounds: false  # so far this works better
-  activation_fn_conf:
+  hid_size: 200
+  activation_fn_cfg:
     _target_: torch.nn.SiLU
+  # others
+  device: ${device}
 
-oracle: ${task.oracle}
+learned_reward: ${task.learning_reward}
+reward_mech:
+  _target_: cmrl.models.BaseRewardMech
+  # transition info
+  obs_size: ???
+  action_size: ???
+  deterministic: false
+  # algorithm parameters
+  learn_logvar_bounds: false  # so far this works better
+  ensemble_num: ${task.ensemble_num}
+  elite_num: ${task.elite_num}
+  # network parameters
+  num_layers: 4
+  hid_size: 200
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+  # others
+  device: ${device}
+
+learned_termination: ${task.learning_terminal}
+termination_mech:
+  _target_: cmrl.models.BaseTerminationMech
+  # transition info
+  obs_size: ???
+  action_size: ???
+  deterministic: false
+
+optim_lr: ${task.model_learning.optim_lr}
+weight_decay: ${task.model_learning.weight_decay}
 
 normalize: true
 normalize_double_precision: true
-target_is_delta: true
-learned_rewards: true
-num_elites: 5
-
-model_lr: 0.001
-model_wd: 0.00001

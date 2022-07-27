@@ -128,6 +128,7 @@ def train(
     else:
         oracle_causal_graph = None
 
+    dynamics.set_oracle_mask("transition", oracle_causal_graph[:-1])
     dynamics.learn(replay_buffer,
                    **cfg.task.model_learning,
                    work_dir=work_dir)

@@ -8,6 +8,7 @@ transition:
   deterministic: false
   # algorithm parameters
   ensemble_num: ${task.ensemble_num}
+  elite_num: ${task.elite_num}
   residual: true
   learn_logvar_bounds: false  # so far this works better
   # network parameters
@@ -28,6 +29,7 @@ reward_mech:
   # algorithm parameters
   learn_logvar_bounds: false  # so far this works better
   ensemble_num: ${task.ensemble_num}
+  elite_num: ${task.elite_num}
   # network parameters
   num_layers: 4
   hid_size: 200
@@ -47,9 +49,7 @@ termination_mech:
 optim_lr: ${task.model_learning.optim_lr}
 weight_decay: ${task.model_learning.weight_decay}
 
+
 normalize: true
 normalize_double_precision: true
-target_is_delta: true
-learned_rewards: true
-num_elites: 5
 

@@ -1,9 +1,8 @@
-import torch.nn as nn
+import abc
+
 import torch
 import numpy as np
 import pathlib
-import abc
-import omegaconf
 import collections
 from typing import Optional, Union, Tuple, Dict, List, cast
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
@@ -29,7 +28,7 @@ class BaseDynamics:
         ("val_dataset_size", "VD", "int"),
         ("train_loss", "TLOSS", "float"),
         ("val_loss", "VLOSS", "float"),
-        ("best_val_score", "BVLOSS", "float"),
+        ("best_val_loss", "BVLOSS", "float"),
     ]
 
     def __init__(self,
@@ -79,10 +78,13 @@ class BaseDynamics:
                     dump_frequency=1,
                 )
 
-    ###################################
-    # auxiliary method for "single batch data"
-    ###################################
+    @abc.abstractmethod
+    def learn(self,
+              replay_buffer: ReplayBuffer,
+              **kwargs):
+        pass
 
+    # auxiliary method for "single batch data"
     def get_3d_tensor(self,
                       data: Union[np.ndarray, torch.Tensor],
                       is_ensemble: bool):
@@ -97,21 +99,7 @@ class BaseDynamics:
                 data = data.unsqueeze(data.ndim)
             return data.repeat([self.ensemble_num, 1, 1]).to(self.device)
 
-    ###################################
     # auxiliary method for "interaction batch data"
-    ###################################
-    def update(self, batch: InteractionBatch):
-        nll_loss = self.get_mech_loss(batch, loss_type="nll", is_ensemble=True)
-        mean_nll_loss = dict([(key, value.mean()) for key, value in nll_loss])
-        for mech, variable in self._MECH_TO_VARIABLE.items():
-            if getattr(self, mech) is not None:
-                optim = cast(getattr(self, "{}_optimizer"), torch.optim.Optimizer)
-                optim.zero_grad()
-                mean_nll_loss[variable].backward()
-                optim.step()
-
-        return dict([(key, value.item()) for key, value in mean_nll_loss])
-
     def get_mech_loss(self,
                       batch: InteractionBatch,
                       mech: str = "transition",
@@ -125,10 +113,7 @@ class BaseDynamics:
         variable = self._MECH_TO_VARIABLE[mech]
         return getattr(getattr(self, mech), "get_{}_loss".format(loss_type))(model_in, data[variable])
 
-    ###################################
     # auxiliary method for "replay buffer"
-    ###################################
-
     def dataset_split(self,
                       replay_buffer: ReplayBuffer,
                       validation_ratio: float = 0.2,
@@ -159,6 +144,7 @@ class BaseDynamics:
 
         return train_iter, val_iter
 
+    # auxiliary method for "dataset"
     def evaluate(self,
                  dataset: TransitionIterator,
                  mech: str = "transition", ):
@@ -202,6 +188,7 @@ class BaseDynamics:
                 result[variable]["logvar"] = logvar.cpu()
         return result
 
+    # other auxiliary method
     def save(self, save_dir: Union[str, pathlib.Path]):
         for mech in self.learn_mech:
             getattr(self, mech).save(save_dir=save_dir)
