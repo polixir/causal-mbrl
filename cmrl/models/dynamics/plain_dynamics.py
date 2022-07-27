@@ -41,13 +41,27 @@ class PlainEnsembleDynamics(BaseDynamics):
                                                     optim_eps=optim_eps,
                                                     logger=logger)
 
-    def train_and_save(self,
-                       # data
-                       replay_buffer: ReplayBuffer,
-                       model_learning_cfg: omegaconf.DictConfig,
-                       work_dir: Optional[Union[str, pathlib.Path]] = None, ):
-        train_dataset, val_dataset = self.dataset_split(replay_buffer, model_learning_cfg)
-        longest_epoch = model_learning_cfg.longest_epoch
+    def learn(self,
+              # data
+              replay_buffer: ReplayBuffer,
+              # dataset split
+              validation_ratio: float = 0.2,
+              batch_size: int = 256,
+              shuffle_each_epoch: bool = True,
+              bootstrap_permutes: bool = False,
+              # model learning
+              longest_epoch: Optional[int] = None,
+              improvement_threshold: float = 0.1,
+              patience: int = 5,
+              work_dir: Optional[Union[str, pathlib.Path]] = None,
+              # other
+              **kwargs):
+        train_dataset, val_dataset = self.dataset_split(replay_buffer,
+                                                        validation_ratio,
+                                                        batch_size,
+                                                        shuffle_each_epoch,
+                                                        bootstrap_permutes)
+        longest_epoch = longest_epoch
 
         for mech in self.learn_mech:
             train_losses, val_losses = [], []
@@ -65,7 +79,7 @@ class PlainEnsembleDynamics(BaseDynamics):
                 val_losses.append(val_loss)
 
                 maybe_best_weights = self.maybe_get_best_weights(
-                    best_val_loss, val_loss, mech, model_learning_cfg.improvement_threshold,
+                    best_val_loss, val_loss, mech, improvement_threshold,
                 )
                 if maybe_best_weights:
                     best_val_loss = val_loss.clone()
@@ -75,22 +89,24 @@ class PlainEnsembleDynamics(BaseDynamics):
                     epochs_since_update += 1
 
                 # log
-                self.logger.log_data(
-                    mech,
-                    {
-                        "epoch": epoch,
-                        "train_dataset_size": train_dataset.num_stored,
-                        "val_dataset_size": val_dataset.num_stored,
-                        "train_loss": train_loss.mean(),
-                        "val_loss": val_loss.mean(),
-                        "best_val_score": best_val_loss.mean()
-                    }, )
+                if self.logger is not None:
+                    self.logger.log_data(
+                        mech,
+                        {
+                            "epoch": epoch,
+                            "train_dataset_size": train_dataset.num_stored,
+                            "val_dataset_size": val_dataset.num_stored,
+                            "train_loss": train_loss.mean(),
+                            "val_loss": val_loss.mean(),
+                            "best_val_score": best_val_loss.mean()
+                        }, )
 
-                if model_learning_cfg.patience and epochs_since_update >= model_learning_cfg.patience:
+                if patience and epochs_since_update >= patience:
                     break
 
             # saving the best models:
             self.maybe_set_best_weights_and_elite(best_weights, best_val_loss, mech=mech)
+        self.save(work_dir)
 
     def maybe_get_best_weights(
             self,

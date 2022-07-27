@@ -128,9 +128,9 @@ def train(
     else:
         oracle_causal_graph = None
 
-    dynamics.train_and_save(replay_buffer,
-                            cfg.task.model_learning,
-                            work_dir=work_dir)
+    dynamics.learn(replay_buffer,
+                   **cfg.task.model_learning,
+                   work_dir=work_dir)
     # dynamics.load("/home/frank/Projects/causal-mbrl-lib/exp/mopo/constraint_based_dynamics/try/emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=1&time_step=0.02___expert/2022.06.22/182316")
     # dynamics.model.set_input_mask(oracle_causal_graph)
 

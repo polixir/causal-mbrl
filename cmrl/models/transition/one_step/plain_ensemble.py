@@ -32,7 +32,7 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
             desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
 
-    _MODEL_FILENAME = "base_ensemble_transition.pth"
+    _MODEL_FILENAME = "plain_ensemble_transition.pth"
 
     def __init__(
             self,

@@ -19,10 +19,10 @@ def split_dict(old_dict: Dict,
 
 
 class BaseDynamics:
-    _MECH_TO_NAME = {"transition": "batch_next_obs",
-                     "reward_mech": "batch_reward",
-                     "termination_mech": "batch_terminal", }
-    _NAME_TO_MECH = dict([(value, key) for key, value in _MECH_TO_NAME.items()])
+    _MECH_TO_VARIABLE = {"transition": "batch_next_obs",
+                         "reward_mech": "batch_reward",
+                         "termination_mech": "batch_terminal", }
+    _VARIABLE_TO_MECH = dict([(value, key) for key, value in _MECH_TO_VARIABLE.items()])
     _MODEL_LOG_FORMAT = [
         ("epoch", "E", "int"),
         ("train_dataset_size", "TD", "int"),
@@ -49,10 +49,6 @@ class BaseDynamics:
         self.reward_mech = reward_mech
         self.learned_termination = learned_termination
         self.termination_mech = termination_mech
-        if not self.learned_reward:
-            assert self.reward_mech is None
-        if not self.learned_termination:
-            assert self.termination_mech is None
 
         self.optim_lr = optim_lr
         self.weight_decay = weight_decay
@@ -74,13 +70,14 @@ class BaseDynamics:
                 self.termination_mech.parameters(), lr=optim_lr, weight_decay=weight_decay, eps=optim_eps, )
             self.learn_mech.append("termination_mech")
 
-        for mech in self.learn_mech:
-            self.logger.register_group(
-                mech,
-                self._MODEL_LOG_FORMAT,
-                color="blue",
-                dump_frequency=1,
-            )
+        if self.logger is not None:
+            for mech in self.learn_mech:
+                self.logger.register_group(
+                    mech,
+                    self._MODEL_LOG_FORMAT,
+                    color="blue",
+                    dump_frequency=1,
+                )
 
     ###################################
     # auxiliary method for "single batch data"
@@ -106,11 +103,11 @@ class BaseDynamics:
     def update(self, batch: InteractionBatch):
         nll_loss = self.get_mech_loss(batch, loss_type="nll", is_ensemble=True)
         mean_nll_loss = dict([(key, value.mean()) for key, value in nll_loss])
-        for mech, name in self._MECH_TO_NAME.items():
+        for mech, variable in self._MECH_TO_VARIABLE.items():
             if getattr(self, mech) is not None:
                 optim = cast(getattr(self, "{}_optimizer"), torch.optim.Optimizer)
                 optim.zero_grad()
-                mean_nll_loss[name].backward()
+                mean_nll_loss[variable].backward()
                 optim.step()
 
         return dict([(key, value.item()) for key, value in mean_nll_loss])
@@ -125,8 +122,8 @@ class BaseDynamics:
             data[attr] = self.get_3d_tensor(getattr(batch, attr).copy(), is_ensemble=is_ensemble)
         model_in = split_dict(data, ["batch_obs", "batch_action"])
 
-        name = self._MECH_TO_NAME[mech]
-        return getattr(getattr(self, mech), "get_{}_loss".format(loss_type))(model_in, data[name])
+        variable = self._MECH_TO_VARIABLE[mech]
+        return getattr(getattr(self, mech), "get_{}_loss".format(loss_type))(model_in, data[variable])
 
     ###################################
     # auxiliary method for "replay buffer"
@@ -134,19 +131,22 @@ class BaseDynamics:
 
     def dataset_split(self,
                       replay_buffer: ReplayBuffer,
-                      model_learning_cfg: omegaconf.DictConfig,
+                      validation_ratio: float = 0.2,
+                      batch_size: int = 256,
+                      shuffle_each_epoch: bool = True,
+                      bootstrap_permutes: bool = False,
                       ) -> Tuple[TransitionIterator, Optional[TransitionIterator]]:
         data = replay_buffer.get_all(shuffle=True)
 
-        val_size = int(len(data) * model_learning_cfg.validation_ratio)
+        val_size = int(len(data) * validation_ratio)
         train_size = len(data) - val_size
         train_data = data[:train_size]
         train_iter = BootstrapIterator(
             train_data,
-            model_learning_cfg.batch_size,
+            batch_size,
             self.ensemble_num,
-            shuffle_each_epoch=model_learning_cfg.shuffle_each_epoch,
-            permute_indices=model_learning_cfg.bootstrap_permutes,
+            shuffle_each_epoch=shuffle_each_epoch,
+            permute_indices=bootstrap_permutes,
             rng=replay_buffer.rng,
         )
 
@@ -154,17 +154,10 @@ class BaseDynamics:
         if val_size > 0:
             val_data = data[train_size:]
             val_iter = TransitionIterator(
-                val_data, model_learning_cfg.batch_size, shuffle_each_epoch=False, rng=replay_buffer.rng
+                val_data, batch_size, shuffle_each_epoch=False, rng=replay_buffer.rng
             )
 
         return train_iter, val_iter
-
-    @abc.abstractmethod
-    def train_and_save(self,
-                       replay_buffer: ReplayBuffer,
-                       model_learning_cfg: omegaconf.DictConfig,
-                       work_dir: Optional[Union[str, pathlib.Path]] = None, ):
-        pass
 
     def evaluate(self,
                  dataset: TransitionIterator,
@@ -198,12 +191,31 @@ class BaseDynamics:
         obs = self.get_3d_tensor(obs, is_ensemble=False)
         action = self.get_3d_tensor(action, is_ensemble=False)
         for mech in self.learn_mech:
-            mean, logvar = getattr(self, "{}".format(mech)).forward(obs, action)
-
+            with torch.no_grad():
+                mean, logvar = getattr(self, "{}".format(mech)).forward(obs, action)
+            variable = self.get_variable_by_mech(mech)
             if return_as_np:
-                result[mech]["mean"] = mean.cpu().numpy()
-                result[mech]["logvar"] = logvar.cpu().numpy()
+                result[variable]["mean"] = mean.cpu().numpy()
+                result[variable]["logvar"] = logvar.cpu().numpy()
             else:
-                result[mech]["mean"] = mean.cpu()
-                result[mech]["logvar"] = logvar.cpu()
+                result[variable]["mean"] = mean.cpu()
+                result[variable]["logvar"] = logvar.cpu()
         return result
+
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        for mech in self.learn_mech:
+            getattr(self, mech).save(save_dir=save_dir)
+
+    def load(self, load_dir: Union[str, pathlib.Path]):
+        for mech in self.learn_mech:
+            getattr(self, mech).load(load_dir=load_dir)
+
+    def get_variable_by_mech(self,
+                             mech: str) -> str:
+        assert mech in self._MECH_TO_VARIABLE
+        return self._MECH_TO_VARIABLE[mech]
+
+    def get_mach_by_variable(self,
+                             variable: str) -> str:
+        assert variable in self._VARIABLE_TO_MECH
+        return self._VARIABLE_TO_MECH[variable]

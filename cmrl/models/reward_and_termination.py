@@ -12,7 +12,7 @@ from cmrl.models.layers import EnsembleLinearLayer, truncated_normal_init
 
 
 class BaseRewardMech(EnsembleMLP):
-    _MODEL_FILENAME = "base_reward.pth"
+    _MODEL_FILENAME = "reward_mech.pth"
 
     def __init__(
             self,
@@ -96,5 +96,7 @@ class BaseRewardMech(EnsembleMLP):
 
 
 class BaseTerminationMech(nn.Module):
+    _MODEL_FILENAME = "termination_mech.pth"
+
     def __init__(self):
         super(BaseTerminationMech, self).__init__()
