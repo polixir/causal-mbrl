@@ -169,7 +169,7 @@ class BaseDynamics:
             for batch in dataset:
                 val_loss = self.get_mech_loss(batch, mech=mech, loss_type="mse", is_ensemble=False)
                 batch_loss_list.append(val_loss)
-        return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2)
+        return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2).cpu()
 
     def train(self, dataset: TransitionIterator,
               mech: str = "transition", ):
@@ -183,7 +183,7 @@ class BaseDynamics:
             train_loss.mean().backward()
             optim.step()
             batch_loss_list.append(train_loss)
-        return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2)
+        return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2).detach().cpu()
 
     def query(self, obs, action,
               return_as_np=True):
