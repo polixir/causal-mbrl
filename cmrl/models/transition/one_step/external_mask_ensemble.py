@@ -3,6 +3,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 import hydra
 import omegaconf
+import numpy as np
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -67,6 +68,10 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         self.num_layers = num_layers
         self.hid_size = hid_size
 
+        self.input_mask = Optional[Union[Sequence, np.ndarray]]
+        self.add_save_attr("input_mask")
+
+
         def create_activation():
             if activation_fn_cfg is None:
                 return nn.ReLU()
@@ -103,17 +108,6 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         return ParallelEnsembleLinearLayer(l_in, l_out,
                                            parallel_num=self.obs_size,
                                            ensemble_num=self.ensemble_num)
-
-    def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
-        if self.elite_members is None:
-            return
-        if self.num_members > 1 and only_elite:
-            for layer in self.hidden_layers:
-                # each layer is (linear layer, activation_func)
-                layer[0].set_elite(self.elite_members)
-                layer[0].toggle_use_only_elite()
-            self.mean_and_logvar.set_elite(self.elite_members)
-            self.mean_and_logvar.toggle_use_only_elite()
 
     def set_input_mask(self, mask: cmrl.types.TensorType):
         self.input_mask = to_tensor(mask).to(self.device)
@@ -154,12 +148,10 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
 
-        self._maybe_toggle_layers_use_only_elite(only_elite)
         repeated_input = torch.concat([batch_obs, batch_action], dim=-1).repeat((self.obs_size, 1, 1, 1))
         masked_input = self.mask_input(repeated_input)
         hidden = self.hidden_layers(masked_input)
         mean_and_logvar = self.mean_and_logvar(hidden)
-        self._maybe_toggle_layers_use_only_elite(only_elite)
 
         if self.deterministic:
             mean, logvar = mean_and_logvar, None
@@ -177,19 +169,3 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
             mean += batch_obs.detach()
 
         return mean, logvar
-
-    def save(self, save_dir: Union[str, pathlib.Path]):
-        """Saves the model to the given directory."""
-        model_dict = {
-            "state_dict": self.state_dict(),
-            "elite_models": self.elite_members,
-            "input_mask": self.input_mask,
-        }
-        torch.save(model_dict, pathlib.Path(save_dir) / self._MODEL_FILENAME)
-
-    def load(self, load_dir: Union[str, pathlib.Path]):
-        """Loads the model from the given path."""
-        model_dict = torch.load(pathlib.Path(load_dir) / self._MODEL_FILENAME)
-        self.load_state_dict(model_dict["state_dict"])
-        self.elite_members = model_dict["elite_models"]
-        self.input_mask = model_dict["input_mask"]

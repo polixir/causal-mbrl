@@ -11,6 +11,7 @@ import hydra
 
 class EnsembleMLP(nn.Module):
     _MODEL_FILENAME = "ensemble_mlp.pth"
+    _MODEL_SAVE_ATTRS = ["elite_members", "state_dict"]
 
     def __init__(self,
                  ensemble_num: int = 7,
@@ -22,7 +23,6 @@ class EnsembleMLP(nn.Module):
         self.device = device
 
         self.elite_members: Optional[Sequence[int]] = np.random.permutation(ensemble_num)[:elite_num]
-        self.model_save_attrs = ["elite_members", "state_dict"]
 
     def set_elite(self, elite_indices: Sequence[int]):
         if len(elite_indices) != self.ensemble_num:
@@ -35,7 +35,7 @@ class EnsembleMLP(nn.Module):
     def save(self, save_dir: Union[str, pathlib.Path]):
         """Saves the model to the given directory."""
         model_dict = {}
-        for attr in self.model_save_attrs:
+        for attr in self._MODEL_SAVE_ATTRS:
             if attr == "state_dict":
                 model_dict["state_dict"] = self.state_dict()
             else:
@@ -67,3 +67,9 @@ class EnsembleMLP(nn.Module):
         nll_loss = models_util.gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
         nll_loss += 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
         return nll_loss
+
+    def add_save_attr(self,
+                      attr: str):
+        assert hasattr(self, attr), "Class must has attribute {}".format(attr)
+        assert attr not in self._MODEL_SAVE_ATTRS, "Attribute {} has been in model-save-list".format(attr)
+        self._MODEL_SAVE_ATTRS.append(attr)

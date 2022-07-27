@@ -96,17 +96,6 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
         self.apply(truncated_normal_init)
         self.to(self.device)
 
-    def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
-        if self.elite_members is None:
-            return
-        if self.num_members > 1 and only_elite:
-            for layer in self.hidden_layers:
-                # each layer is (linear layer, activation_func)
-                layer[0].set_elite(self.elite_members)
-                layer[0].toggle_use_only_elite()
-            self.mean_and_logvar.set_elite(self.elite_members)
-            self.mean_and_logvar.toggle_use_only_elite()
-
     def forward(
             self,
             batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, state_size

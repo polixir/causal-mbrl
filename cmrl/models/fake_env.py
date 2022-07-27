@@ -92,7 +92,8 @@ class FakeEnv:
             dynamics_pred: Dict,
             mech: str,
             deterministic: bool = False, ):
-        ensemble_mean, ensemble_logvar = dynamics_pred[mech]["mean"], dynamics_pred[mech]["logvar"]
+        variable = self.dynamics.get_variable_by_mech(mech)
+        ensemble_mean, ensemble_logvar = dynamics_pred[variable]["mean"], dynamics_pred[variable]["logvar"]
         batch_size = ensemble_mean.shape[1]
         random_index = getattr(self.dynamics, mech).get_random_index(batch_size)
         if deterministic:

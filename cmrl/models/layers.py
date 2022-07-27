@@ -59,42 +59,18 @@ class EnsembleLinearLayer(nn.Module):
         else:
             self.use_bias = False
 
-        self.elite_members: Optional[Sequence[int]] = None
-        self.use_only_elite = False
-
     def forward(self, x):
-        if self.use_only_elite:
-            xw = x.matmul(self.weight[:, self.elite_members, ...])
-            if self.use_bias:
-                return xw + self.bias[:, self.elite_members, ...]
-            else:
-                return xw
+        xw = x.matmul(self.weight)
+        if self.use_bias:
+            return xw + self.bias
         else:
-            xw = x.matmul(self.weight)
-            if self.use_bias:
-                return xw + self.bias
-            else:
-                return xw
+            return xw
 
     def __repr__(self) -> str:
         return (
             f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}"
             f"ensemble_num={self.ensemble_num}"
         )
-
-    def set_elite(self, elite_members: Sequence[int]):
-        """ set elite members of this layer
-
-        Args:
-            elite_members: the index of elite members.
-        """
-        self.elite_members = list(elite_members)
-
-    def toggle_use_only_elite(self):
-        """Toggle whether to use elite members only
-
-        """
-        self.use_only_elite = not self.use_only_elite
 
 
 class ParallelEnsembleLinearLayer(nn.Module):
@@ -132,39 +108,15 @@ class ParallelEnsembleLinearLayer(nn.Module):
         else:
             self.use_bias = False
 
-        self.elite_members: Optional[Sequence[int]] = None
-        self.use_only_elite = False
-
     def forward(self, x):
-        if self.use_only_elite:
-            xw = x.matmul(self.weight[:, self.elite_members, ...])
-            if self.use_bias:
-                return xw + self.bias[:, self.elite_members, ...]
-            else:
-                return xw
+        xw = x.matmul(self.weight)
+        if self.use_bias:
+            return xw + self.bias
         else:
-            xw = x.matmul(self.weight)
-            if self.use_bias:
-                return xw + self.bias
-            else:
-                return xw
+            return xw
 
     def __repr__(self) -> str:
         return (
             f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}"
             f"parallel_num={self.parallel_num}, ensemble_num={self.ensemble_num}"
         )
-
-    def set_elite(self, elite_members: Sequence[int]):
-        """ set elite members of this layer
-
-        Args:
-            elite_members: the index of elite members.
-        """
-        self.elite_members = list(elite_members)
-
-    def toggle_use_only_elite(self):
-        """Toggle whether to use elite members only
-
-        """
-        self.use_only_elite = not self.use_only_elite
