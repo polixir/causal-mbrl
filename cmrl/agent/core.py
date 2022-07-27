@@ -133,7 +133,7 @@ def load_agent(agent_path: Union[str, pathlib.Path],
         if ckpt is not None:
             agent.load_checkpoint(ckpt_path=agent_path / "sac_checkpoints" / "checkpoint_{}.pth".format(ckpt))
         else:
-            agent.load_checkpoint(ckpt_path=agent_path / "sac_bast.pth")
+            agent.load_checkpoint(ckpt_path=agent_path / "sac_best.pth")
         return SACAgent(agent)
     else:
         raise ValueError("Invalid agent configuration.")

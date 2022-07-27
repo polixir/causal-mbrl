@@ -82,6 +82,7 @@ class PlainEnsembleDynamics(BaseDynamics):
                     best_val_loss, val_loss, mech, improvement_threshold,
                 )
                 if maybe_best_weights:
+                    # best loss
                     best_val_loss = val_loss.clone()
                     best_weights = maybe_best_weights
                     epochs_since_update = 0
