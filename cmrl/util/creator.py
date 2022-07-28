@@ -9,6 +9,7 @@ import omegaconf
 from cmrl.util.replay_buffer import ReplayBuffer
 from cmrl.models.dynamics import PlainEnsembleDynamics, ConstraintBasedDynamics
 from cmrl.util.logger import Logger
+from cmrl.util.config import get_complete_dynamics_cfg
 
 
 def create_replay_buffer(
@@ -87,23 +88,6 @@ def create_replay_buffer(
     return replay_buffer
 
 
-def get_complete_cfg(dynamics_cfg: omegaconf.DictConfig,
-                     obs_shape: Tuple[int, ...],
-                     act_shape: Tuple[int, ...], ):
-    transition_cfg = dynamics_cfg.transition
-    transition_cfg.obs_size = obs_shape[0]
-    transition_cfg.action_size = act_shape[0]
-
-    reward_cfg = dynamics_cfg.reward_mech
-    reward_cfg.obs_size = obs_shape[0]
-    reward_cfg.action_size = act_shape[0]
-
-    termination_cfg = dynamics_cfg.termination_mech
-    termination_cfg.obs_size = obs_shape[0]
-    termination_cfg.action_size = act_shape[0]
-    return transition_cfg, reward_cfg, termination_cfg
-
-
 def create_dynamics(dynamics_cfg: omegaconf.DictConfig,
                     obs_shape: Tuple[int, ...],
                     act_shape: Tuple[int, ...],
@@ -116,16 +100,16 @@ def create_dynamics(dynamics_cfg: omegaconf.DictConfig,
     else:
         raise NotImplementedError
 
-    transition_cfg, reward_cfg, termination_cfg = get_complete_cfg(dynamics_cfg, obs_shape, act_shape)
-    transition = hydra.utils.instantiate(transition_cfg, _recursive_=False)
+    dynamics_cfg = get_complete_dynamics_cfg(dynamics_cfg, obs_shape, act_shape)
+    transition = hydra.utils.instantiate(dynamics_cfg.transition, _recursive_=False)
 
     if dynamics_cfg.learned_reward:
-        reward_mech = hydra.utils.instantiate(reward_cfg, _recursive_=False)
+        reward_mech = hydra.utils.instantiate(dynamics_cfg.reward_mech, _recursive_=False)
     else:
         reward_mech = None
 
     if dynamics_cfg.learned_termination:
-        termination_mech = hydra.utils.instantiate(termination_cfg, _recursive_=False)
+        termination_mech = hydra.utils.instantiate(dynamics_cfg.termination_mech, _recursive_=False)
         raise NotImplementedError
     else:
         termination_mech = None

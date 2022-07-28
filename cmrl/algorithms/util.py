@@ -1,4 +1,5 @@
 import os
+import pathlib
 from typing import Optional, Sequence, cast
 
 import gym
@@ -9,8 +10,11 @@ import cmrl.constants
 import cmrl.models
 import cmrl.agent
 import cmrl.types
+from omegaconf import DictConfig
 from cmrl.agent.sac_wrapper import SACAgent
 from cmrl.util.video import VideoRecorder
+from cmrl.util.config import load_hydra_cfg, get_complete_dynamics_cfg
+from cmrl.models.dynamics import BaseDynamics
 
 
 def rollout_model_and_populate_sac_buffer(
@@ -137,3 +141,49 @@ def truncated_linear(
         dx = min(dx, 1.0)
         y = dx * (max_y - min_y) + min_y
     return y
+
+
+def is_same_dict(dict1, dict2):
+    for key in dict1:
+        if key not in dict2:
+            # print(0, key)
+            return False
+        else:
+            if isinstance(dict1[key], DictConfig) and isinstance(dict2[key], DictConfig):
+                if not is_same_dict(dict1[key], dict2[key]):
+                    # print(1, key, dict1[key], dict2[key])
+                    return False
+            else:
+                if dict1[key] != dict2[key]:
+                    # print(2, key, dict1[key], dict2[key])
+                    return False
+    return True
+
+
+def maybe_load_trained_model(dynamics:BaseDynamics ,
+                             cfg,
+                             obs_shape,
+                             act_shape,
+                             work_dir):
+    work_dir = pathlib.Path(work_dir)
+    task_exp_dir = work_dir.parent.parent
+    dynamics_cfg = cfg.dynamics
+
+    for data_dir in task_exp_dir.glob(r"*"):
+        for exp_dir in data_dir.glob(r"*"):
+            if not (exp_dir / ".hydra").exists():
+                continue
+            exp_cfg = load_hydra_cfg(exp_dir)
+            exp_dynamics_cfg = get_complete_dynamics_cfg(exp_cfg.dynamics, obs_shape, act_shape)
+
+            if exp_cfg.seed == cfg.seed and is_same_dict(dynamics_cfg, exp_dynamics_cfg):
+                exist_model_file = True
+                for mech in dynamics.learn_mech:
+                    mech_file_name = getattr(dynamics, mech).model_file_name
+                    if not (exp_dir / mech_file_name).exists():
+                        exist_model_file = False
+                if exist_model_file:
+                    dynamics.load(exp_dir)
+                    print("loaded dynamics from {}".format(exp_dir))
+                    return True
+    return False

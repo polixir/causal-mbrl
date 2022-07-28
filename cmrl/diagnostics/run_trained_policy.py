@@ -6,7 +6,7 @@ from typing import Generator, List, Optional, Tuple, cast, Union
 import cmrl
 import cmrl.models
 import cmrl.agent
-from cmrl.diagnostics.util import load_hydra_cfg
+from cmrl.util.config import load_hydra_cfg
 from cmrl.util.env import make_env
 
 

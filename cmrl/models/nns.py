@@ -73,3 +73,7 @@ class EnsembleMLP(nn.Module):
         assert hasattr(self, attr), "Class must has attribute {}".format(attr)
         assert attr not in self._MODEL_SAVE_ATTRS, "Attribute {} has been in model-save-list".format(attr)
         self._MODEL_SAVE_ATTRS.append(attr)
+
+    @property
+    def model_file_name(self):
+        return self._MODEL_FILENAME

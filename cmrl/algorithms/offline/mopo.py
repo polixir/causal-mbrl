@@ -10,6 +10,7 @@ import torch
 import cmrl.constants
 import cmrl.agent
 import cmrl.models
+import cmrl.models.dynamics
 import cmrl.third_party.pytorch_sac as pytorch_sac
 import cmrl.types
 import cmrl.util
@@ -17,7 +18,7 @@ import cmrl.util.creator as creator
 from cmrl.agent.sac_wrapper import SACAgent
 from cmrl.util.video import VideoRecorder
 from cmrl.algorithms.util import evaluate, rollout_model_and_populate_sac_buffer, maybe_replace_sac_buffer, \
-    truncated_linear
+    truncated_linear, maybe_load_trained_model
 
 MBPO_LOG_FORMAT = cmrl.constants.EVAL_LOG_FORMAT + [
     ("epoch", "E", "int"),
@@ -128,12 +129,15 @@ def train(
     else:
         oracle_causal_graph = None
 
-    dynamics.set_oracle_mask("transition", oracle_causal_graph[:-1])
-    dynamics.learn(replay_buffer,
-                   **cfg.task.model_learning,
-                   work_dir=work_dir)
-    # dynamics.load("/home/frank/Projects/causal-mbrl-lib/exp/mopo/constraint_based_dynamics/try/emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=1&time_step=0.02___expert/2022.06.22/182316")
-    # dynamics.model.set_input_mask(oracle_causal_graph)
+    if isinstance(dynamics, cmrl.models.dynamics.ConstraintBasedDynamics):
+        dynamics.set_oracle_mask("transition", oracle_causal_graph[:-1])
+
+    existed_trained_model = maybe_load_trained_model(dynamics, cfg, obs_shape, act_shape,
+                                                     work_dir=work_dir)
+    if not existed_trained_model:
+        dynamics.learn(replay_buffer,
+                       **cfg.dynamics,
+                       work_dir=work_dir)
 
     best_eval_reward = -np.inf
     sac_buffer = None

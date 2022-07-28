@@ -6,7 +6,7 @@ import matplotlib as mpl
 import matplotlib.pylab as plt
 import numpy as np
 import math
-from cmrl.diagnostics.util import load_hydra_cfg
+from cmrl.util.config import load_hydra_cfg
 import cmrl.util.creator
 import cmrl.util.env
 

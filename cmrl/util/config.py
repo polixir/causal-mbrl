@@ -1,6 +1,7 @@
 import pathlib
 import omegaconf
-from typing import Union
+from typing import Union, Tuple
+
 
 def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfig:
     """Loads a Hydra configuration from the given directory path.
@@ -20,3 +21,20 @@ def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfi
     if not isinstance(cfg, omegaconf.DictConfig):
         raise RuntimeError("Configuration format not a omegaconf.DictConf")
     return cfg
+
+
+def get_complete_dynamics_cfg(dynamics_cfg: omegaconf.DictConfig,
+                              obs_shape: Tuple[int, ...],
+                              act_shape: Tuple[int, ...], ):
+    transition_cfg = dynamics_cfg.transition
+    transition_cfg.obs_size = obs_shape[0]
+    transition_cfg.action_size = act_shape[0]
+
+    reward_cfg = dynamics_cfg.reward_mech
+    reward_cfg.obs_size = obs_shape[0]
+    reward_cfg.action_size = act_shape[0]
+
+    termination_cfg = dynamics_cfg.termination_mech
+    termination_cfg.obs_size = obs_shape[0]
+    termination_cfg.action_size = act_shape[0]
+    return dynamics_cfg
