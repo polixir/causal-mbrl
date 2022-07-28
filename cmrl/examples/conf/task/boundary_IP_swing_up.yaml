@@ -34,7 +34,7 @@ model_learning:
   shuffle_each_epoch: true
   bootstrap_permutes: false
   longest_epoch: -1
-  improvement_threshold: 0.05
+  improvement_threshold: 0.01
 # model using
 effective_model_rollouts_per_step: 50
 rollout_schedule: [1, 15, 5, 5]

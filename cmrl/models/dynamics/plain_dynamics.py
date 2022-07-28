@@ -64,26 +64,22 @@ class PlainEnsembleDynamics(BaseDynamics):
         longest_epoch = longest_epoch
 
         for mech in self.learn_mech:
-            train_losses, val_losses = [], []
             best_weights: Optional[Dict] = None
             epoch_iter = range(longest_epoch) if longest_epoch > 0 else itertools.count()
             epochs_since_update = 0
 
-            best_val_loss = self.evaluate(val_dataset, mech=mech)
+            best_val_loss = self.evaluate(val_dataset, mech=mech).mean(dim=(1, 2))
 
             for epoch in epoch_iter:
                 train_loss = self.train(train_dataset, mech=mech)
-                train_losses.append(train_loss)
-
-                val_loss = self.evaluate(val_dataset, mech=mech)
-                val_losses.append(val_loss)
+                val_loss = self.evaluate(val_dataset, mech=mech).mean(dim=(1, 2))
 
                 maybe_best_weights = self.maybe_get_best_weights(
                     best_val_loss, val_loss, mech, improvement_threshold,
                 )
                 if maybe_best_weights:
                     # best loss
-                    best_val_loss = val_loss.clone()
+                    best_val_loss = torch.minimum(best_val_loss, val_loss)
                     best_weights = maybe_best_weights
                     epochs_since_update = 0
                 else:
@@ -115,9 +111,7 @@ class PlainEnsembleDynamics(BaseDynamics):
             val_loss: torch.Tensor,
             mech: str = "transition",
             threshold: float = 0.01, ):
-        best_every_member_loss = best_val_loss.mean(dim=(1, 2))
-        every_member_loss = val_loss.mean(dim=(1, 2))
-        improvement = (best_every_member_loss - every_member_loss) / torch.abs(best_every_member_loss)
+        improvement = (best_val_loss - val_loss) / torch.abs(best_val_loss)
         if (improvement > threshold).any().item():
             model = getattr(self, mech)
             best_weights = copy.deepcopy(model.state_dict())
@@ -134,10 +128,9 @@ class PlainEnsembleDynamics(BaseDynamics):
     ):
         model = getattr(self, mech)
         assert isinstance(model, EnsembleMLP)
-        best_every_member_loss = best_val_loss.mean(dim=(1, 2))
 
         if best_weights is not None:
             model.load_state_dict(best_weights)
-        sorted_indices = np.argsort(best_every_member_loss.tolist())
+        sorted_indices = np.argsort(best_val_loss.tolist())
         elite_models = sorted_indices[: model.elite_num]
         model.set_elite(elite_models)

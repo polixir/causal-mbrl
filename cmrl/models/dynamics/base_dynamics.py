@@ -103,12 +103,15 @@ class BaseDynamics:
     def get_mech_loss(self,
                       batch: InteractionBatch,
                       mech: str = "transition",
-                      loss_type: str = "mse",
+                      loss_type: str = "default",
                       is_ensemble: bool = False):
         data = {}
         for attr in batch.attrs:
             data[attr] = self.get_3d_tensor(getattr(batch, attr).copy(), is_ensemble=is_ensemble)
         model_in = split_dict(data, ["batch_obs", "batch_action"])
+
+        if loss_type == "default":
+            loss_type = "mse" if getattr(self, mech).deterministic else "nll"
 
         variable = self._MECH_TO_VARIABLE[mech]
         return getattr(getattr(self, mech), "get_{}_loss".format(loss_type))(model_in, data[variable])
@@ -153,7 +156,7 @@ class BaseDynamics:
         batch_loss_list = []
         with torch.no_grad():
             for batch in dataset:
-                val_loss = self.get_mech_loss(batch, mech=mech, loss_type="mse", is_ensemble=False)
+                val_loss = self.get_mech_loss(batch, mech=mech, is_ensemble=False)
                 batch_loss_list.append(val_loss)
         return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2).cpu()
 
@@ -163,7 +166,7 @@ class BaseDynamics:
 
         batch_loss_list = []
         for batch in dataset:
-            train_loss = self.get_mech_loss(batch, mech=mech, loss_type="nll", is_ensemble=True)
+            train_loss = self.get_mech_loss(batch, mech=mech, is_ensemble=True)
             optim = getattr(self, "{}_optimizer".format(mech))
             optim.zero_grad()
             train_loss.mean().backward()
