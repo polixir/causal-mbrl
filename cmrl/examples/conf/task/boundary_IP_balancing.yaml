@@ -9,7 +9,7 @@ epoch_length: 1000
 learning_reward: false
 learning_terminal: false
 ensemble_num: 7
-elites_num: 5
+elite_num: 5
 
 # conditional independence test(causal discovery)
 oracle: true
@@ -25,19 +25,18 @@ penalty_coeff: 0
 # dyna
 freq_train_model: 1000
 # model learning
-model_learning:
-  patience: 5
-  optim_lr: 0.001
-  weight_decay: 0.00001
-  batch_size: 256
-  validation_ratio: 0.2
-  shuffle_each_epoch: true
-  bootstrap_permutes: false
-  longest_epoch: -1
-  improvement_threshold: 0.01
+patience: 5
+optim_lr: 0.001
+weight_decay: 0.00001
+batch_size: 256
+validation_ratio: 0.2
+shuffle_each_epoch: true
+bootstrap_permutes: false
+longest_epoch: -1
+improvement_threshold: 0.01
 # model using
 effective_model_rollouts_per_step: 50
-rollout_schedule: [1, 15, 5, 5]
+rollout_schedule: [1, 15, 1, 1]
 num_sac_updates_per_step: 1
 sac_updates_every_steps: 1
 num_epochs_to_retain_sac_buffer: 1

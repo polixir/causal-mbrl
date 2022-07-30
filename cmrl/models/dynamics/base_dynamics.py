@@ -156,7 +156,7 @@ class BaseDynamics:
         batch_loss_list = []
         with torch.no_grad():
             for batch in dataset:
-                val_loss = self.get_mech_loss(batch, mech=mech, is_ensemble=False)
+                val_loss = self.get_mech_loss(batch, mech=mech, loss_type="mse", is_ensemble=False)
                 batch_loss_list.append(val_loss)
         return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2).cpu()
 

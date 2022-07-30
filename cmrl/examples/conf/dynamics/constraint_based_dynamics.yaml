@@ -46,8 +46,15 @@ termination_mech:
   action_size: ???
   deterministic: false
 
-optim_lr: ${task.model_learning.optim_lr}
-weight_decay: ${task.model_learning.weight_decay}
+optim_lr: ${task.optim_lr}
+weight_decay: ${task.weight_decay}
+patience: ${task.patience}
+batch_size: ${task.batch_size}
+validation_ratio: ${task.validation_ratio}
+shuffle_each_epoch: ${task.shuffle_each_epoch}
+bootstrap_permutes: ${task.bootstrap_permutes}
+longest_epoch: ${task.longest_epoch}
+improvement_threshold: ${task.improvement_threshold}
 
 normalize: true
 normalize_double_precision: true
