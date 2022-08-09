@@ -69,6 +69,9 @@ class ConstraintBasedDynamics(BaseDynamics):
               work_dir: Optional[Union[str, pathlib.Path]] = None,
               # other
               **kwargs):
+        # improvement_threshold = 0
+        # patience = 30
+
         train_dataset, val_dataset = self.dataset_split(replay_buffer,
                                                         validation_ratio,
                                                         batch_size,

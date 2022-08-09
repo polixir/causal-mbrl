@@ -2,7 +2,7 @@ env: "emei___BoundaryInvertedDoublePendulumBalancing-v0___freq_rate=1&time_step=
 dataset: "expert-replay"
 
 # basic RL params
-num_steps: 1000000
+num_steps: 500000
 epoch_length: 1000
 
 # dynamics
@@ -37,7 +37,7 @@ improvement_threshold: 0.01
 # model using
 effective_model_rollouts_per_step: 50
 rollout_schedule: [1, 15, 1, 1]
-num_sac_updates_per_step: 1
+num_sac_updates_per_step: 10
 sac_updates_every_steps: 1
 num_epochs_to_retain_sac_buffer: 1
 

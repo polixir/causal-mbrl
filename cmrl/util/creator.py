@@ -30,13 +30,13 @@ def create_replay_buffer(
         -cfg
           -algorithm
             -dataset_size (int, optional): the maximum size of the train dataset/buffer
-          -overrides
+          -task
             -num_steps (int, optional): how many steps to take in the environment
             -trial_length (int, optional): the maximum length for trials. Only needed if
                 ``collect_trajectories == True``.
 
     The size of the replay buffer can be determined by either providing
-    ``cfg.algorithm.dataset_size``, or providing ``cfg.overrides.num_steps``.
+    ``cfg.algorithm.dataset_size``, or providing ``cfg.task.num_steps``.
     Specifying dataset set size directly takes precedence over number of steps.
 
     Args:
@@ -60,15 +60,15 @@ def create_replay_buffer(
         cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
     )
     if not dataset_size:
-        dataset_size = cfg.overrides.num_steps
+        dataset_size = cfg.task.num_steps
     maybe_max_trajectory_len = None
     if collect_trajectories:
-        if cfg.overrides.trial_length is None:
+        if cfg.task.trial_length is None:
             raise ValueError(
-                "cfg.overrides.trial_length must be set when "
+                "cfg.task.trial_length must be set when "
                 "collect_trajectories==True."
             )
-        maybe_max_trajectory_len = cfg.overrides.trial_length
+        maybe_max_trajectory_len = cfg.task.trial_length
 
     replay_buffer = ReplayBuffer(
         dataset_size,

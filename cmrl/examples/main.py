@@ -4,6 +4,8 @@ import omegaconf
 import torch
 
 import cmrl.algorithms.offline.mopo as mopo
+import cmrl.algorithms.online.mbpo as mbpo
+
 from cmrl.util.env import make_env
 
 
@@ -17,6 +19,9 @@ def run(cfg: omegaconf.DictConfig):
     if cfg.algorithm.name == "mopo":
         test_env, *_ = make_env(cfg)
         return mopo.train(env, test_env, term_fn, reward_fn, cfg)
+    if cfg.algorithm.name == "mbpo":
+        test_env, *_ = make_env(cfg)
+        return mbpo.train(env, test_env, term_fn, reward_fn, cfg)
     else:
         raise NotImplementedError
 

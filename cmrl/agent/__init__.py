@@ -1,1 +1,1 @@
-from .core import complete_agent_cfg, load_agent
+from .core import complete_agent_cfg, load_agent, Agent, RandomAgent

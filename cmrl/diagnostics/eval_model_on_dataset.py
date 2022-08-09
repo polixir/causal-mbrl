@@ -71,21 +71,26 @@ class DatasetEvaluator:
         target_np, predict_np = {}, {}
         for variable in target_list:
             target_np[variable] = np.array(target_list[variable])
+            if len(target_np[variable].shape) == 1:
+                target_np[variable] = target_np[variable][:, None]
             predict_np[variable] = np.array(predict_list[variable])
 
         for variable in target_np:
             # draw predict-and-target plot
             dim_num = target_np[variable].shape[1]
-            row = math.ceil(math.sqrt(dim_num))
-            fig, axs = plt.subplots(row, row, figsize=(10, 10))
-            axis_list = [e for row in axs for e in row]
+            row_num = math.ceil(math.sqrt(dim_num))
+            fig, axs = plt.subplots(row_num, row_num, figsize=(row_num * 8, row_num * 8))
+            if isinstance(axs, np.ndarray):
+                axis_list = [e for row in axs for e in row]
+            else:
+                axis_list = [axs]
             for dim in range(dim_num):
                 axis = axis_list[dim]
                 sort_idx = target_np[variable][:, dim].argsort()
                 sorted_predict = predict_np[variable][sort_idx, dim]
                 sorted_target = target_np[variable][sort_idx, dim]
 
-                axis.plot(sorted_target, sorted_predict, ".", markersize=2)
+                axis.plot(sorted_target, sorted_predict, ".")
                 axis.plot(
                     [sorted_target.min(), sorted_target.max()],
                     [sorted_target.min(), sorted_target.max()],
@@ -97,8 +102,11 @@ class DatasetEvaluator:
             plt.close()
 
             # draw target distribution plot
-            fig, axs = plt.subplots(row, row, figsize=(10, 10))
-            axis_list = [e for row in axs for e in row]
+            fig, axs = plt.subplots(row_num, row_num, figsize=(row_num * 8, row_num * 8))
+            if isinstance(axs, np.ndarray):
+                axis_list = [e for row in axs for e in row]
+            else:
+                axis_list = [axs]
             for dim in range(dim_num):
                 axis = axis_list[dim]
 

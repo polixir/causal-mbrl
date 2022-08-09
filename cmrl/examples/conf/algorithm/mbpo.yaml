@@ -12,7 +12,7 @@ num_eval_episodes: 5
 #          SAC Agent configuration
 # --------------------------------------------
 agent:
-  _target_: cmrl.third_party.pytorch_sac_pranz24.sac.SAC
+  _target_: cmrl.third_party.pytorch_sac.sac.SAC
   num_inputs: ???
   action_space:
     _target_: gym.spaces.Box
