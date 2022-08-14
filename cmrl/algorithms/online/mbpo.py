@@ -105,7 +105,7 @@ def train(
         cfg,
         obs_shape,
         act_shape,
-        rng=rng,
+        numpy_generator=rng,
     )
     random_explore = cfg.algorithm.random_initial_explore
     cmrl.algorithms.util.rollout_agent_trajectories(

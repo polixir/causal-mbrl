@@ -30,8 +30,13 @@ class EnsembleMLP(nn.Module):
             assert len(elite_indices) == self.elite_num
             self.elite_members = list(elite_indices)
 
-    def get_random_index(self, batch_size):
-        return np.random.choice(self.elite_members, size=batch_size)
+    def get_random_index(self,
+                         batch_size: int,
+                         numpy_generator: Optional[np.random.Generator] = None):
+        if numpy_generator:
+            return numpy_generator.choice(self.elite_members, size=batch_size)
+        else:
+            return np.random.choice(self.elite_members, size=batch_size)
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         """Saves the model to the given directory."""

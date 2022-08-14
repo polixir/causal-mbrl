@@ -15,7 +15,7 @@ class DatasetEvaluator:
     def __init__(self,
                  model_dir: str,
                  dataset_type: str,
-                 batch_size: int = 256):
+                 batch_size: int = 4096):
         self.model_path = pathlib.Path(model_dir)
         self.batch_size = batch_size
 
@@ -64,9 +64,18 @@ class DatasetEvaluator:
                 target_list[variable].extend(getattr(batch, variable))
                 predict_list[variable].extend(dynamics_result[variable]["mean"].mean(axis=0))
             # add the difference between next-obs and obs
-            target_list["batch_diff_next_obs"].extend(getattr(batch, "batch_next_obs") - getattr(batch, "batch_obs"))
-            predict_list["batch_diff_next_obs"].extend(dynamics_result["batch_next_obs"]["mean"].mean(axis=0)
-                                                       - getattr(batch, "batch_obs"))
+            diff_target = getattr(batch, "batch_next_obs") - getattr(batch, "batch_obs")
+            diff_predict = dynamics_result["batch_next_obs"]["mean"].mean(axis=0) - getattr(batch, "batch_obs")
+            target_list["batch_diff_next_obs"].extend(diff_target)
+            predict_list["batch_diff_next_obs"].extend(diff_predict)
+
+            # large_error_index = np.argwhere(np.abs(diff_target - diff_predict) > 1)
+            # for batch_idx, dim in large_error_index:
+            #     print("dim:{}\nobs:{}\naction:{}\npredict:{}\ntarget:{}\n".format(dim,
+            #                                                                       batch.batch_obs[batch_idx],
+            #                                                                       batch.batch_action[batch_idx],
+            #                                                                       diff_predict[batch_idx],
+            #                                                                       diff_target[batch_idx]))
 
         target_np, predict_np = {}, {}
         for variable in target_list:
@@ -114,6 +123,7 @@ class DatasetEvaluator:
                 axis.hist(target, bins=hist_bins, log=hist_log)
             plt.savefig(self.output_path / f"target_dist-{variable}.png")
             plt.close()
+
 
     def run(self):
         _, dataset = self.dynamics.dataset_split(self.replay_buffer,

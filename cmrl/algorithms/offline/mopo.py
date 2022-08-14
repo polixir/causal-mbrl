@@ -82,11 +82,7 @@ def train(
     )
     save_video = cfg.get("save_video", False)
     video_recorder = VideoRecorder(work_dir if save_video else None)
-
-    rng = np.random.default_rng(seed=cfg.seed)
-    torch_generator = torch.Generator(device=cfg.device)
-    if cfg.seed is not None:
-        torch_generator.manual_seed(cfg.seed)
+    numpy_generator = np.random.default_rng(seed=cfg.seed)
 
     # -------------- Create initial dataset --------------
     dynamics = creator.create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
@@ -94,7 +90,7 @@ def train(
         cfg,
         obs_shape,
         act_shape,
-        rng=rng,
+        numpy_generator=numpy_generator,
     )
     # load replay buffer data
     if hasattr(env, "get_dataset"):
@@ -122,7 +118,7 @@ def train(
                                    dynamics,
                                    reward_fn,
                                    termination_fn,
-                                   generator=torch_generator,
+                                   generator=numpy_generator,
                                    penalty_coeff=cfg.algorithm.penalty_coeff)
     if hasattr(env, "causal_graph"):
         oracle_causal_graph = env.causal_graph
@@ -134,10 +130,10 @@ def train(
 
     existed_trained_model = maybe_load_trained_model(dynamics, cfg, obs_shape, act_shape,
                                                      work_dir=work_dir)
-    if not existed_trained_model:
-        dynamics.learn(replay_buffer,
-                       **cfg.dynamics,
-                       work_dir=work_dir)
+    # if not existed_trained_model:
+    #     dynamics.learn(replay_buffer,
+    #                    **cfg.dynamics,
+    #                    work_dir=work_dir)
 
     best_eval_reward = -np.inf
     sac_buffer = None
@@ -181,7 +177,7 @@ def train(
 
             # --------------- Agent Training -----------------
             for _ in range(cfg.task.num_sac_updates_per_step):
-                use_real_data = rng.random() < cfg.algorithm.real_data_ratio
+                use_real_data = numpy_generator.random() < cfg.algorithm.real_data_ratio
                 which_buffer = replay_buffer if use_real_data else sac_buffer
                 if (env_steps + 1) % cfg.task.sac_updates_every_steps != 0 or len(
                         which_buffer

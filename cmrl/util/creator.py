@@ -21,7 +21,7 @@ def create_replay_buffer(
         reward_type: Type = np.float32,
         load_dir: Optional[Union[str, pathlib.Path]] = None,
         collect_trajectories: bool = False,
-        rng: Optional[np.random.Generator] = None,
+        numpy_generator: Optional[np.random.Generator] = None,
 ) -> ReplayBuffer:
     """Creates a replay buffer from a given configuration.
 
@@ -50,7 +50,7 @@ def create_replay_buffer(
             populate the buffers from "load_dir/replay_buffer.npz".
         collect_trajectories (bool, optional): if ``True`` sets the replay buffers to collect
             trajectory information. Defaults to ``False``.
-        rng (np.random.Generator, optional): a random number generator when sampling
+        numpy_generator (np.random.Generator, optional): a random number generator when sampling
             batches. If None (default value), a new default generator will be used.
 
     Returns:
@@ -77,7 +77,7 @@ def create_replay_buffer(
         obs_type=obs_type,
         action_type=action_type,
         reward_type=reward_type,
-        rng=rng,
+        rng=numpy_generator,
         max_trajectory_length=maybe_max_trajectory_len,
     )
 

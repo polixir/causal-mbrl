@@ -40,7 +40,7 @@ class FakeEnv:
             dynamics: BaseDynamics,
             reward_fn: Optional[cmrl.types.RewardFnType] = None,
             termination_fn: Optional[cmrl.types.TermFnType] = None,
-            generator: Optional[torch.Generator] = None,
+            generator: Optional[np.random.Generator] = None,
             penalty_coeff=0.,
             penalty_learned_var=False,
     ):
@@ -63,9 +63,9 @@ class FakeEnv:
         self._current_batch_obs: Optional[torch.Tensor] = None
         self._model_indices = None
         if generator:
-            self._rng = generator
+            self.generator = generator
         else:
-            self._rng = torch.Generator(device=self.device)
+            self.generator = np.random.default_rng()
         self._return_as_np = True
 
     def reset(
@@ -95,14 +95,14 @@ class FakeEnv:
         variable = self.dynamics.get_variable_by_mech(mech)
         ensemble_mean, ensemble_logvar = dynamics_pred[variable]["mean"], dynamics_pred[variable]["logvar"]
         batch_size = ensemble_mean.shape[1]
-        random_index = getattr(self.dynamics, mech).get_random_index(batch_size)
+        random_index = getattr(self.dynamics, mech).get_random_index(batch_size, self.generator)
         if deterministic:
             pred = ensemble_mean[random_index, np.arange(batch_size)]
         else:
             ensemble_std = np.sqrt(np.exp(ensemble_logvar))
             pred = ensemble_mean[random_index, np.arange(batch_size)] + \
                    ensemble_std[random_index, np.arange(batch_size)] * \
-                   np.random.normal(size=ensemble_mean.shape[1:]).astype(np.float32)
+                   self.generator.normal(size=ensemble_mean.shape[1:]).astype(np.float32)
 
         avg_ensemble_mean = np.mean(ensemble_mean, axis=0)  # average predictions over models
         diffs = ensemble_mean - avg_ensemble_mean

@@ -28,8 +28,13 @@ def make_env(cfg: omegaconf.DictConfig) -> Tuple[emei.EmeiEnv,
         env_name, params, = cfg.task.env.split("___")[1:3]
         kwargs = dict([(item.split("=")[0], to_num(item.split("=")[1])) for item in params.split("&")])
         env = cast(emei.EmeiEnv, gym.make(env_name, **kwargs))
-        term_fn = env.get_terminal_by_next_obs
-        reward_fn = env.get_reward_by_next_obs
+        term_fn = env.get_terminal
+        reward_fn = env.get_reward
     else:
         raise NotImplementedError
+
+    # set seed
+    env.reset(seed=cfg.seed)
+    env.observation_space.seed(cfg.seed + 1)
+    env.action_space.seed(cfg.seed + 2)
     return env, term_fn, reward_fn

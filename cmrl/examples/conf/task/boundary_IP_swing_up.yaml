@@ -6,7 +6,7 @@ num_steps: 1000000
 epoch_length: 1000
 
 # dynamics
-learning_reward: true
+learning_reward: false
 learning_terminal: false
 ensemble_num: 7
 elite_num: 5

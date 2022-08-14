@@ -40,11 +40,14 @@ class DatasetEvaluator:
                  model_dir: str,
                  batch_size: int = 256,
                  plot_dot_num=1024,
-                 draw_diff=True):
+                 draw_diff=True,
+                 range_quantile=0):
         self.model_path = pathlib.Path(model_dir)
         self.batch_size = batch_size
         self.plot_dot_num = plot_dot_num
         self.draw_diff = draw_diff
+        assert 0 <= range_quantile <= 50
+        self.range_quantile = range_quantile
 
         self.cfg = load_hydra_cfg(self.model_path)
         self.env, self.term_fn, self.reward_fn = cmrl.util.env.make_env(self.cfg)
@@ -135,14 +138,13 @@ class DatasetEvaluator:
         self.draw_button = Button(ax, "draw")
         self.draw_button.on_clicked(self.draw)
 
-    def get_range(self, dataset_type="expert-replay", q=5):
-        assert 0 < q < 50
+    def get_range(self, dataset_type="expert-replay"):
         universe, basic_env_name, params, origin_dataset_type = self.cfg.task.env.split("___")
         data_dict = self.env.get_dataset("{}-{}".format(params, dataset_type))
-        obs_min = np.percentile(data_dict["observations"], q, axis=0)
-        obs_max = np.percentile(data_dict["observations"], 100 - q, axis=0)
-        action_min = np.percentile(data_dict["actions"], q, axis=0)
-        action_max = np.percentile(data_dict["actions"], 100 - q, axis=0)
+        obs_min = np.percentile(data_dict["observations"], self.range_quantile, axis=0)
+        obs_max = np.percentile(data_dict["observations"], 100 - self.range_quantile, axis=0)
+        action_min = np.percentile(data_dict["actions"], self.range_quantile, axis=0)
+        action_max = np.percentile(data_dict["actions"], 100 - self.range_quantile, axis=0)
         return np.array(list(zip(obs_min, obs_max))), np.array(list(zip(action_min, action_max)))
 
     def draw(self, event):
@@ -188,7 +190,7 @@ class DatasetEvaluator:
                 batch_predict = batch_predict_obs[:, self.current_out_dim]
                 batch_ground_truth = batch_gt_obs[:, self.current_out_dim]
             elif self.current_out_dim == self.obs_dim_num:  # reward
-                batch_predict = dynamics_result["batch_reward"]["mean"].mean(0)
+                batch_predict = dynamics_result["batch_reward"]["mean"].mean(0)[:, 0]
                 batch_ground_truth = gt_reward
             else:
                 raise NotImplementedError
