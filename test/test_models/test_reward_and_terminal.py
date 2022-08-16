@@ -19,9 +19,9 @@ class TestBaseRewardMech(TestCase):
                                           num_layers=self.num_layers,
                                           hid_size=self.hid_size,
                                           deterministic=True)
-        self.batch_obs = torch.rand([self.batch_size, self.obs_size]).to(self.device)
-        self.batch_action = torch.rand([self.batch_size, self.action_size]).to(self.device)
+        self.batch_obs = torch.rand([self.ensemble_num, self.batch_size, self.obs_size]).to(self.device)
+        self.batch_action = torch.rand([self.ensemble_num, self.batch_size, self.action_size]).to(self.device)
 
     def test_forward(self):
         mean, logvar = self.reward_mech.forward(self.batch_obs, self.batch_action)
-        assert mean.shape == (self.batch_size, 1)
+        assert mean.shape == (self.ensemble_num, self.batch_size, 1)

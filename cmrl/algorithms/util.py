@@ -87,12 +87,12 @@ def evaluate(
     for episode in range(num_episodes):
         obs = env.reset()
         video_recorder.init(enabled=(episode == 0))
-        done = False
+        terminal = truncated = False
         episode_reward = 0
         episode_length = 0
-        while not done:
+        while not (terminal or truncated):
             action = agent.act(obs)
-            obs, reward, done, _ = env.step(action)
+            obs, reward, terminal, truncated, _ = env.step(action)
             video_recorder.record(env)
             episode_reward += reward
             episode_length += 1

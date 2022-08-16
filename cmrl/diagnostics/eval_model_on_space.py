@@ -179,7 +179,7 @@ class DatasetEvaluator:
             batch_input = model_in[self.batch_size * batch_idx: self.batch_size * (batch_idx + 1)]
             batch_obs, batch_action = batch_input[:, :self.obs_dim_num], batch_input[:, self.obs_dim_num:]
             dynamics_result = self.dynamics.query(batch_obs, batch_action, return_as_np=True)
-            gt_next_obs, gt_reward, gt_done, _ = self.env.query(batch_obs, batch_action)
+            gt_next_obs, gt_reward, gt_terminal, gt_truncated, _ = self.env.query(batch_obs, batch_action)
 
             if self.current_out_dim < self.obs_dim_num:  # obs
                 batch_predict_obs = dynamics_result["batch_next_obs"]["mean"].mean(0)

@@ -2,7 +2,7 @@ import argparse
 import os
 import pathlib
 from typing import Generator, List, Optional, Tuple, cast, Union
-
+import math
 import cmrl
 import cmrl.models
 import cmrl.agent
@@ -28,9 +28,9 @@ class Runner:
         total_reward = 0
         while True:
             action = self.agent.act(obs)
-            next_obs, reward, done, _ = self.env.step(action)
+            next_obs, reward, terminal, truncated, _ = self.env.step(action)
             self.env.render()
-            if done:
+            if terminal or truncated:
                 print(total_reward)
                 total_reward = 0
                 obs = self.env.reset()

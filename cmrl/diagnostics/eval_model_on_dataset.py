@@ -14,7 +14,7 @@ import cmrl.util.env
 class DatasetEvaluator:
     def __init__(self,
                  model_dir: str,
-                 dataset_type: str,
+                 dataset: str,
                  batch_size: int = 4096):
         self.model_path = pathlib.Path(model_dir)
         self.batch_size = batch_size
@@ -35,13 +35,13 @@ class DatasetEvaluator:
 
         if hasattr(self.env, "get_dataset"):
             universe, basic_env_name, params, origin_dataset_type = self.cfg.task.env.split("___")
-            if dataset_type is None:
-                dataset_type = origin_dataset_type
+            if dataset is None:
+                dataset = origin_dataset_type
 
-            self.output_path = self.model_path / "diagnostics" / "eval_on_{}".format(dataset_type)
+            self.output_path = self.model_path / "diagnostics" / "eval_on_{}".format(dataset)
             pathlib.Path.mkdir(self.output_path, parents=True, exist_ok=True)
 
-            data_dict = self.env.get_dataset("{}-{}".format(params, dataset_type))
+            data_dict = self.env.get_dataset("{}-{}".format(params, dataset))
             self.replay_buffer.add_batch(data_dict["observations"],
                                          data_dict["actions"],
                                          data_dict["next_observations"],
@@ -136,10 +136,10 @@ class DatasetEvaluator:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("model_dir", type=str, default=None)
-    parser.add_argument("--dataset_type", type=str, default=None)
+    parser.add_argument("--dataset", type=str, default=None)
     args = parser.parse_args()
 
-    evaluator = DatasetEvaluator(args.model_dir, args.dataset_type)
+    evaluator = DatasetEvaluator(args.model_dir, args.dataset)
 
     mpl.rcParams["figure.facecolor"] = "white"
     mpl.rcParams["font.size"] = 14

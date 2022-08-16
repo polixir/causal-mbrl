@@ -130,10 +130,10 @@ def train(
 
     existed_trained_model = maybe_load_trained_model(dynamics, cfg, obs_shape, act_shape,
                                                      work_dir=work_dir)
-    # if not existed_trained_model:
-    #     dynamics.learn(replay_buffer,
-    #                    **cfg.dynamics,
-    #                    work_dir=work_dir)
+    if not existed_trained_model:
+        dynamics.learn(replay_buffer,
+                       **cfg.dynamics,
+                       work_dir=work_dir)
 
     best_eval_reward = -np.inf
     sac_buffer = None

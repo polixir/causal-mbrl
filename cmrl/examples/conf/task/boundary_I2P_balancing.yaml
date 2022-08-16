@@ -36,8 +36,8 @@ longest_epoch: -1
 improvement_threshold: 0.01
 # model using
 effective_model_rollouts_per_step: 50
-rollout_schedule: [1, 15, 1, 1]
-num_sac_updates_per_step: 10
+rollout_schedule: [1, 15, 5, 5]
+num_sac_updates_per_step: 1
 sac_updates_every_steps: 1
 num_epochs_to_retain_sac_buffer: 1
 
