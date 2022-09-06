@@ -212,7 +212,7 @@ def train(
                         "rollout_length": rollout_length,
                     },
                 )
-                agent.sac_agent.save_checkpoint(ckpt_path=os.path.join(work_dir, "sac_final.pth"))
+                agent.sac_agent.save_checkpoint(ckpt_path=os.path.join(work_dir, "sac_final.pth"), silence=True)
                 if rewards.mean() > best_eval_reward:
                     video_recorder.save(f"{epoch}.mp4")
                     best_eval_reward = rewards.mean()

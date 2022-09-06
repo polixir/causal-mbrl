@@ -161,11 +161,12 @@ class SAC(object):
         )
 
     # Save model parameters
-    def save_checkpoint(self, suffix="", ckpt_path=None):
+    def save_checkpoint(self, suffix="", ckpt_path=None, silence=False):
         os.makedirs('sac_checkpoints/', exist_ok=True)
         if ckpt_path is None:
             ckpt_path = "sac_checkpoints/checkpoint_{}.pth".format(suffix)
-        print('Saving models to {}'.format(ckpt_path))
+        if not silence:
+            print('Saving models to {}'.format(ckpt_path))
         torch.save({'policy_state_dict': self.policy.state_dict(),
                     'critic_state_dict': self.critic.state_dict(),
                     'critic_target_state_dict': self.critic_target.state_dict(),

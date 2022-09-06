@@ -167,26 +167,37 @@ def maybe_load_trained_model(dynamics: BaseDynamics,
                              act_shape,
                              work_dir):
     work_dir = pathlib.Path(work_dir)
-    task_exp_dir = work_dir.parent.parent
+    if "." not in work_dir.name:  # exp by hydra's MULTIRUN mode
+        task_exp_dir = work_dir.parent.parent.parent
+    else:
+        task_exp_dir = work_dir.parent.parent
     dynamics_cfg = cfg.dynamics
 
-    for data_dir in task_exp_dir.glob(r"*"):
-        for exp_dir in data_dir.glob(r"*"):
-            if not (exp_dir / ".hydra").exists():
-                continue
-            exp_cfg = load_hydra_cfg(exp_dir)
-            exp_dynamics_cfg = get_complete_dynamics_cfg(exp_cfg.dynamics, obs_shape, act_shape)
+    for date_dir in task_exp_dir.glob(r"*"):
+        for time_dir in date_dir.glob(r"*"):
+            this_time_exp_dir_list = []
+            if (time_dir / "multirun.yaml").exists():  # exp by hydra's MULTIRUN mode, multi exp in this time
+                this_time_exp_dir_list = (time_dir / "multirun.yaml").glob(r"*")
+            else:  # only one exp in this time
+                this_time_exp_dir_list = [time_dir]
 
-            if exp_cfg.seed == cfg.seed and is_same_dict(dynamics_cfg, exp_dynamics_cfg):
-                exist_model_file = True
-                for mech in dynamics.learn_mech:
-                    mech_file_name = getattr(dynamics, mech).model_file_name
-                    if not (exp_dir / mech_file_name).exists():
-                        exist_model_file = False
-                if exist_model_file:
-                    dynamics.load(exp_dir)
-                    print("loaded dynamics from {}".format(exp_dir))
-                    return True
+            for exp_dir in this_time_exp_dir_list:
+                print(exp_dir)
+                if not (exp_dir / ".hydra").exists():
+                    continue
+                exp_cfg = load_hydra_cfg(exp_dir)
+                exp_dynamics_cfg = get_complete_dynamics_cfg(exp_cfg.dynamics, obs_shape, act_shape)
+
+                if exp_cfg.seed == cfg.seed and is_same_dict(dynamics_cfg, exp_dynamics_cfg):
+                    exist_model_file = True
+                    for mech in dynamics.learn_mech:
+                        mech_file_name = getattr(dynamics, mech).model_file_name
+                        if not (exp_dir / mech_file_name).exists():
+                            exist_model_file = False
+                    if exist_model_file:
+                        dynamics.load(exp_dir)
+                        print("loaded dynamics from {}".format(exp_dir))
+                        return True
     return False
 
 
