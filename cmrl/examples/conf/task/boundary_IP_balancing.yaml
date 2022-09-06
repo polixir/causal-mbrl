@@ -26,7 +26,7 @@ penalty_coeff: 0
 freq_train_model: 1000
 # model learning
 patience: 5
-optim_lr: 0.001
+optim_lr: 0.0001
 weight_decay: 0.00001
 batch_size: 256
 validation_ratio: 0.2

@@ -15,6 +15,7 @@ import cmrl.util.env
 from matplotlib.widgets import RadioButtons, Slider, Button
 
 mpl.use("Qt5Agg")
+SIN_COS_BINDINGS = {"BoundaryInvertedPendulumSwingUp-v0": [1]}
 
 
 class DatasetEvaluator:
@@ -41,7 +42,8 @@ class DatasetEvaluator:
                  batch_size: int = 256,
                  plot_dot_num=1024,
                  draw_diff=True,
-                 range_quantile=0):
+                 range_quantile=0,
+                 device="cuda:0"):
         self.model_path = pathlib.Path(model_dir)
         self.batch_size = batch_size
         self.plot_dot_num = plot_dot_num
@@ -50,21 +52,28 @@ class DatasetEvaluator:
         self.range_quantile = range_quantile
 
         self.cfg = load_hydra_cfg(self.model_path)
+        self.cfg.device = device
         self.env, self.term_fn, self.reward_fn = cmrl.util.env.make_env(self.cfg)
 
         self.dynamics = cmrl.util.creator.create_dynamics(self.cfg.dynamics,
                                                           self.env.observation_space.shape,
                                                           self.env.action_space.shape,
-                                                          model_dir=self.model_path, )
+                                                          load_dir=self.model_path,
+                                                          load_device=device)
 
+        self.bindings = []
         self.obs_range, self.action_range = self.get_range()
-        self.obs_dim_num, self.action_dim_num = self.obs_range.shape[0], self.action_range.shape[0]
 
-        self.in_dim_num = self.obs_dim_num + self.action_dim_num
-        self.in_labels = [f"obs:{dim + 1}" for dim in range(self.obs_dim_num)] + \
-                         [f"action:{dim + 1}" for dim in range(self.action_dim_num)]
         self.range = np.concatenate([self.obs_range, self.action_range], axis=0)
-        self.out_labels = [f"obs:{dim + 1}" for dim in range(self.obs_dim_num)]
+        self.real_obs_dim_num = self.env.observation_space.shape[0]
+        self.compact_obs_dim_num, self.action_dim_num = self.obs_range.shape[0], self.action_range.shape[0]
+        self.compact_in_dim_num = self.compact_obs_dim_num + self.action_dim_num
+        self.real_in_dim_num = self.real_obs_dim_num + self.action_dim_num
+
+        self.real_compact_obs_mapping = {}
+        self.real_obs_meaning = {}
+        self.in_labels, self.out_labels = self.get_labels()
+
         if self.dynamics.learned_reward:
             self.out_labels.append("reward")
         if self.dynamics.learned_termination:
@@ -85,6 +94,27 @@ class DatasetEvaluator:
         self.draw_button: Optional[Button] = None
         self.create_plot()
 
+    def get_labels(self):
+        obs_labels = []
+        for dim in range(self.real_obs_dim_num):
+            if dim in self.bindings:
+                obs_labels.append("obs:{}+{}".format(dim + 1, dim + 2))
+                self.real_compact_obs_mapping[dim] = len(obs_labels) - 1
+                self.real_obs_meaning[dim] = "sin"
+            elif dim - 1 in self.bindings:
+                self.real_compact_obs_mapping[dim] = len(obs_labels) - 1
+                self.real_obs_meaning[dim] = "cos"
+                continue
+            else:
+                obs_labels.append("obs:{}".format(dim + 1))
+                self.real_compact_obs_mapping[dim] = len(obs_labels) - 1
+                self.real_obs_meaning[dim] = "normal"
+        assert len(obs_labels) == self.compact_obs_dim_num
+
+        in_labels = obs_labels + [f"action:{dim + 1}" for dim in range(self.action_dim_num)]
+        out_labels = [f"obs:{dim + 1}" for dim in range(self.real_obs_dim_num)]
+        return in_labels, out_labels
+
     def create_plot(self):
         current_height = self.WIDGET_TOP
 
@@ -99,26 +129,16 @@ class DatasetEvaluator:
         self.out_dim_button = RadioButtons(ax, self.out_labels)
 
         def in_dim_button_click(label):
-            if label.startswith("obs"):
-                self.current_in_dim = int(label[4:]) - 1
-            elif label.startswith("action"):
-                self.current_in_dim = self.obs_dim_num + int(label[7:]) - 1
-            else:
-                raise NotImplementedError
+            self.current_in_dim = self.in_labels.index(label)
 
         def out_dim_button_click(label):
-            if label.startswith("obs"):
-                self.current_out_dim = int(label[4:]) - 1
-            elif label.startswith("reward"):
-                self.current_out_dim = self.obs_dim_num
-            else:
-                raise NotImplementedError
+            self.current_out_dim = self.out_labels.index(label)
 
         self.in_dim_button.on_clicked(in_dim_button_click)
         self.out_dim_button.on_clicked(out_dim_button_click)
         # slider
-        for dim in range(self.in_dim_num):
-            slider_height = self.SLIDER_ALL_HEIGHT / self.in_dim_num
+        for dim in range(self.compact_in_dim_num):
+            slider_height = self.SLIDER_ALL_HEIGHT / self.compact_in_dim_num
             current_height -= slider_height
             ax = plt.axes([self.WIDGET_LEFT, current_height, self.SLIDER_WIDTH, slider_height])
             slider = Slider(ax, self.in_labels[dim], self.range[dim][0], self.range[dim][1],
@@ -145,18 +165,42 @@ class DatasetEvaluator:
         obs_max = np.percentile(data_dict["observations"], 100 - self.range_quantile, axis=0)
         action_min = np.percentile(data_dict["actions"], self.range_quantile, axis=0)
         action_max = np.percentile(data_dict["actions"], 100 - self.range_quantile, axis=0)
-        return np.array(list(zip(obs_min, obs_max))), np.array(list(zip(action_min, action_max)))
+        obs_range, action_range = np.array(list(zip(obs_min, obs_max))), np.array(list(zip(action_min, action_max)))
+
+        if basic_env_name in SIN_COS_BINDINGS:
+            self.bindings = SIN_COS_BINDINGS[basic_env_name]
+            for idx, binding_idx in enumerate(self.bindings):
+                theta_idx = binding_idx - idx
+                obs_range = np.delete(obs_range, [binding_idx, binding_idx + 1], axis=0)
+                obs_range = np.insert(obs_range, theta_idx, np.array([0, 2 * np.pi]), axis=0)
+        return obs_range, action_range
+
+    def build_model_in(self):
+        x = np.linspace(*self.range[self.current_in_dim], self.plot_dot_num, dtype=np.float32)
+        compact_model_in = np.empty([self.plot_dot_num, self.compact_in_dim_num], dtype=np.float32)
+        for dim in range(self.compact_in_dim_num):
+            if dim == self.current_in_dim:
+                compact_model_in[:, dim] = x.copy()
+            else:
+                compact_model_in[:, dim] = np.full(self.plot_dot_num, self.current_fixed_value[dim], dtype=np.float32)
+
+        real_model_in = np.empty([self.plot_dot_num, self.real_in_dim_num], dtype=np.float32)
+        for dim in range(self.real_in_dim_num):
+            if dim < self.real_obs_dim_num:  # is an obs
+                compact_dim = self.real_compact_obs_mapping[dim]
+                if self.real_obs_meaning[dim] == "normal":
+                    real_model_in[:, dim] = compact_model_in[:, compact_dim].copy()
+                elif self.real_obs_meaning[dim] == "sin":
+                    real_model_in[:, dim] = np.sin(compact_model_in[:, compact_dim].copy())
+                elif self.real_obs_meaning[dim] == "cos":
+                    real_model_in[:, dim] = np.cos(compact_model_in[:, compact_dim].copy())
+            else:  # is an action
+                compact_dim = dim - (self.real_obs_dim_num - self.compact_obs_dim_num)
+                real_model_in[:, dim] = np.cos(compact_model_in[:, compact_dim].copy())
+        return x, real_model_in
 
     def draw(self, event):
-        # build model input
-        x = np.linspace(*self.range[self.current_in_dim], self.plot_dot_num, dtype=np.float32)
-        model_in = np.empty([self.plot_dot_num, self.in_dim_num], dtype=np.float32)
-        for dim in range(self.in_dim_num):
-            if dim == self.current_in_dim:
-                continue
-            model_in[:, dim] = np.full(self.plot_dot_num, self.current_fixed_value[dim], dtype=np.float32)
-        model_in[:, self.current_in_dim] = x.copy()
-
+        x, model_in = self.build_model_in()
         predict, ground_truth = self.get_model_output(model_in)
         self.predict_line.set_data(x, predict)
         self.ground_truth_line.set_data(x, ground_truth)
@@ -177,11 +221,12 @@ class DatasetEvaluator:
 
         for batch_idx in range(batch_num):
             batch_input = model_in[self.batch_size * batch_idx: self.batch_size * (batch_idx + 1)]
-            batch_obs, batch_action = batch_input[:, :self.obs_dim_num], batch_input[:, self.obs_dim_num:]
+            batch_obs, batch_action = batch_input[:, :self.real_obs_dim_num], batch_input[:,
+                                                                              self.real_obs_dim_num:]
             dynamics_result = self.dynamics.query(batch_obs, batch_action, return_as_np=True)
             gt_next_obs, gt_reward, gt_terminal, gt_truncated, _ = self.env.query(batch_obs, batch_action)
 
-            if self.current_out_dim < self.obs_dim_num:  # obs
+            if self.current_out_dim < self.real_obs_dim_num:  # obs
                 batch_predict_obs = dynamics_result["batch_next_obs"]["mean"].mean(0)
                 batch_gt_obs = gt_next_obs
                 if self.draw_diff:
@@ -189,7 +234,7 @@ class DatasetEvaluator:
                     batch_gt_obs -= batch_obs
                 batch_predict = batch_predict_obs[:, self.current_out_dim]
                 batch_ground_truth = batch_gt_obs[:, self.current_out_dim]
-            elif self.current_out_dim == self.obs_dim_num:  # reward
+            elif self.current_out_dim == self.real_obs_dim_num:  # reward
                 batch_predict = dynamics_result["batch_reward"]["mean"].mean(0)[:, 0]
                 batch_ground_truth = gt_reward
             else:
@@ -199,8 +244,11 @@ class DatasetEvaluator:
         return predict, ground_truth
 
     def run(self):
-        self.predict_line, = self.ax.plot(np.linspace(0, 1, 100), np.linspace(0, 1, 100), color="red", lw=2)
-        self.ground_truth_line, = self.ax.plot(np.linspace(0, 1, 100), np.linspace(0, 1, 100), color="blue", lw=2)
+        self.predict_line, = self.ax.plot(np.linspace(0, 1, 100), np.linspace(0, 1, 100),
+                                          color="red", lw=2, label="predict")
+        self.ground_truth_line, = self.ax.plot(np.linspace(0, 1, 100), np.linspace(0, 1, 100),
+                                               color="blue", lw=2, label="gt")
+        self.ax.legend()
         plt.show()
 
 

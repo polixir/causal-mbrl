@@ -196,9 +196,11 @@ class BaseDynamics:
         for mech in self.learn_mech:
             getattr(self, mech).save(save_dir=save_dir)
 
-    def load(self, load_dir: Union[str, pathlib.Path]):
+    def load(self,
+             load_dir: Union[str, pathlib.Path],
+             load_device: Optional[str] = None):
         for mech in self.learn_mech:
-            getattr(self, mech).load(load_dir=load_dir)
+            getattr(self, mech).load(load_dir=load_dir, load_device=load_device)
 
     def get_variable_by_mech(self,
                              mech: str) -> str:

@@ -15,11 +15,13 @@ class Runner:
             self,
             agent_dir: str,
             checkpoint: Optional[str],
+            device="cuda:0"
     ):
         self.agent_dir = agent_dir
         self.cfg = load_hydra_cfg(self.agent_dir)
+        self.cfg.device = device
         self.env, *_ = make_env(self.cfg)
-        self.agent = cmrl.agent.load_agent(self.agent_dir, self.env, ckpt=checkpoint)
+        self.agent = cmrl.agent.load_agent(self.agent_dir, self.env, ckpt=checkpoint, device=device)
 
     def run(self):
         # from emei.util import random_policy_test

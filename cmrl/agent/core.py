@@ -102,7 +102,8 @@ def complete_agent_cfg(
 
 def load_agent(agent_path: Union[str, pathlib.Path],
                env: gym.Env,
-               ckpt:Optional[str]=None) -> Agent:
+               ckpt: Optional[str] = None,
+               device: Optional[str] = None) -> Agent:
     """Loads an agent from a Hydra config file at the given path.
 
     For agent of type "pytorch_sac.agent.sac.SACAgent", the directory
@@ -122,6 +123,7 @@ def load_agent(agent_path: Union[str, pathlib.Path],
     """
     agent_path = pathlib.Path(agent_path)
     cfg = omegaconf.OmegaConf.load(agent_path / ".hydra" / "config.yaml")
+    cfg.device = device
 
     if cfg.algorithm.agent._target_ == "cmrl.third_party.pytorch_sac.sac.SAC":
         import cmrl.third_party.pytorch_sac as pytorch_sac
@@ -131,9 +133,10 @@ def load_agent(agent_path: Union[str, pathlib.Path],
         complete_agent_cfg(env, cfg.algorithm.agent)
         agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
         if ckpt is not None:
-            agent.load_checkpoint(ckpt_path=agent_path / "sac_checkpoints" / "checkpoint_{}.pth".format(ckpt))
+            agent.load_checkpoint(ckpt_path=agent_path / "sac_checkpoints" / "checkpoint_{}.pth".format(ckpt),
+                                  device=device)
         else:
-            agent.load_checkpoint(ckpt_path=agent_path / "sac_best.pth")
+            agent.load_checkpoint(ckpt_path=agent_path / "sac_best.pth", device=device)
         return SACAgent(agent)
     else:
         raise ValueError("Invalid agent configuration.")

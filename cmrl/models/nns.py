@@ -48,9 +48,11 @@ class EnsembleMLP(nn.Module):
                 model_dict[attr] = getattr(self, attr)
         torch.save(model_dict, pathlib.Path(save_dir) / self._MODEL_FILENAME)
 
-    def load(self, load_dir: Union[str, pathlib.Path]):
+    def load(self,
+             load_dir: Union[str, pathlib.Path],
+             load_device: Optional[str] = None):
         """Loads the model from the given path."""
-        model_dict = torch.load(pathlib.Path(load_dir) / self._MODEL_FILENAME)
+        model_dict = torch.load(pathlib.Path(load_dir) / self._MODEL_FILENAME, map_location=load_device)
         for attr in model_dict:
             if attr == "state_dict":
                 self.load_state_dict(model_dict["state_dict"])

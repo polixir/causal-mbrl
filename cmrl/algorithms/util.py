@@ -44,7 +44,7 @@ def rollout_model_and_populate_sac_buffer(
     gt_obs = obs[query_index]
     for i in range(rollout_horizon):
         action = agent.act(obs, sample=sac_samples_action, batched=True)
-        pred_next_obs, pred_rewards, pred_dones = fake_env.step(
+        pred_next_obs, pred_reward, pred_terminal = fake_env.step(
             action, deterministic=False
         )
         # query ground truth
@@ -62,11 +62,11 @@ def rollout_model_and_populate_sac_buffer(
             obs[~accum_dones],
             action[~accum_dones],
             pred_next_obs[~accum_dones],
-            pred_rewards[~accum_dones, 0],
-            pred_dones[~accum_dones, 0],
+            pred_reward[~accum_dones, 0],
+            pred_terminal[~accum_dones, 0],
         )
         obs = pred_next_obs
-        accum_dones |= pred_dones.squeeze()
+        accum_dones |= pred_terminal.squeeze()
 
         if accum_dones.all():
             print("stop by env, longest rollout:", i)

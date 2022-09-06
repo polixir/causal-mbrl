@@ -2,8 +2,8 @@ env: "emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=1&time_step=0.02___$
 dataset: "expert-replay"
 
 # basic RL params
-num_steps: 100000
-epoch_length: 100
+num_steps: 300000
+epoch_length: 1000
 
 # dynamics
 learning_reward: false
@@ -20,13 +20,13 @@ update_causal_mask_ratio: 0.25
 discovery_schedule: [1, 30, 250, 250]
 
 # mopo
-penalty_coeff: 0.1
+penalty_coeff: 0.5
 
 # dyna
 freq_train_model: 1000
 # model learning
 patience: 5
-optim_lr: 0.001
+optim_lr: 0.0001
 weight_decay: 0.00001
 batch_size: 256
 validation_ratio: 0.2
@@ -36,7 +36,7 @@ longest_epoch: -1
 improvement_threshold: 0.01
 # model using
 effective_model_rollouts_per_step: 50
-rollout_schedule: [1, 15, 5, 5]
+rollout_schedule: [1, 15, 1, 1]
 num_sac_updates_per_step: 1
 sac_updates_every_steps: 1
 num_epochs_to_retain_sac_buffer: 1

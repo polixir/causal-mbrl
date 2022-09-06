@@ -25,7 +25,7 @@ class DatasetEvaluator:
         self.dynamics = cmrl.util.creator.create_dynamics(self.cfg.dynamics,
                                                           self.env.observation_space.shape,
                                                           self.env.action_space.shape,
-                                                          model_dir=self.model_path, )
+                                                          load_dir=self.model_path, )
 
         self.replay_buffer = cmrl.util.creator.create_replay_buffer(
             self.cfg,

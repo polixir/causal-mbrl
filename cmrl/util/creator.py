@@ -92,7 +92,8 @@ def create_dynamics(dynamics_cfg: omegaconf.DictConfig,
                     obs_shape: Tuple[int, ...],
                     act_shape: Tuple[int, ...],
                     logger: Optional[Logger] = None,
-                    model_dir: Optional[Union[str, pathlib.Path]] = None):
+                    load_dir: Optional[Union[str, pathlib.Path]] = None,
+                    load_device: Optional[str] = None):
     if dynamics_cfg.name == "plain_dynamics":
         dynamics_class = PlainEnsembleDynamics
     elif dynamics_cfg.name == "constraint_based_dynamics":
@@ -124,7 +125,7 @@ def create_dynamics(dynamics_cfg: omegaconf.DictConfig,
         weight_decay=dynamics_cfg.weight_decay,
         logger=logger
     )
-    if model_dir:
-        dynamics_model.load(model_dir)
+    if load_dir:
+        dynamics_model.load(load_dir, load_device)
 
     return dynamics_model
