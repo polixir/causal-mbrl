@@ -182,7 +182,6 @@ def maybe_load_trained_model(dynamics: BaseDynamics,
                 this_time_exp_dir_list = [time_dir]
 
             for exp_dir in this_time_exp_dir_list:
-                print(exp_dir)
                 if not (exp_dir / ".hydra").exists():
                     continue
                 exp_cfg = load_hydra_cfg(exp_dir)

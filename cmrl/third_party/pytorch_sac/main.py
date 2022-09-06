@@ -58,9 +58,10 @@ np.random.seed(args.seed)
 # Agent
 agent = SAC(env.observation_space.shape[0], env.action_space, args)
 
-#Tesnorboard
-writer = SummaryWriter('runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), args.env_name,
-                                                             args.policy, "autotune" if args.automatic_entropy_tuning else ""))
+# Tesnorboard
+writer = SummaryWriter(
+    'runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), args.env_name,
+                                  args.policy, "autotune" if args.automatic_entropy_tuning else ""))
 
 # Memory
 memory = ReplayMemory(args.replay_size, args.seed)
@@ -85,7 +86,9 @@ for i_episode in itertools.count(1):
             # Number of updates per step in environment
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
-                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory,
+                                                                                                     args.batch_size,
+                                                                                                     updates)
 
                 writer.add_scalar('loss/critic_1', critic_1_loss, updates)
                 writer.add_scalar('loss/critic_2', critic_2_loss, updates)
@@ -94,7 +97,7 @@ for i_episode in itertools.count(1):
                 writer.add_scalar('entropy_temprature/alpha', alpha, updates)
                 updates += 1
 
-        next_state, reward, done, _ = env.step(action) # Step
+        next_state, reward, done, _ = env.step(action)  # Step
         episode_steps += 1
         total_numsteps += 1
         episode_reward += reward
@@ -103,7 +106,7 @@ for i_episode in itertools.count(1):
         # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
         mask = 1 if episode_steps == env._max_episode_steps else float(not done)
 
-        memory.push(state, action, reward, next_state, mask) # Append transition to memory
+        memory.push(state, action, reward, next_state, mask)  # Append transition to memory
 
         state = next_state
 
@@ -111,12 +114,14 @@ for i_episode in itertools.count(1):
         break
 
     writer.add_scalar('reward/train', episode_reward, i_episode)
-    print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps,
+                                                                                  episode_steps,
+                                                                                  round(episode_reward, 2)))
 
     if i_episode % 10 == 0 and args.eval is True:
         avg_reward = 0.
         episodes = 10
-        for _  in range(episodes):
+        for _ in range(episodes):
             state = env.reset()
             episode_reward = 0
             done = False
@@ -126,11 +131,9 @@ for i_episode in itertools.count(1):
                 next_state, reward, done, _ = env.step(action)
                 episode_reward += reward
 
-
                 state = next_state
             avg_reward += episode_reward
         avg_reward /= episodes
-
 
         writer.add_scalar('avg_reward/test', avg_reward, i_episode)
 
@@ -139,4 +142,3 @@ for i_episode in itertools.count(1):
         print("----------------------------------------")
 
 env.close()
-

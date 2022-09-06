@@ -20,7 +20,7 @@ update_causal_mask_ratio: 0.25
 discovery_schedule: [1, 30, 250, 250]
 
 # mopo
-penalty_coeff: 0.5
+penalty_coeff: 5
 
 # dyna
 freq_train_model: 1000
@@ -33,7 +33,7 @@ validation_ratio: 0.2
 shuffle_each_epoch: true
 bootstrap_permutes: false
 longest_epoch: -1
-improvement_threshold: 0.01
+improvement_threshold: 0.1
 # model using
 effective_model_rollouts_per_step: 50
 rollout_schedule: [1, 15, 1, 1]

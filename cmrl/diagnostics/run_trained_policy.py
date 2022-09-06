@@ -14,14 +14,14 @@ class Runner:
     def __init__(
             self,
             agent_dir: str,
-            checkpoint: Optional[str],
+            type: str="best",
             device="cuda:0"
     ):
         self.agent_dir = agent_dir
         self.cfg = load_hydra_cfg(self.agent_dir)
         self.cfg.device = device
         self.env, *_ = make_env(self.cfg)
-        self.agent = cmrl.agent.load_agent(self.agent_dir, self.env, ckpt=checkpoint, device=device)
+        self.agent = cmrl.agent.load_agent(self.agent_dir, self.env, type=type, device=device)
 
     def run(self):
         # from emei.util import random_policy_test
@@ -50,16 +50,14 @@ if __name__ == "__main__":
              "If not provided, a random agent will be used.",
     )
     parser.add_argument(
-        "--checkpoint",
+        "--type",
         type=str,
-        default=None,
-        help="The directory where the agent configuration and data is stored. "
-             "If not provided, a random agent will be used.",
+        default="best",
     )
     args = parser.parse_args()
 
     runner = Runner(
         agent_dir=args.agent_dir,
-        checkpoint=args.checkpoint
+        type=args.type
     )
     runner.run()

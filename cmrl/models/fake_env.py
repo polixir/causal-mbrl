@@ -134,7 +134,7 @@ class FakeEnv:
                 batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, batch_action)
 
             if self.penalty_coeff != 0:
-                batch_reward += (1 - penalty.reshape(batch_reward.shape)) * self.penalty_coeff
+                batch_reward -= penalty.reshape(batch_reward.shape) * self.penalty_coeff
 
             self._current_batch_obs = batch_next_obs
             return batch_next_obs, batch_reward, batch_terminal

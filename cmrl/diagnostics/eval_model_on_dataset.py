@@ -15,17 +15,20 @@ class DatasetEvaluator:
     def __init__(self,
                  model_dir: str,
                  dataset: str,
-                 batch_size: int = 4096):
+                 batch_size: int = 4096,
+                 device="cuda:0"):
         self.model_path = pathlib.Path(model_dir)
         self.batch_size = batch_size
 
         self.cfg = load_hydra_cfg(self.model_path)
+        self.cfg.device = device
         self.env, self.term_fn, self.reward_fn = cmrl.util.env.make_env(self.cfg)
 
         self.dynamics = cmrl.util.creator.create_dynamics(self.cfg.dynamics,
                                                           self.env.observation_space.shape,
                                                           self.env.action_space.shape,
-                                                          load_dir=self.model_path, )
+                                                          load_dir=self.model_path,
+                                                          load_device=device)
 
         self.replay_buffer = cmrl.util.creator.create_replay_buffer(
             self.cfg,
@@ -139,7 +142,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default=None)
     args = parser.parse_args()
 
-    evaluator = DatasetEvaluator(args.model_dir, args.dataset)
+    evaluator = DatasetEvaluator(args.model_dir,
+                                 args.dataset)
 
     mpl.rcParams["figure.facecolor"] = "white"
     mpl.rcParams["font.size"] = 14

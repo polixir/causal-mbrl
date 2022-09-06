@@ -142,6 +142,7 @@ class SAC(object):
 
         if logger is not None:
             logger.log("train/batch_reward", reward_batch.mean(), updates)
+            logger.log("train/q_value", next_q_value.mean(), updates)
             logger.log("train_critic/loss", qf_loss, updates)
             logger.log("train_actor/loss", policy_loss, updates)
             if self.automatic_entropy_tuning:
