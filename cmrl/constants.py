@@ -1,9 +1,13 @@
 RESULTS_LOG_NAME = "results"
 
-EVAL_LOG_FORMAT = [
+RESULTS_LOG_FORMAT = [
     ("env_step", "S", "int"),
-    ("reward_mean", "RM", "float"),
-    ("reward_std", "RS", "float"),
-    ("length_mean", "LM", "float"),
-    ("length_std", "LS", "float"),
+    ("real_reward_mean", "RRM", "float"),
+    ("real_reward_std", "RRS", "float"),
+    ("real_length_mean", "RLM", "float"),
+    ("real_length_std", "RLS", "float"),
+    ("fake_reward_mean", "FRM", "float"),
+    ("fake_reward_std", "FRS", "float"),
+    ("fake_length_mean", "FLM", "float"),
+    ("fake_length_std", "FLS", "float"),
 ]

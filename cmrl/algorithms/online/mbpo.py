@@ -20,7 +20,7 @@ from cmrl.util.video import VideoRecorder
 from cmrl.algorithms.util import evaluate, rollout_model_and_populate_sac_buffer, maybe_replace_sac_buffer, \
     truncated_linear, maybe_load_trained_model
 
-MBPO_LOG_FORMAT = cmrl.constants.EVAL_LOG_FORMAT + [
+MBPO_LOG_FORMAT = cmrl.constants.RESULTS_LOG_FORMAT + [
     ("epoch", "E", "int"),
     ("rollout_length", "RL", "int"),
 ]

@@ -175,9 +175,8 @@ def maybe_load_trained_model(dynamics: BaseDynamics,
 
     for date_dir in task_exp_dir.glob(r"*"):
         for time_dir in date_dir.glob(r"*"):
-            this_time_exp_dir_list = []
             if (time_dir / "multirun.yaml").exists():  # exp by hydra's MULTIRUN mode, multi exp in this time
-                this_time_exp_dir_list = (time_dir / "multirun.yaml").glob(r"*")
+                this_time_exp_dir_list = list(time_dir.glob(r"*"))
             else:  # only one exp in this time
                 this_time_exp_dir_list = [time_dir]
 

@@ -13,38 +13,6 @@ from cmrl.util.env import make_env
 import cmrl.util.creator
 
 
-class GymBehaviouralFakeEnv(gym.Env):
-    def __init__(self,
-                 fake_env,
-                 real_env):
-        self.fake_env = fake_env
-        self.real_env = real_env
-
-        self.action_space = self.real_env.action_space
-        self.observation_space = self.real_env.observation_space
-
-    def step(self, action):
-        batch_next_obs, batch_reward, batch_terminal = self.fake_env.step(np.array([action], dtype=np.float32),
-                                                                          deterministic=True)
-        self.real_env.set_state_by_obs(batch_next_obs[0])
-        return batch_next_obs[0], batch_reward[0][0], batch_terminal[0][0], False, {}
-
-    def render(self, mode="human"):
-        assert mode == "human"
-        self.real_env.render()
-
-    def reset(
-            self,
-            *,
-            seed: Optional[int] = None,
-            return_info: bool = False,
-            options: Optional[dict] = None,
-    ):
-        obs = self.real_env.reset()
-        self.fake_env.reset(np.array([obs], dtype=np.float32))
-        return obs
-
-
 class Runner:
     def __init__(
             self,
@@ -69,8 +37,8 @@ class Runner:
                                             self.term_fn,
                                             generator=numpy_generator,
                                             penalty_coeff=self.cfg.algorithm.penalty_coeff)
-        self.gym_fake_env = GymBehaviouralFakeEnv(fake_env=self.fake_env,
-                                                  real_env=self.env)
+        self.gym_fake_env = cmrl.models.GymBehaviouralFakeEnv(fake_env=self.fake_env,
+                                                              real_env=self.env)
 
         self.agent = cmrl.agent.load_agent(self.model_path, self.env, type=type, device=device)
 
@@ -78,18 +46,21 @@ class Runner:
         # from emei.util import random_policy_test
         obs = self.gym_fake_env.reset()
         self.gym_fake_env.render()
-        total_reward = 0
+        episode_reward = 0
+        episode_length = 0
         while True:
             # action = self.gym_fake_env.action_space.sample()
             action = self.agent.act(obs)
             next_obs, reward, terminal, truncated, _ = self.gym_fake_env.step(action)
             self.gym_fake_env.render()
             if terminal or truncated:
-                print(total_reward)
-                total_reward = 0
+                print(episode_reward, episode_length)
+                episode_reward = 0
+                episode_length = 0
                 obs = self.gym_fake_env.reset()
             else:
-                total_reward += reward
+                episode_reward += reward
+                episode_length += 1
                 obs = next_obs
 
 

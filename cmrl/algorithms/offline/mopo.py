@@ -1,6 +1,7 @@
 import os
 from typing import Optional, Sequence, cast
 
+import gym
 import emei
 import hydra.utils
 import numpy as np
@@ -20,7 +21,7 @@ from cmrl.util.video import VideoRecorder
 from cmrl.algorithms.util import evaluate, rollout_model_and_populate_sac_buffer, maybe_replace_sac_buffer, \
     truncated_linear, maybe_load_trained_model
 
-MBPO_LOG_FORMAT = cmrl.constants.EVAL_LOG_FORMAT + [
+MBPO_LOG_FORMAT = cmrl.constants.RESULTS_LOG_FORMAT + [
     ("epoch", "E", "int"),
     ("rollout_length", "RL", "int"),
 ]
@@ -120,6 +121,10 @@ def train(
                                    termination_fn,
                                    generator=numpy_generator,
                                    penalty_coeff=cfg.algorithm.penalty_coeff)
+    model_env = gym.wrappers.TimeLimit(cmrl.models.GymBehaviouralFakeEnv(fake_env=fake_env, real_env=test_env),
+                                       max_episode_steps=test_env.spec.max_episode_steps,
+                                       new_step_api=True)
+
     if hasattr(env, "causal_graph"):
         oracle_causal_graph = env.causal_graph
     else:
@@ -197,25 +202,32 @@ def train(
 
             # ------ Epoch ended (evaluate and save model) ------
             if (env_steps + 1) % cfg.task.test_freq == 0:
-                rewards, lengths = evaluate(
+                real_rewards, real_lengths = evaluate(
                     test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
+                )
+                fake_rewards, fake_lengths = evaluate(
+                    model_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
                 )
                 logger.log_data(
                     cmrl.constants.RESULTS_LOG_NAME,
                     {
                         "epoch": epoch,
                         "env_step": env_steps,
-                        "reward_mean": rewards.mean(),
-                        "reward_std": rewards.std(),
-                        "length_mean": lengths.mean(),
-                        "length_std": lengths.std(),
+                        "real_reward_mean": real_rewards.mean(),
+                        "real_reward_std": real_rewards.std(),
+                        "real_length_mean": real_lengths.mean(),
+                        "real_length_std": real_lengths.std(),
+                        "fake_reward_mean": fake_rewards.mean(),
+                        "fake_reward_std": fake_rewards.std(),
+                        "fake_length_mean": fake_lengths.mean(),
+                        "fake_length_std": fake_lengths.std(),
                         "rollout_length": rollout_length,
                     },
                 )
                 agent.sac_agent.save_checkpoint(ckpt_path=os.path.join(work_dir, "sac_final.pth"), silence=True)
-                if rewards.mean() > best_eval_reward:
+                if real_rewards.mean() > best_eval_reward:
                     video_recorder.save(f"{epoch}.mp4")
-                    best_eval_reward = rewards.mean()
+                    best_eval_reward = real_rewards.mean()
                     agent.sac_agent.save_checkpoint(ckpt_path=os.path.join(work_dir, "sac_best.pth"))
 
             env_steps += 1

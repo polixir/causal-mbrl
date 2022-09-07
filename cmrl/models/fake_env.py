@@ -139,53 +139,40 @@ class FakeEnv:
             self._current_batch_obs = batch_next_obs
             return batch_next_obs, batch_reward, batch_terminal
 
+
+class GymBehaviouralFakeEnv(gym.Env):
+    def __init__(self,
+                 fake_env,
+                 real_env):
+        self.fake_env = fake_env
+        self.real_env = real_env
+
+        self.current_obs = None
+
+        self.action_space = self.real_env.action_space
+        self.observation_space = self.real_env.observation_space
+
+    def step(self, action):
+        batch_next_obs, batch_reward, batch_terminal = self.fake_env.step(np.array([action], dtype=np.float32),
+                                                                          deterministic=True)
+        self.current_obs = batch_next_obs[0]
+        return batch_next_obs[0], batch_reward[0][0], batch_terminal[0][0], False, {}
+
     def render(self, mode="human"):
-        pass
+        assert mode == "human"
+        self.real_env.freeze()
+        self.real_env.set_state_by_obs(self.current_obs)
+        self.real_env.render()
+        self.real_env.unfreeze()
 
-    def evaluate_action_sequences(
+    def reset(
             self,
-            action_sequences: torch.Tensor,
-            initial_state: np.ndarray,
-            num_particles: int,
-    ) -> torch.Tensor:
-        """Evaluates a batch of action sequences on the model.
-
-        Args:
-            action_sequences (torch.Tensor): a batch of action sequences to evaluate.  Shape must
-                be ``B x H x A``, where ``B``, ``H``, and ``A`` represent batch size, horizon,
-                and action dimension, respectively.
-            initial_state (np.ndarray): the initial state for the trajectories.
-            num_particles (int): number of times each action sequence is replicated. The final
-                value of the sequence will be the average over its particles values.
-
-        Returns:
-            (torch.Tensor): the accumulated reward for each action sequence, averaged over its
-            particles.
-        """
-        with torch.no_grad():
-            assert len(action_sequences.shape) == 3
-            population_size, horizon, action_dim = action_sequences.shape
-            # either 1-D state or 3-D pixel observation
-            assert initial_state.ndim in (1, 3)
-            tiling_shape = (num_particles * population_size,) + tuple(
-                [1] * initial_state.ndim
-            )
-            initial_obs_batch = np.tile(initial_state, tiling_shape).astype(np.float32)
-            model_state = self.reset(initial_obs_batch, return_as_np=False)
-            batch_size = initial_obs_batch.shape[0]
-            total_rewards = torch.zeros(batch_size, 1).to(self.device)
-            terminated = torch.zeros(batch_size, 1, dtype=bool).to(self.device)
-            for time_step in range(horizon):
-                action_for_step = action_sequences[:, time_step, :]
-                action_batch = torch.repeat_interleave(
-                    action_for_step, num_particles, dim=0
-                )
-                _, rewards, dones, model_state = self.step(
-                    action_batch, model_state, sample=True
-                )
-                rewards[terminated] = 0
-                terminated |= dones
-                total_rewards += rewards
-
-            total_rewards = total_rewards.reshape(-1, num_particles)
-            return total_rewards.mean(dim=1)
+            *,
+            seed: Optional[int] = None,
+            return_info: bool = False,
+            options: Optional[dict] = None,
+    ):
+        obs = self.real_env.reset()
+        self.current_obs = obs
+        self.fake_env.reset(np.array([obs], dtype=np.float32))
+        return obs
