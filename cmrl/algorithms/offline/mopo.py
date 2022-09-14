@@ -19,7 +19,7 @@ import cmrl.util.creator as creator
 from cmrl.agent.sac_wrapper import SACAgent
 from cmrl.util.video import VideoRecorder
 from cmrl.algorithms.util import evaluate, rollout_model_and_populate_sac_buffer, maybe_replace_sac_buffer, \
-    truncated_linear, maybe_load_trained_model
+    truncated_linear, maybe_load_trained_offline_model
 
 MBPO_LOG_FORMAT = cmrl.constants.RESULTS_LOG_FORMAT + [
     ("epoch", "E", "int"),
@@ -133,8 +133,8 @@ def train(
     if isinstance(dynamics, cmrl.models.dynamics.ConstraintBasedDynamics):
         dynamics.set_oracle_mask("transition", oracle_causal_graph[:-1])
 
-    existed_trained_model = maybe_load_trained_model(dynamics, cfg, obs_shape, act_shape,
-                                                     work_dir=work_dir)
+    existed_trained_model = maybe_load_trained_offline_model(dynamics, cfg, obs_shape, act_shape,
+                                                             work_dir=work_dir)
     if not existed_trained_model:
         dynamics.learn(replay_buffer,
                        **cfg.dynamics,

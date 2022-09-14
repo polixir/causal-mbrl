@@ -1,5 +1,6 @@
 import argparse
 import os
+import torch
 import pathlib
 from typing import Generator, List, Optional, Tuple, cast, Union
 import math
@@ -11,6 +12,9 @@ import cmrl.agent
 from cmrl.util.config import load_hydra_cfg
 from cmrl.util.env import make_env
 import cmrl.util.creator
+
+from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import EvalCallback
 
 
 class Runner:
@@ -24,6 +28,7 @@ class Runner:
         self.cfg = load_hydra_cfg(self.model_path)
         self.cfg.device = device
         self.env, self.term_fn, self.reward_fn = make_env(self.cfg)
+
         self.dynamics = cmrl.util.creator.create_dynamics(self.cfg.dynamics,
                                                           self.env.observation_space.shape,
                                                           self.env.action_space.shape,
@@ -37,10 +42,27 @@ class Runner:
                                             self.term_fn,
                                             generator=numpy_generator,
                                             penalty_coeff=self.cfg.algorithm.penalty_coeff)
-        self.gym_fake_env = cmrl.models.GymBehaviouralFakeEnv(fake_env=self.fake_env,
-                                                              real_env=self.env)
+        self.gym_fake_env = gym.wrappers.TimeLimit(cmrl.models.GymBehaviouralFakeEnv(fake_env=self.fake_env,
+                                                                                     real_env=self.env),
+                                                   max_episode_steps=self.env.spec.max_episode_steps,
+                                                   new_step_api=False)
+        test_env, *_ = make_env(self.cfg)
+        self.test_env = gym.wrappers.TimeLimit(test_env,
+                                               max_episode_steps=self.env.spec.max_episode_steps,
+                                               new_step_api=False)
 
         self.agent = cmrl.agent.load_agent(self.model_path, self.env, type=type, device=device)
+
+    def train_policy(self):
+        model = PPO("MlpPolicy", self.gym_fake_env, verbose=1)
+        log_path = str(self.model_path / "diagnostics" / "ppo" / "log")
+        tb_path = str(self.model_path / "diagnostics" / "ppo" / "tb")
+        eval_callback = EvalCallback(self.test_env, best_model_save_path=log_path,
+                                     log_path=log_path, eval_freq=1000,
+                                     deterministic=True, render=False)
+
+        model.learn(total_timesteps=int(1e6), callback=eval_callback, tb_log_name=tb_path)
+        model.save(self.model_path / "diagnostics" / "ppo")
 
     def run(self):
         # from emei.util import random_policy_test
@@ -83,4 +105,5 @@ if __name__ == "__main__":
         model_dir=args.model_dir,
         type=args.type
     )
-    runner.run()
+    # runner.run()
+    runner.train_policy()

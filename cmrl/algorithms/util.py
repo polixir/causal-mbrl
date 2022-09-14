@@ -161,11 +161,11 @@ def is_same_dict(dict1, dict2):
     return True
 
 
-def maybe_load_trained_model(dynamics: BaseDynamics,
-                             cfg,
-                             obs_shape,
-                             act_shape,
-                             work_dir):
+def maybe_load_trained_offline_model(dynamics: BaseDynamics,
+                                     cfg,
+                                     obs_shape,
+                                     act_shape,
+                                     work_dir):
     work_dir = pathlib.Path(work_dir)
     if "." not in work_dir.name:  # exp by hydra's MULTIRUN mode
         task_exp_dir = work_dir.parent.parent.parent

@@ -5,6 +5,7 @@ import torch
 
 import cmrl.algorithms.offline.mopo as mopo
 import cmrl.algorithms.online.mbpo as mbpo
+import cmrl.algorithms.offline.off_dyna as off_dyna
 
 from cmrl.util.env import make_env
 
@@ -19,7 +20,11 @@ def run(cfg: omegaconf.DictConfig):
     if cfg.algorithm.name == "mopo":
         test_env, *_ = make_env(cfg)
         return mopo.train(env, test_env, term_fn, reward_fn, cfg)
-    if cfg.algorithm.name == "mbpo":
+    elif cfg.algorithm.name == "off_dyna":
+        test_env, *_ = make_env(cfg)
+        get_init_obs_fn = env.get_batch_init_obs
+        return off_dyna.train(env, test_env, term_fn, reward_fn, get_init_obs_fn, cfg)
+    elif cfg.algorithm.name == "mbpo":
         test_env, *_ = make_env(cfg)
         return mbpo.train(env, test_env, term_fn, reward_fn, cfg)
     else:

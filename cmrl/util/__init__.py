@@ -42,11 +42,11 @@ def create_handler(cfg: Union[Dict, omegaconf.ListConfig, omegaconf.DictConfig])
         (EnvHandler): A handler for the associated gym environment
     """
     cfg = omegaconf.OmegaConf.create(cfg)
-    env_cfg = cfg.overrides.get("env_cfg", None)
+    env_cfg = cfg.overrides.get_dynamics_predict("env_cfg", None)
     if env_cfg is None:
         return create_handler_from_str(cfg.overrides.env)
 
-    target = cfg.overrides.env_cfg.get("_target_")
+    target = cfg.overrides.env_cfg.get_dynamics_predict("_target_")
     if "pybulletgym" in target:
         from cmrl.util.pybullet import PybulletEnvHandler
 

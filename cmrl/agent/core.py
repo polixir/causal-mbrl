@@ -40,24 +40,6 @@ class RandomAgent(Agent):
 def complete_agent_cfg(
         env: gym.Env, agent_cfg: omegaconf.DictConfig
 ):
-    """Completes an agent's configuration given information from the environment.
-
-    The goal of this function is to completed information about state and action shapes and ranges,
-    without requiring the user to manually enter this into the Omegaconf configuration object.
-
-    It will check for and complete any of the following keys:
-
-        - "obs_dim": set to env.observation_space.shape
-        - "action_dim": set to env.action_space.shape
-        - "action_range": set to max(env.action_space.high) - min(env.action_space.low)
-        - "action_lb": set to env.action_space.low
-        - "action_ub": set to env.action_space.high
-
-    Note:
-        If the user provides any of these values in the Omegaconf configuration object, these
-        *will not* be overridden by this function.
-
-    """
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
@@ -96,6 +78,19 @@ def complete_agent_cfg(
         agent_cfg.action_lb = _create_numpy_config(env.action_space.low)
     if "action_ub" in agent_cfg.keys() and "action_ub" not in agent_cfg:
         agent_cfg.action_ub = _create_numpy_config(env.action_space.high)
+
+    if "env" in agent_cfg.keys():
+        _check_and_replace("low", _create_numpy_config(env.action_space.low), agent_cfg.env.action_space)
+        _check_and_replace(
+            "high", _create_numpy_config(env.action_space.high), agent_cfg.env.action_space
+        )
+        _check_and_replace("shape", env.action_space.shape, agent_cfg.env.action_space)
+
+        _check_and_replace("low", _create_numpy_config(env.observation_space.low), agent_cfg.env.observation_space)
+        _check_and_replace(
+            "high", _create_numpy_config(env.observation_space.high), agent_cfg.env.observation_space
+        )
+        _check_and_replace("shape", env.observation_space.shape, agent_cfg.env.observation_space)
 
     return agent_cfg
 

@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: mopo
+  - algorithm: off_dyna
   - dynamics: plain_dynamics
   - task: boundary_IP_swing_up
   - _self_

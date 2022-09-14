@@ -56,9 +56,7 @@ def create_replay_buffer(
     Returns:
         (:class:`cmrl.replay_buffer.ReplayBuffer`): the replay buffer.
     """
-    dataset_size = (
-        cfg.algorithm.get("dataset_size", None) if "algorithm" in cfg else None
-    )
+    dataset_size = None
     if not dataset_size:
         dataset_size = cfg.task.num_steps
     maybe_max_trajectory_len = None

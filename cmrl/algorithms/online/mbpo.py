@@ -18,7 +18,7 @@ import cmrl.util.creator as creator
 from cmrl.agent.sac_wrapper import SACAgent
 from cmrl.util.video import VideoRecorder
 from cmrl.algorithms.util import evaluate, rollout_model_and_populate_sac_buffer, maybe_replace_sac_buffer, \
-    truncated_linear, maybe_load_trained_model
+    truncated_linear, maybe_load_trained_offline_model
 
 MBPO_LOG_FORMAT = cmrl.constants.RESULTS_LOG_FORMAT + [
     ("epoch", "E", "int"),
