@@ -9,7 +9,6 @@ import cmrl.algorithms.offline.off_dyna as off_dyna
 
 from cmrl.util.env import make_env
 
-
 @hydra.main(version_base=None, config_path="conf", config_name="main")
 def run(cfg: omegaconf.DictConfig):
     env, term_fn, reward_fn = make_env(cfg)

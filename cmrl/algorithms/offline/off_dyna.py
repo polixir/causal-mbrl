@@ -9,57 +9,35 @@ import numpy as np
 import omegaconf
 import torch
 from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.logger import configure
+from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 
 import cmrl.constants
 import cmrl.agent
 import cmrl.models
 import cmrl.models.dynamics
+from cmrl.models.fake_env import VecFakeEnv
 import cmrl.third_party.pytorch_sac as pytorch_sac
 import cmrl.types
 import cmrl.util
 import cmrl.util.creator as creator
+from cmrl.callbacks.eval_callback import EvalCallback
 from cmrl.agent.sac_wrapper import SACAgent
 from cmrl.util.video import VideoRecorder
 from cmrl.algorithms.util import evaluate, rollout_model_and_populate_sac_buffer, maybe_replace_sac_buffer, \
     truncated_linear, maybe_load_trained_offline_model
 
-MBPO_LOG_FORMAT = cmrl.constants.RESULTS_LOG_FORMAT + [
-    ("epoch", "E", "int"),
-    ("rollout_length", "RL", "int"),
-]
-MODEL_EVAL_LOG_FORMAT = [
-    ("epoch", "E", "int"),
-    ("rollout", "RO", "int"),
-]
-
 
 def train(
         env: emei.EmeiEnv,
-        test_env: emei.EmeiEnv,
+        eval_env: emei.EmeiEnv,
         termination_fn: Optional[cmrl.types.TermFnType],
         reward_fn: Optional[cmrl.types.RewardFnType],
         get_init_obs_fn,
         cfg: omegaconf.DictConfig,
         silent: bool = False,
         work_dir: Optional[str] = None,
-) -> np.float32:
-    """Train agent by MOPO algorithm.
-
-    Args:
-        env: interaction environment
-        test_env: test environment, only used to evaluation
-        termination_fn: termination function given as priori, `None` if it needs to be learned by nn
-        reward_fn: reward function given as priori, `None` if it needs to be learned by nn
-        cfg: all config
-        silent: no logging
-        work_dir:
-
-    Returns: the best evaluation reward
-    """
-    # ------------------- Initialization -------------------
-    debug_mode = cfg.get("debug_mode", False)
-
+):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
@@ -67,24 +45,8 @@ def train(
     agent = cast(BaseAlgorithm, hydra.utils.instantiate(cfg.algorithm.agent))
 
     work_dir = work_dir or os.getcwd()
-    # enable_back_compatible to use pytorch_sac agent
-    logger = cmrl.util.Logger(work_dir, enable_back_compatible=True)
-    logger.register_group(
-        cmrl.constants.RESULTS_LOG_NAME,
-        MBPO_LOG_FORMAT,
-        color="green",
-        dump_frequency=1,
-    )
-    logger.register_group(
-        "model_eval",
-        [("obs{}".format(o), "O{}".format(o), "float") for o in range(obs_shape[0])] + [
-            ("reward", "R", "float")] + MODEL_EVAL_LOG_FORMAT,
-        color="green",
-        dump_frequency=1,
-        disable_console_dump=True
-    )
-    save_video = cfg.get("save_video", False)
-    video_recorder = VideoRecorder(work_dir if save_video else None)
+    logger = configure("tb", format_strings=["tensorboard", "stdout"])
+
     numpy_generator = np.random.default_rng(seed=cfg.seed)
 
     # -------------- Create initial dataset --------------
@@ -107,24 +69,23 @@ def train(
     else:
         raise NotImplementedError
 
-    # ---------------------------------------------------------
-    # --------------------- Training Loop ---------------------
-    rollout_batch_size = (
-            cfg.task.effective_model_rollouts_per_step * cfg.algorithm.freq_train_model
-    )
-    trains_per_epoch = int(
-        np.ceil(cfg.task.epoch_length / cfg.task.freq_train_model)
-    )
-    updates_made = 0
-    env_steps = 0
-    fake_env = agent.env.envs[0].env
-    fake_env.complete(dynamics,
-                               reward_fn,
-                               termination_fn,
-                               get_init_obs_fn,
-                               generator=numpy_generator,
-                               penalty_coeff=cfg.algorithm.penalty_coeff)
-    agent.env.envs[0] = TimeLimit(fake_env, max_episode_steps=env.spec.max_episode_steps, new_step_api=False)
+    fake_env = cast(VecFakeEnv, agent.env)
+    fake_env.set_up(dynamics,
+                    reward_fn,
+                    termination_fn,
+                    get_init_obs_fn,
+                    max_episode_steps=env.spec.max_episode_steps,
+                    penalty_coeff=cfg.algorithm.penalty_coeff)
+    agent.env = VecMonitor(fake_env)
+
+    fake_eval_env = cast(VecFakeEnv, hydra.utils.instantiate(cfg.algorithm.agent.env))
+    fake_eval_env.set_up(dynamics,
+                         reward_fn,
+                         termination_fn,
+                         get_init_obs_fn,
+                         max_episode_steps=env.spec.max_episode_steps,
+                         penalty_coeff=cfg.algorithm.penalty_coeff)
+    fake_eval_env.seed(seed=cfg.seed)
 
     if hasattr(env, "causal_graph"):
         oracle_causal_graph = env.causal_graph
@@ -141,8 +102,9 @@ def train(
                        **cfg.dynamics,
                        work_dir=work_dir)
 
-    eval_callback = EvalCallback(test_env, best_model_save_path="./",
+    eval_callback = EvalCallback(eval_env, fake_eval_env, best_model_save_path="./",
                                  log_path="./", eval_freq=1000,
                                  deterministic=True, render=False)
 
-    agent.learn(total_timesteps=int(1e6), callback=eval_callback, tb_log_name="./tb")
+    agent.set_logger(logger)
+    agent.learn(total_timesteps=cfg.task.num_steps, callback=eval_callback, tb_log_name="./tb")

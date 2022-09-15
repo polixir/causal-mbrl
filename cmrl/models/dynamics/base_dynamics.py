@@ -5,9 +5,11 @@ import numpy as np
 import pathlib
 import collections
 from typing import Optional, Union, Tuple, Dict, List, cast
+
+from stable_baselines3.common.logger import Logger
+
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
-from cmrl.util.logger import Logger
 from cmrl.util.replay_buffer import ReplayBuffer, TransitionIterator, BootstrapIterator
 from cmrl.types import InteractionBatch
 
@@ -22,14 +24,6 @@ class BaseDynamics:
                          "reward_mech": "batch_reward",
                          "termination_mech": "batch_terminal", }
     _VARIABLE_TO_MECH = dict([(value, key) for key, value in _MECH_TO_VARIABLE.items()])
-    _MODEL_LOG_FORMAT = [
-        ("epoch", "E", "int"),
-        ("train_dataset_size", "TD", "int"),
-        ("val_dataset_size", "VD", "int"),
-        ("train_loss", "TLOSS", "float"),
-        ("val_loss", "VLOSS", "float"),
-        ("best_val_loss", "BVLOSS", "float"),
-    ]
 
     def __init__(self,
                  transition: BaseEnsembleTransition,
@@ -68,15 +62,6 @@ class BaseDynamics:
             self.termination_mech_optimizer = torch.optim.Adam(
                 self.termination_mech.parameters(), lr=optim_lr, weight_decay=weight_decay, eps=optim_eps, )
             self.learn_mech.append("termination_mech")
-
-        if self.logger is not None:
-            for mech in self.learn_mech:
-                self.logger.register_group(
-                    mech,
-                    self._MODEL_LOG_FORMAT,
-                    color="blue",
-                    dump_frequency=1,
-                )
 
     @abc.abstractmethod
     def learn(self,

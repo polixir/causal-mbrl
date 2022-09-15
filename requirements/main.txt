@@ -1,4 +1,4 @@
-gym>=0.24.1
+gym>=0.25.0
 hydra-core>=1.2.0
 matplotlib>=3.5.2
 numpy>=1.22.4

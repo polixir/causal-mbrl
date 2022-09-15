@@ -17,7 +17,8 @@ agent:
   _target_: stable_baselines3.sac.SAC
   policy: "MlpPolicy"
   env:
-    _target_: cmrl.models.fake_env.LazyFakeEnv
+    _target_: cmrl.models.fake_env.VecFakeEnv
+    num_envs: 16
     action_space:
       _target_: gym.spaces.Box
       low: ???

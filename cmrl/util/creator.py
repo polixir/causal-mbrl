@@ -6,9 +6,10 @@ import hydra
 import numpy as np
 import omegaconf
 
+from stable_baselines3.common.logger import Logger
+
 from cmrl.util.replay_buffer import ReplayBuffer
 from cmrl.models.dynamics import PlainEnsembleDynamics, ConstraintBasedDynamics
-from cmrl.util.logger import Logger
 from cmrl.util.config import get_complete_dynamics_cfg
 
 

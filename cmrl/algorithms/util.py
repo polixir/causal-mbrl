@@ -20,7 +20,7 @@ from cmrl.models.dynamics import BaseDynamics
 
 def rollout_model_and_populate_sac_buffer(
         query_env: emei.EmeiEnv,
-        fake_env: cmrl.models.FakeEnv,
+        fake_env: cmrl.models.VecFakeEnv,
         replay_buffer: cmrl.util.ReplayBuffer,
         agent: SACAgent,
         sac_buffer: cmrl.util.ReplayBuffer,
