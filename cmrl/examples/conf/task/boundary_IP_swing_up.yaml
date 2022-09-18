@@ -1,4 +1,4 @@
-env: "emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=5&time_step=0.05___${task.dataset}"
+env: "emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=1&time_step=0.02___${task.dataset}"
 dataset: "SAC-expert-replay"
 
 # basic RL params
@@ -11,7 +11,7 @@ learning_reward: false
 learning_terminal: false
 ensemble_num: 7
 elite_num: 5
-multi_step: "forward_euler_5"
+multi_step: "none"
 
 # conditional independence test(causal discovery)
 oracle: true
@@ -21,13 +21,14 @@ test_freq: 1000
 update_causal_mask_ratio: 0.25
 discovery_schedule: [ 1, 30, 250, 250 ]
 
-# mopo
+# offline
 penalty_coeff: 0.5
+offline_data_sampling_ratio: 1
 
 # dyna
 freq_train_model: 1000
 # model learning
-patience: 5
+patience: 20
 optim_lr: 0.0001
 weight_decay: 0.00001
 batch_size: 256

@@ -62,11 +62,15 @@ def train(
     if hasattr(env, "get_dataset"):
         params, dataset_type = cfg.task.env.split("___")[-2:]
         data_dict = env.get_dataset("{}-{}".format(params, dataset_type))
-        replay_buffer.add_batch(data_dict["observations"],
-                                data_dict["actions"],
-                                data_dict["next_observations"],
-                                data_dict["rewards"],
-                                data_dict["terminals"].astype(bool) | data_dict["timeouts"].astype(bool))
+        all_data_num = len(data_dict["observations"])
+        sample_data_num = cfg.task.offline_data_sampling_ratio * all_data_num
+        sample_idx = numpy_generator.permutation(all_data_num)[:sample_data_num]
+        replay_buffer.add_batch(data_dict["observations"][sample_idx],
+                                data_dict["actions"][sample_idx],
+                                data_dict["next_observations"][sample_idx],
+                                data_dict["rewards"][sample_idx],
+                                data_dict["terminals"][sample_idx].astype(bool) | data_dict["timeouts"][
+                                    sample_idx].astype(bool))
     else:
         raise NotImplementedError
 
@@ -98,13 +102,13 @@ def train(
                          penalty_coeff=penalty_coeff)
     fake_eval_env.seed(seed=cfg.seed)
 
-    if hasattr(env, "causal_graph"):
-        oracle_causal_graph = env.causal_graph
+    if hasattr(env, "get_causal_graph"):
+        oracle_causal_graph = env.get_causal_graph()
     else:
         oracle_causal_graph = None
 
     if isinstance(dynamics, cmrl.models.dynamics.ConstraintBasedDynamics):
-        dynamics.set_oracle_mask("transition", oracle_causal_graph[:-1])
+        dynamics.set_oracle_mask("transition", oracle_causal_graph)
 
     existed_trained_model = maybe_load_trained_offline_model(dynamics, cfg, obs_shape, act_shape,
                                                              work_dir=work_dir)
