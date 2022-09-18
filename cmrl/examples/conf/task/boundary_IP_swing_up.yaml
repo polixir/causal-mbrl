@@ -1,15 +1,17 @@
-env: "emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=1&time_step=0.02___${task.dataset}"
+env: "emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=5&time_step=0.05___${task.dataset}"
 dataset: "SAC-expert-replay"
 
 # basic RL params
 num_steps: 3000000
 epoch_length: 1000
+n_eval_episodes: 8
 
 # dynamics
 learning_reward: false
 learning_terminal: false
 ensemble_num: 7
 elite_num: 5
+multi_step: "forward_euler_5"
 
 # conditional independence test(causal discovery)
 oracle: true
@@ -33,7 +35,7 @@ validation_ratio: 0.2
 shuffle_each_epoch: true
 bootstrap_permutes: false
 longest_epoch: -1
-improvement_threshold: 0.1
+improvement_threshold: 0.01
 # model using
 effective_model_rollouts_per_step: 50
 rollout_schedule: [ 1, 15, 1, 1 ]

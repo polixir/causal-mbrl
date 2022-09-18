@@ -10,7 +10,7 @@ import cmrl.constants
 import cmrl.models
 import cmrl.agent
 import cmrl.types
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from cmrl.agent.sac_wrapper import SACAgent
 from cmrl.util.video import VideoRecorder
 from cmrl.util.config import load_hydra_cfg, get_complete_dynamics_cfg
@@ -147,16 +147,13 @@ def truncated_linear(
 def is_same_dict(dict1, dict2):
     for key in dict1:
         if key not in dict2:
-            # print(0, key)
             return False
         else:
             if isinstance(dict1[key], DictConfig) and isinstance(dict2[key], DictConfig):
                 if not is_same_dict(dict1[key], dict2[key]):
-                    # print(1, key, dict1[key], dict2[key])
                     return False
             else:
                 if dict1[key] != dict2[key]:
-                    # print(2, key, dict1[key], dict2[key])
                     return False
     return True
 

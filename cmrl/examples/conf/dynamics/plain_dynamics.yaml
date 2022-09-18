@@ -1,5 +1,7 @@
 name: plain_dynamics
 
+multi_step: ${task.multi_step}
+
 transition:
   _target_: cmrl.models.transition.PlainEnsembleGaussianTransition
   # transition info

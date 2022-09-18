@@ -21,22 +21,26 @@ class EnsembleMLP(nn.Module):
         self.elite_num = elite_num
         self.device = device
 
-        self.elite_members: Optional[Sequence[int]] = np.random.permutation(ensemble_num)[:elite_num]
+        self._elite_members: Optional[Sequence[int]] = np.random.permutation(ensemble_num)[:elite_num]
 
         self._model_save_attrs = ["elite_members", "state_dict"]
 
-    def set_elite(self, elite_indices: Sequence[int]):
+    def set_elite_members(self, elite_indices: Sequence[int]):
         if len(elite_indices) != self.ensemble_num:
             assert len(elite_indices) == self.elite_num
-            self.elite_members = list(elite_indices)
+            self._elite_members = list(elite_indices)
+
+    @property
+    def elite_members(self):
+        return self._elite_members
 
     def get_random_index(self,
                          batch_size: int,
                          numpy_generator: Optional[np.random.Generator] = None):
         if numpy_generator:
-            return numpy_generator.choice(self.elite_members, size=batch_size)
+            return numpy_generator.choice(self._elite_members, size=batch_size)
         else:
-            return np.random.choice(self.elite_members, size=batch_size)
+            return np.random.choice(self._elite_members, size=batch_size)
 
     def save(self, save_dir: Union[str, pathlib.Path]):
         """Saves the model to the given directory."""
@@ -57,7 +61,7 @@ class EnsembleMLP(nn.Module):
             if attr == "state_dict":
                 self.load_state_dict(model_dict["state_dict"])
             else:
-                setattr(self, attr, model_dict[attr])
+                getattr(self, "set_" + attr)(model_dict[attr])
 
     def create_linear_layer(self, l_in, l_out):
         return EnsembleLinearLayer(l_in, l_out,

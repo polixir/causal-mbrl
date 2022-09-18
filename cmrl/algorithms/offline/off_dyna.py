@@ -1,4 +1,5 @@
 import os
+from copy import copy, deepcopy
 from typing import Optional, Sequence, cast
 
 import gym
@@ -6,7 +7,7 @@ from gym.wrappers import TimeLimit
 import emei
 import hydra.utils
 import numpy as np
-import omegaconf
+from omegaconf import DictConfig, OmegaConf
 import torch
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.logger import configure
@@ -34,7 +35,7 @@ def train(
         termination_fn: Optional[cmrl.types.TermFnType],
         reward_fn: Optional[cmrl.types.RewardFnType],
         get_init_obs_fn,
-        cfg: omegaconf.DictConfig,
+        cfg: DictConfig,
         silent: bool = False,
         work_dir: Optional[str] = None,
 ):
@@ -69,22 +70,32 @@ def train(
     else:
         raise NotImplementedError
 
+    if cfg.dynamics.name == "plain_dynamics":
+        penalty_coeff = cfg.algorithm.penalty_coeff
+    elif cfg.dynamics.name == "constraint_based_dynamics":
+        penalty_coeff = cfg.algorithm.penalty_coeff / 3
+    else:
+        raise NotImplementedError
+
     fake_env = cast(VecFakeEnv, agent.env)
     fake_env.set_up(dynamics,
                     reward_fn,
                     termination_fn,
                     get_init_obs_fn,
+                    logger=logger,
                     max_episode_steps=env.spec.max_episode_steps,
-                    penalty_coeff=cfg.algorithm.penalty_coeff)
+                    penalty_coeff=penalty_coeff)
     agent.env = VecMonitor(fake_env)
 
-    fake_eval_env = cast(VecFakeEnv, hydra.utils.instantiate(cfg.algorithm.agent.env))
+    eval_env_cfg = deepcopy(cfg.algorithm.agent.env)
+    eval_env_cfg.num_envs = cfg.task.n_eval_episodes
+    fake_eval_env = cast(VecFakeEnv, hydra.utils.instantiate(eval_env_cfg))
     fake_eval_env.set_up(dynamics,
                          reward_fn,
                          termination_fn,
                          get_init_obs_fn,
                          max_episode_steps=env.spec.max_episode_steps,
-                         penalty_coeff=cfg.algorithm.penalty_coeff)
+                         penalty_coeff=penalty_coeff)
     fake_eval_env.seed(seed=cfg.seed)
 
     if hasattr(env, "causal_graph"):
@@ -102,7 +113,8 @@ def train(
                        **cfg.dynamics,
                        work_dir=work_dir)
 
-    eval_callback = EvalCallback(eval_env, fake_eval_env, best_model_save_path="./",
+    eval_callback = EvalCallback(eval_env, fake_eval_env,
+                                 n_eval_episodes=cfg.task.n_eval_episodes, best_model_save_path="./",
                                  log_path="./", eval_freq=1000,
                                  deterministic=True, render=False)
 

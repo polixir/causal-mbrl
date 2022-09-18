@@ -1,5 +1,7 @@
 name: constraint_based_dynamics
 
+multi_step: ${task.multi_step}
+
 transition:
   _target_: cmrl.models.transition.ExternalMaskEnsembleGaussianTransition
   # transition info

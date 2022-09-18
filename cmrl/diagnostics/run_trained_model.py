@@ -1,9 +1,15 @@
 import argparse
 import os
 import torch
+import hydra
+from copy import copy, deepcopy
 import pathlib
 from typing import Generator, List, Optional, Tuple, cast, Union
 import math
+
+import stable_baselines3
+from stable_baselines3.common.base_class import BaseAlgorithm
+
 import gym
 import numpy as np
 import cmrl
@@ -21,13 +27,16 @@ class Runner:
     def __init__(
             self,
             model_dir: str,
-            type: str = "best",
-            device="cuda:0"
+            device: str = "cuda:0",
+            render: bool = False
     ):
+        self.render = render
+
         self.model_path = pathlib.Path(model_dir)
         self.cfg = load_hydra_cfg(self.model_path)
         self.cfg.device = device
-        self.env, self.term_fn, self.reward_fn = make_env(self.cfg)
+        self.env, self.term_fn, self.reward_fn, self.init_obs_fn = make_env(self.cfg)
+        cmrl.agent.complete_agent_cfg(self.env, self.cfg.algorithm.agent)
 
         self.dynamics = cmrl.util.creator.create_dynamics(self.cfg.dynamics,
                                                           self.env.observation_space.shape,
@@ -36,50 +45,42 @@ class Runner:
                                                           load_device=device)
 
         numpy_generator = np.random.default_rng(seed=self.cfg.seed)
-        self.fake_env = cmrl.models.FakeEnv(self.env,
-                                            self.dynamics,
-                                            self.reward_fn,
-                                            self.term_fn,
-                                            generator=numpy_generator,
-                                            penalty_coeff=self.cfg.algorithm.penalty_coeff)
-        self.gym_fake_env = gym.wrappers.TimeLimit(cmrl.models.GymBehaviouralFakeEnv(fake_env=self.fake_env,
-                                                                                     real_env=self.env),
-                                                   max_episode_steps=self.env.spec.max_episode_steps,
-                                                   new_step_api=False)
-        test_env, *_ = make_env(self.cfg)
-        self.test_env = gym.wrappers.TimeLimit(test_env,
-                                               max_episode_steps=self.env.spec.max_episode_steps,
-                                               new_step_api=False)
 
-        self.agent = cmrl.agent.load_agent(self.model_path, self.env, type=type, device=device)
+        eval_env_cfg = deepcopy(self.cfg.algorithm.agent.env)
+        eval_env_cfg.num_envs = 1
+        fake_eval_env = cast(cmrl.models.VecFakeEnv, hydra.utils.instantiate(eval_env_cfg))
+        fake_eval_env.set_up(self.dynamics,
+                             self.reward_fn,
+                             self.term_fn,
+                             self.init_obs_fn,
+                             max_episode_steps=self.env.spec.max_episode_steps,
+                             penalty_coeff=0.3)
+        fake_eval_env.seed(seed=self.cfg.seed)
+        self.fake_eval_env = cmrl.models.GymBehaviouralFakeEnv(fake_eval_env, self.env)
 
-    def train_policy(self):
-        model = PPO("MlpPolicy", self.gym_fake_env, verbose=1)
-        log_path = str(self.model_path / "diagnostics" / "ppo" / "log")
-        tb_path = str(self.model_path / "diagnostics" / "ppo" / "tb")
-        eval_callback = EvalCallback(self.test_env, best_model_save_path=log_path,
-                                     log_path=log_path, eval_freq=1000,
-                                     deterministic=True, render=False)
-
-        model.learn(total_timesteps=int(1e6), callback=eval_callback, tb_log_name=tb_path)
-        model.save(self.model_path / "diagnostics" / "ppo")
+        agent_cfg = self.cfg.algorithm.agent
+        agent_class: BaseAlgorithm = eval(agent_cfg._target_)
+        self.agent = agent_class.load(self.model_path / "best_model")
 
     def run(self):
         # from emei.util import random_policy_test
-        obs = self.gym_fake_env.reset()
-        self.gym_fake_env.render()
+        obs = self.fake_eval_env.reset()
+        if self.render:
+            self.fake_eval_env.render()
         episode_reward = 0
         episode_length = 0
         while True:
             # action = self.gym_fake_env.action_space.sample()
-            action = self.agent.act(obs)
-            next_obs, reward, terminal, truncated, _ = self.gym_fake_env.step(action)
-            self.gym_fake_env.render()
-            if terminal or truncated:
+            action, state = self.agent.predict(obs)
+            next_obs, reward, done, _ = self.fake_eval_env.step(action)
+
+            if self.render:
+                self.fake_eval_env.render()
+            if done:
                 print(episode_reward, episode_length)
                 episode_reward = 0
                 episode_length = 0
-                obs = self.gym_fake_env.reset()
+                obs = self.fake_eval_env.reset()
             else:
                 episode_reward += reward
                 episode_length += 1
@@ -99,11 +100,14 @@ if __name__ == "__main__":
         type=str,
         default="best",
     )
+    parser.add_argument(
+        "--render",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     runner = Runner(
         model_dir=args.model_dir,
-        type=args.type
+        render=args.render
     )
-    # runner.run()
-    runner.train_policy()
+    runner.run()

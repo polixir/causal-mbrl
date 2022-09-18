@@ -150,4 +150,4 @@ class ConstraintBasedDynamics(BaseDynamics):
             model.load_state_dict(best_weights)
         sorted_indices = np.argsort(best_val_loss.tolist())
         elite_models = sorted_indices[: model.elite_num]
-        model.set_elite(elite_models)
+        model.set_elite_members(elite_models)

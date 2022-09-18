@@ -68,7 +68,7 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         self.num_layers = num_layers
         self.hid_size = hid_size
 
-        self.input_mask: Optional[torch.Tensor] = torch.ones((obs_size, obs_size + action_size)).to(device)
+        self._input_mask: Optional[torch.Tensor] = torch.ones((obs_size, obs_size + action_size)).to(device)
         self.add_save_attr("input_mask")
 
         def create_activation():
@@ -109,31 +109,35 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
                                            ensemble_num=self.ensemble_num)
 
     def set_input_mask(self, mask: cmrl.types.TensorType):
-        self.input_mask = to_tensor(mask).to(self.device)
+        self._input_mask = to_tensor(mask).to(self.device)
+
+    @property
+    def input_mask(self):
+        return self._input_mask
 
     def mask_input(self, x: torch.Tensor) -> torch.Tensor:
         assert x.ndim == 4
-        assert self.input_mask is not None
-        assert 2 <= self.input_mask.ndim <= 4
-        assert x.shape[0] == self.input_mask.shape[0] and x.shape[-1] == self.input_mask.shape[-1]
+        assert self._input_mask is not None
+        assert 2 <= self._input_mask.ndim <= 4
+        assert x.shape[0] == self._input_mask.shape[0] and x.shape[-1] == self._input_mask.shape[-1]
 
-        if self.input_mask.ndim == 2:
+        if self._input_mask.ndim == 2:
             # [parallel_size x in_dim]
-            input_mask = self.input_mask[:, None, None, :]
-        elif self.input_mask.ndim == 3:
-            if self.input_mask.shape[1] == x.shape[1]:
+            input_mask = self._input_mask[:, None, None, :]
+        elif self._input_mask.ndim == 3:
+            if self._input_mask.shape[1] == x.shape[1]:
                 # [parallel_size x ensemble_size x in_dim]
-                input_mask = self.input_mask[:, :, None, :]
-            elif self.input_mask.shape[1] == x.shape[2]:
+                input_mask = self._input_mask[:, :, None, :]
+            elif self._input_mask.shape[1] == x.shape[2]:
                 # [parallel_size x batch_size x in_dim]
-                input_mask = self.input_mask[:, None, :, :]
+                input_mask = self._input_mask[:, None, :, :]
             else:
                 raise RuntimeError(
-                    "input mask shape %a does not match x shape %a" % (self.input_mask.shape, x.shape)
+                    "input mask shape %a does not match x shape %a" % (self._input_mask.shape, x.shape)
                 )
         else:
-            assert self.input_mask.shape == x.shape
-            input_mask = self.input_mask
+            assert self._input_mask.shape == x.shape
+            input_mask = self._input_mask
 
         x *= input_mask
         return x

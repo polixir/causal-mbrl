@@ -178,7 +178,7 @@ class DatasetEvaluator:
         self.draw_button = Button(ax, "draw")
         self.draw_button.on_clicked(self.draw)
 
-    def get_range(self, dataset_type="expert-replay"):
+    def get_range(self, dataset_type="SAC-expert-replay"):
         universe, basic_env_name, params, origin_dataset_type = self.cfg.task.env.split("___")
         data_dict = self.env.get_dataset("{}-{}".format(params, dataset_type))
         obs_min = np.percentile(data_dict["observations"], self.range_quantile, axis=0)
@@ -289,10 +289,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("model_dir", type=str, default=None)
     parser.add_argument("--penalty_coeff", type=float, default=None)
+    parser.add_argument("--draw_diff", action="store_true")
     args = parser.parse_args()
 
     evaluator = DatasetEvaluator(args.model_dir,
-                                 penalty_coeff=args.penalty_coeff)
+                                 penalty_coeff=args.penalty_coeff,
+                                 draw_diff=args.draw_diff)
 
     mpl.rcParams["figure.facecolor"] = "white"
     mpl.rcParams["font.size"] = 14

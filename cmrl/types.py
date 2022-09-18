@@ -8,7 +8,7 @@ import torch
 RewardFnType = Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]
 # (next_obs, pre_obs, action) -> terminal
 TermFnType = Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]
-ResetFnType = Callable[[int], torch.Tensor]
+InitObsFnType = Callable[[int], torch.Tensor]
 ObsProcessFnType = Callable[[np.ndarray], np.ndarray]
 
 TensorType = Union[torch.Tensor, np.ndarray]

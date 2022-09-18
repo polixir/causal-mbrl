@@ -3,6 +3,10 @@ import os
 import pathlib
 from typing import Generator, List, Optional, Tuple, cast, Union
 import math
+
+import stable_baselines3
+from stable_baselines3.common.base_class import BaseAlgorithm
+
 import cmrl
 import cmrl.models
 import cmrl.agent
@@ -14,14 +18,17 @@ class Runner:
     def __init__(
             self,
             agent_dir: str,
-            type: str="best",
+            type: str = "best",
             device="cuda:0"
     ):
-        self.agent_dir = agent_dir
+        self.agent_dir = pathlib.Path(agent_dir)
         self.cfg = load_hydra_cfg(self.agent_dir)
         self.cfg.device = device
         self.env, *_ = make_env(self.cfg)
-        self.agent = cmrl.agent.load_agent(self.agent_dir, self.env, type=type, device=device)
+
+        agent_cfg = self.cfg.algorithm.agent
+        agent_class: BaseAlgorithm = eval(agent_cfg._target_)
+        self.agent = agent_class.load(self.agent_dir / "best_model")
 
     def run(self):
         # from emei.util import random_policy_test
@@ -29,10 +36,10 @@ class Runner:
         self.env.render()
         total_reward = 0
         while True:
-            action = self.agent.act(obs)
-            next_obs, reward, terminal, truncated, _ = self.env.step(action)
+            action, state = self.agent.predict(obs)
+            next_obs, reward, done, _ = self.env.step(action)
             self.env.render()
-            if terminal or truncated:
+            if done:
                 print(total_reward)
                 total_reward = 0
                 obs = self.env.reset()

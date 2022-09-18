@@ -11,6 +11,7 @@ from stable_baselines3.common.logger import Logger
 from cmrl.util.replay_buffer import ReplayBuffer
 from cmrl.models.dynamics import PlainEnsembleDynamics, ConstraintBasedDynamics
 from cmrl.util.config import get_complete_dynamics_cfg
+from cmrl.models.transition import ForwardEulerTransition
 
 
 def create_replay_buffer(
@@ -102,6 +103,13 @@ def create_dynamics(dynamics_cfg: omegaconf.DictConfig,
 
     dynamics_cfg = get_complete_dynamics_cfg(dynamics_cfg, obs_shape, act_shape)
     transition = hydra.utils.instantiate(dynamics_cfg.transition, _recursive_=False)
+    if dynamics_cfg.multi_step == "none":
+        pass
+    elif dynamics_cfg.multi_step.startswith("forward_euler"):
+        repeat_times = int(dynamics_cfg.multi_step[len("forward_euler") + 1:])
+        transition = ForwardEulerTransition(transition, repeat_times)
+    else:
+        raise NotImplementedError
 
     if dynamics_cfg.learned_reward:
         reward_mech = hydra.utils.instantiate(dynamics_cfg.reward_mech, _recursive_=False)

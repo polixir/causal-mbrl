@@ -152,7 +152,7 @@ class EvalCallback(EventCallback):
             )
             fake_episode_rewards, fake_episode_lengths = evaluate_policy(
                 self.model,
-                self.eval_env,
+                self.fake_eval_env,
                 n_eval_episodes=self.n_eval_episodes,
                 render=self.render,
                 deterministic=self.deterministic,
@@ -215,6 +215,7 @@ class EvalCallback(EventCallback):
                 # Trigger callback on new best model, if needed
                 if self.callback_on_new_best is not None:
                     continue_training = self.callback_on_new_best.on_step()
+            self.model.save(os.path.join(self.best_model_save_path, "final_model"))
 
             # Trigger callback after every evaluation, if needed
             if self.callback is not None:
