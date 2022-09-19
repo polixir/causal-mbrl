@@ -63,7 +63,7 @@ def train(
         params, dataset_type = cfg.task.env.split("___")[-2:]
         data_dict = env.get_dataset("{}-{}".format(params, dataset_type))
         all_data_num = len(data_dict["observations"])
-        sample_data_num = cfg.task.offline_data_sampling_ratio * all_data_num
+        sample_data_num = int(cfg.task.offline_data_sampling_ratio * all_data_num)
         sample_idx = numpy_generator.permutation(all_data_num)[:sample_data_num]
         replay_buffer.add_batch(data_dict["observations"][sample_idx],
                                 data_dict["actions"][sample_idx],
@@ -108,7 +108,7 @@ def train(
         oracle_causal_graph = None
 
     if isinstance(dynamics, cmrl.models.dynamics.ConstraintBasedDynamics):
-        dynamics.set_oracle_mask("transition", oracle_causal_graph)
+        dynamics.set_oracle_mask("transition", oracle_causal_graph.T)
 
     existed_trained_model = maybe_load_trained_offline_model(dynamics, cfg, obs_shape, act_shape,
                                                              work_dir=work_dir)

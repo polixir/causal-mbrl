@@ -45,7 +45,7 @@ class ForwardEulerTransition(BaseEnsembleTransition):
         total_logvar = torch.zeros(batch_obs.shape, device=self.device)
         mean = batch_obs
         for t in range(self.repeat_times):
-            mean, logvar = self.one_step_transition.forward(mean, batch_action, only_elite)
+            mean, logvar = self.one_step_transition.forward(mean, batch_action.clone(), only_elite)
             if not self.one_step_transition.deterministic:
                 total_logvar += logvar
         return mean, total_logvar

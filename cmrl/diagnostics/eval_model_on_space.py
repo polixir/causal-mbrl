@@ -70,7 +70,7 @@ class DatasetEvaluator:
 
         self.cfg = load_hydra_cfg(self.model_path)
         self.cfg.device = device
-        self.env, self.term_fn, self.reward_fn = cmrl.util.env.make_env(self.cfg)
+        self.env, *_ = cmrl.util.env.make_env(self.cfg)
         if penalty_coeff is None:
             self.penalty_coeff = self.cfg.task.penalty_coeff
         else:

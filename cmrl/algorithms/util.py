@@ -183,7 +183,9 @@ def maybe_load_trained_offline_model(dynamics: BaseDynamics,
                 exp_cfg = load_hydra_cfg(exp_dir)
                 exp_dynamics_cfg = get_complete_dynamics_cfg(exp_cfg.dynamics, obs_shape, act_shape)
 
-                if exp_cfg.seed == cfg.seed and is_same_dict(dynamics_cfg, exp_dynamics_cfg):
+                if exp_cfg.seed == cfg.seed and \
+                        exp_cfg.task.offline_data_sampling_ratio == cfg.task.offline_data_sampling_ratio and \
+                        is_same_dict(dynamics_cfg, exp_dynamics_cfg):
                     exist_model_file = True
                     for mech in dynamics.learn_mech:
                         mech_file_name = getattr(dynamics, mech).model_file_name

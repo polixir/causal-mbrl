@@ -117,6 +117,6 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
             logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
 
         if self.residual:
-            mean += batch_obs.detach()
+            mean += batch_obs
 
         return mean, logvar
