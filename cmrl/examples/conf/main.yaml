@@ -6,17 +6,15 @@ defaults:
 
 seed: 0
 device: "cuda:0"
-log_frequency_agent: 1000
-save_video: false
-debug_mode: false
 
-experiment: default
+exp_name: default
+wandb: false
 
 root_dir: "./exp"
 hydra:
   run:
-    dir: ${root_dir}/${experiment}/${task.env}/${algorithm.name}/${dynamics.name}/${task.multi_step}/${task.offline_data_sampling_ratio}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
   sweep:
-    dir: ${root_dir}/${experiment}/${task.env}/${algorithm.name}/${dynamics.name}/${task.multi_step}/${task.offline_data_sampling_ratio}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
   job:
     chdir: true

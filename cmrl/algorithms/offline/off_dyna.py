@@ -1,58 +1,50 @@
 import os
-from copy import copy, deepcopy
-from typing import Optional, Sequence, cast
+from copy import deepcopy
+from typing import Optional, cast
 
-import gym
-from gym.wrappers import TimeLimit
 import emei
 import hydra.utils
+from omegaconf import DictConfig
 import numpy as np
-from omegaconf import DictConfig, OmegaConf
-import torch
 from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 
-import cmrl.constants
-import cmrl.agent
-import cmrl.models
-import cmrl.models.dynamics
+from cmrl.agent import complete_agent_cfg
+from cmrl.models.dynamics import ConstraintBasedDynamics
 from cmrl.models.fake_env import VecFakeEnv
-import cmrl.third_party.pytorch_sac as pytorch_sac
-import cmrl.types
-import cmrl.util
-import cmrl.util.creator as creator
-from cmrl.callbacks.eval_callback import EvalCallback
-from cmrl.agent.sac_wrapper import SACAgent
-from cmrl.util.video import VideoRecorder
-from cmrl.algorithms.util import evaluate, rollout_model_and_populate_sac_buffer, maybe_replace_sac_buffer, \
-    truncated_linear, maybe_load_trained_offline_model
+from cmrl.types import TermFnType, RewardFnType, InitObsFnType
+from cmrl.util.creator import create_dynamics, create_replay_buffer
+from cmrl.sb3_extension.eval_callback import EvalCallback
+from cmrl.sb3_extension.logger import configure as logger_configure
+from cmrl.algorithms.util import maybe_load_trained_offline_model
+
+from torch.utils.data import Dataset, DataLoader
 
 
 def train(
         env: emei.EmeiEnv,
         eval_env: emei.EmeiEnv,
-        termination_fn: Optional[cmrl.types.TermFnType],
-        reward_fn: Optional[cmrl.types.RewardFnType],
-        get_init_obs_fn,
+        termination_fn: Optional[TermFnType],
+        reward_fn: Optional[RewardFnType],
+        get_init_obs_fn: Optional[InitObsFnType],
         cfg: DictConfig,
-        silent: bool = False,
         work_dir: Optional[str] = None,
 ):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
-    cmrl.agent.complete_agent_cfg(env, cfg.algorithm.agent)
+    # build model-free agent, which is a stable-baselines3's agent
+    complete_agent_cfg(env, cfg.algorithm.agent)
     agent = cast(BaseAlgorithm, hydra.utils.instantiate(cfg.algorithm.agent))
 
     work_dir = work_dir or os.getcwd()
-    logger = configure("tb", format_strings=["tensorboard", "stdout"])
+    logger = logger_configure("log", ["tensorboard", "multi_csv", "stdout"])
 
     numpy_generator = np.random.default_rng(seed=cfg.seed)
 
-    # -------------- Create initial dataset --------------
-    dynamics = creator.create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
-    replay_buffer = creator.create_replay_buffer(
+    # create initial dataset
+    dynamics = create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
+    replay_buffer = create_replay_buffer(
         cfg,
         obs_shape,
         act_shape,
@@ -63,7 +55,7 @@ def train(
         params, dataset_type = cfg.task.env.split("___")[-2:]
         data_dict = env.get_dataset("{}-{}".format(params, dataset_type))
         all_data_num = len(data_dict["observations"])
-        sample_data_num = int(cfg.task.offline_data_sampling_ratio * all_data_num)
+        sample_data_num = int(cfg.task.use_ratio * all_data_num)
         sample_idx = numpy_generator.permutation(all_data_num)[:sample_data_num]
         replay_buffer.add_batch(data_dict["observations"][sample_idx],
                                 data_dict["actions"][sample_idx],
@@ -107,7 +99,7 @@ def train(
     else:
         oracle_causal_graph = None
 
-    if isinstance(dynamics, cmrl.models.dynamics.ConstraintBasedDynamics):
+    if isinstance(dynamics, ConstraintBasedDynamics):
         dynamics.set_oracle_mask("transition", oracle_causal_graph.T)
 
     existed_trained_model = maybe_load_trained_offline_model(dynamics, cfg, obs_shape, act_shape,
@@ -118,9 +110,10 @@ def train(
                        work_dir=work_dir)
 
     eval_callback = EvalCallback(eval_env, fake_eval_env,
-                                 n_eval_episodes=cfg.task.n_eval_episodes, best_model_save_path="./",
-                                 log_path="./", eval_freq=1000,
+                                 n_eval_episodes=cfg.task.n_eval_episodes,
+                                 best_model_save_path="./",
+                                 eval_freq=1000,
                                  deterministic=True, render=False)
 
     agent.set_logger(logger)
-    agent.learn(total_timesteps=cfg.task.num_steps, callback=eval_callback, tb_log_name="./tb")
+    agent.learn(total_timesteps=cfg.task.num_steps, callback=eval_callback)

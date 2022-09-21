@@ -52,6 +52,7 @@ optim_lr: ${task.optim_lr}
 weight_decay: ${task.weight_decay}
 patience: ${task.patience}
 batch_size: ${task.batch_size}
+use_ratio: ${task.use_ratio}
 validation_ratio: ${task.validation_ratio}
 shuffle_each_epoch: ${task.shuffle_each_epoch}
 bootstrap_permutes: ${task.bootstrap_permutes}
