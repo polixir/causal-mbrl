@@ -27,7 +27,7 @@ reward_mech:
   # transition info
   obs_size: ???
   action_size: ???
-  deterministic: false
+  deterministic: fase
   # algorithm parameters
   learn_logvar_bounds: false  # so far this works better
   ensemble_num: ${task.ensemble_num}

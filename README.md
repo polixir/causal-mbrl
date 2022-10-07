@@ -1,8 +1,11 @@
 # causal-mbrl
+
+![](/img/cmrl_logo.png)
+
 Toolkit of Causal-model-based Reinforcement learning.
 
+# Install
 
-# Install 
 ```shell
 # create conda env
 conda create -n cmrl python=3.8

@@ -1,14 +1,14 @@
 defaults:
   - algorithm: off_dyna
   - dynamics: plain_dynamics
-  - task: boundary_IP_swing_up
+  - task: BIPS
   - _self_
 
 seed: 0
 device: "cuda:0"
 
 exp_name: default
-wandb: false
+wandb: true
 
 root_dir: "./exp"
 hydra:
