@@ -29,7 +29,7 @@ class EvalCallback(EventCallback):
     :param callback_on_new_best: Callback to trigger
         when there is a new best model according to the ``mean_reward``
     :param callback_after_eval: Callback to trigger after every evaluation
-    :param n_eval_episodes: The number of episodes to test the agent
+    :param n_eval_episodes: The number of episodes to tests the agent
     :param eval_freq: Evaluate the agent every ``eval_freq`` call of the callback.
     :param log_path: Path to a folder where the evaluations (``evaluations.npz``)
         will be saved. It will be updated at each evaluation.

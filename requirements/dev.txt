@@ -1,1 +1,3 @@
 PyQt5>=5.15.7
+coveralls>=6.5.0
+pre-commit>=2.20.0

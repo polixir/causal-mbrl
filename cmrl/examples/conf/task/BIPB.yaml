@@ -15,7 +15,7 @@ ensemble_num: 7
 elite_num: 5
 multi_step: "none"
 
-# conditional independence test(causal discovery)
+# conditional independence tests(causal discovery)
 oracle: true
 cit_threshold: 0.02
 test_freq: 1000

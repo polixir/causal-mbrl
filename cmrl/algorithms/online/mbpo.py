@@ -53,7 +53,7 @@ def train(
 
     Args:
         env: interaction environment
-        test_env: test environment, only used to evaluation
+        test_env: tests environment, only used to evaluation
         termination_fn: termination function given as priori, `None` if it needs to be learned by nn
         reward_fn: reward function given as priori, `None` if it needs to be learned by nn
         cfg: all config

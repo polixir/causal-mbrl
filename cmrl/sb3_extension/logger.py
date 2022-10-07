@@ -92,7 +92,7 @@ def configure(folder: str, format_strings: [List[str]]) -> Logger:
 if __name__ == "__main__":
     from stable_baselines3.common.logger import Logger
 
-    logger = Logger("1", [MultiCSVOutputFormat("./"), CSVOutputFormat("./test.csv")])
+    logger = Logger("1", [MultiCSVOutputFormat("./"), CSVOutputFormat("./tests.csv")])
 
     logger.record("t/a", 1)
     logger.record("t/b", 2)

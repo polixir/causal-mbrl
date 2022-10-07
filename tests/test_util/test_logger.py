@@ -25,7 +25,7 @@ class TestMetersGroup(TestCase):
         self._tb_writer = SummaryWriter(log_dir=str(self.log_dir / "tb"))
 
         self.meter_group = MetersGroup(
-            file_path=self.log_dir / "test",
+            file_path=self.log_dir / "tests",
             formatting=[
                 ("column0", "C0", "int"),
                 ("column1", "C1", "float"),
@@ -45,7 +45,7 @@ class TestMetersGroup(TestCase):
             for j in range(len(values)):
                 key = "column{}".format(j)
                 self.meter_group.log(key, values[j][i])
-            self.meter_group.dump(i, "test")
+            self.meter_group.dump(i, "tests")
 
     def test_csv(self):
         pass
