@@ -12,15 +12,16 @@ from cmrl.models.transition.base_transition import BaseEnsembleTransition
 
 
 class ForwardEulerTransition(BaseEnsembleTransition):
-    def __init__(self,
-                 one_step_transition: BaseEnsembleTransition,
-                 repeat_times: int = 2
-                 ):
-        super().__init__(obs_size=one_step_transition.obs_size,
-                         action_size=one_step_transition.action_size,
-                         ensemble_num=one_step_transition.ensemble_num,
-                         deterministic=one_step_transition.deterministic,
-                         device=one_step_transition.device)
+    def __init__(
+        self, one_step_transition: BaseEnsembleTransition, repeat_times: int = 2
+    ):
+        super().__init__(
+            obs_size=one_step_transition.obs_size,
+            action_size=one_step_transition.action_size,
+            ensemble_num=one_step_transition.ensemble_num,
+            deterministic=one_step_transition.deterministic,
+            device=one_step_transition.device,
+        )
 
         self.one_step_transition = one_step_transition
         self.repeat_times = repeat_times
@@ -37,13 +38,15 @@ class ForwardEulerTransition(BaseEnsembleTransition):
         self.one_step_transition.set_elite_members(elite_indices)
 
     def forward(
-            self,
-            batch_obs: torch.Tensor,
-            batch_action: torch.Tensor,
-            only_elite: bool = False,
+        self,
+        batch_obs: torch.Tensor,
+        batch_action: torch.Tensor,
+        only_elite: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         logvar = torch.zeros(batch_obs.shape, device=self.device)
         mean = batch_obs
         for t in range(self.repeat_times):
-            mean, logvar = self.one_step_transition.forward(mean, batch_action.clone(), only_elite)
+            mean, logvar = self.one_step_transition.forward(
+                mean, batch_action.clone(), only_elite
+            )
         return mean, logvar

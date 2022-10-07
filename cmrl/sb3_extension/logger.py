@@ -1,8 +1,13 @@
-from typing import Dict, Any, Tuple, Union, List
-from collections import defaultdict
 import os
+from collections import defaultdict
+from typing import Any, Dict, List, Tuple, Union
 
-from stable_baselines3.common.logger import KVWriter, CSVOutputFormat, Logger, make_output_format
+from stable_baselines3.common.logger import (
+    CSVOutputFormat,
+    KVWriter,
+    Logger,
+    make_output_format,
+)
 
 
 class MultiCSVOutputFormat(KVWriter):
@@ -16,8 +21,12 @@ class MultiCSVOutputFormat(KVWriter):
         self.prefix_keys = []
         self.csv_output_formats = {}
 
-    def write(self, key_values: Dict[str, Any], key_excluded: Dict[str, Union[str, Tuple[str, ...]]],
-              step: int = 0) -> None:
+    def write(
+        self,
+        key_values: Dict[str, Any],
+        key_excluded: Dict[str, Union[str, Tuple[str, ...]]],
+        step: int = 0,
+    ) -> None:
         key_values_dict = defaultdict(dict)
         key_excluded_dict = defaultdict(dict)
 
@@ -33,10 +42,13 @@ class MultiCSVOutputFormat(KVWriter):
         for prefix_key in key_values_dict:
             if prefix_key not in self.prefix_keys:
                 self.prefix_keys.append(prefix_key)
-                self.csv_output_formats[prefix_key] = CSVOutputFormat(os.path.join(self.log_dir, f"{prefix_key}.csv"))
+                self.csv_output_formats[prefix_key] = CSVOutputFormat(
+                    os.path.join(self.log_dir, f"{prefix_key}.csv")
+                )
 
-            self.csv_output_formats[prefix_key].write(key_values_dict[prefix_key],
-                                                      key_excluded_dict[prefix_key])
+            self.csv_output_formats[prefix_key].write(
+                key_values_dict[prefix_key], key_excluded_dict[prefix_key]
+            )
 
     def close(self) -> None:
         """
@@ -77,7 +89,7 @@ def configure(folder: str, format_strings: [List[str]]) -> Logger:
     return logger
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from stable_baselines3.common.logger import Logger
 
     logger = Logger("1", [MultiCSVOutputFormat("./"), CSVOutputFormat("./test.csv")])

@@ -5,7 +5,7 @@
 import collections
 import csv
 import pathlib
-from typing import Counter, Dict, List, Mapping, Tuple, Union, Optional
+from typing import Counter, Dict, List, Mapping, Optional, Tuple, Union
 
 import termcolor
 import torch
@@ -45,17 +45,19 @@ class AverageMeter(object):
 
 
 class MetersGroup(object):
-    def __init__(self,
-                 file_path: Union[str, pathlib.Path],
-                 formatting: LogFormatType,
-                 tensorboard_writer: SummaryWriter = None,
-                 disable_console_dump: bool = False,
-                 tb_index_key: Optional[str] = None):
+    def __init__(
+        self,
+        file_path: Union[str, pathlib.Path],
+        formatting: LogFormatType,
+        tensorboard_writer: SummaryWriter = None,
+        disable_console_dump: bool = False,
+        tb_index_key: Optional[str] = None,
+    ):
         self._csv_file_path = self._prepare_file(file_path, ".csv")
         self._file_name = file_path.stem
         self._formatting = formatting
         self._meters: Dict[str, AverageMeter] = collections.defaultdict(AverageMeter)
-        self._csv_file = open(self._csv_file_path, "w", newline='')
+        self._csv_file = open(self._csv_file_path, "w", newline="")
         self._csv_writer = None
 
         self._tensorboard_writer = tensorboard_writer
@@ -117,7 +119,9 @@ class MetersGroup(object):
             if self._tensorboard_writer is not None:
                 for key in self._meters.keys():
                     index = data[self._tb_index_key]
-                    self._tensorboard_writer.add_scalar("{}/{}".format(self._file_name, key), data[key], index)
+                    self._tensorboard_writer.add_scalar(
+                        "{}/{}".format(self._file_name, key), data[key], index
+                    )
         self._meters.clear()
 
 
@@ -139,8 +143,9 @@ class Logger(object):
     """
 
     def __init__(
-            self, log_dir: Union[str, pathlib.Path],
-            enable_back_compatible: bool = False,
+        self,
+        log_dir: Union[str, pathlib.Path],
+        enable_back_compatible: bool = False,
     ):
 
         self._log_dir = pathlib.Path(log_dir)
@@ -153,13 +158,13 @@ class Logger(object):
             self.register_group("eval", EVAL_LOG_FORMAT, color="green")
 
     def register_group(
-            self,
-            group_name: str,
-            log_format: LogFormatType,
-            dump_frequency: int = 1,
-            color: str = "yellow",
-            disable_console_dump: bool = False,
-            tb_index_key: str = "step"
+        self,
+        group_name: str,
+        log_format: LogFormatType,
+        dump_frequency: int = 1,
+        color: str = "yellow",
+        disable_console_dump: bool = False,
+        tb_index_key: str = "step",
     ):
         """Register a logging group.
 
@@ -182,11 +187,13 @@ class Logger(object):
         if group_name in self._groups:
             print(f"Group {group_name} has already been registered.")
             return
-        new_group = MetersGroup(self._log_dir / group_name,
-                                formatting=log_format,
-                                tb_index_key=tb_index_key,
-                                tensorboard_writer=self._tb_writer,
-                                disable_console_dump=disable_console_dump)
+        new_group = MetersGroup(
+            self._log_dir / group_name,
+            formatting=log_format,
+            tb_index_key=tb_index_key,
+            tensorboard_writer=self._tb_writer,
+            disable_console_dump=disable_console_dump,
+        )
         self._groups[group_name] = (new_group, dump_frequency, color)
         self._group_steps[group_name] = 0
 

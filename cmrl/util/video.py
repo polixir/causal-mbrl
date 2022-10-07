@@ -2,9 +2,9 @@ import os
 
 import imageio
 
-
 # from mujoco_py import GlfwContext
 # GlfwContext(offscreen=True)
+
 
 def make_dir(*path_parts):
     dir_path = os.path.join(*path_parts)

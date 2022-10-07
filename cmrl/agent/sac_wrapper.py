@@ -11,7 +11,7 @@ class SACAgent(Agent):
         self.sac_agent = sac_agent
 
     def act(
-            self, obs: np.ndarray, sample: bool = False, batched: bool = False, **kwargs
+        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **kwargs
     ) -> np.ndarray:
         """Issues an action given an observation.
 

@@ -1,8 +1,9 @@
+import random
 from unittest import TestCase
 
-from cmrl.types import InteractionBatch
 import torch
-import random
+
+from cmrl.types import InteractionBatch
 
 
 class TestTransitionBatch(TestCase):
@@ -10,14 +11,22 @@ class TestTransitionBatch(TestCase):
         self.batch_size = random.randint(0, 1000)
         self.obs_size = random.randint(0, 1000)
         self.action_size = random.randint(0, 1000)
-        self.transition_batch = InteractionBatch(torch.rand(self.batch_size, self.obs_size),
-                                                 torch.rand(self.batch_size, self.action_size),
-                                                 torch.rand(self.batch_size, self.obs_size),
-                                                 torch.rand(self.batch_size, 1),
-                                                 torch.rand(self.batch_size, 1))
+        self.transition_batch = InteractionBatch(
+            torch.rand(self.batch_size, self.obs_size),
+            torch.rand(self.batch_size, self.action_size),
+            torch.rand(self.batch_size, self.obs_size),
+            torch.rand(self.batch_size, 1),
+            torch.rand(self.batch_size, 1),
+        )
 
     def test_as_tuple(self):
-        batch_obs, batch_action, batch_next_obs, batch_reward, batch_done = self.transition_batch.as_tuple()
+        (
+            batch_obs,
+            batch_action,
+            batch_next_obs,
+            batch_reward,
+            batch_done,
+        ) = self.transition_batch.as_tuple()
         assert batch_obs.shape == (self.batch_size, self.obs_size)
         assert batch_action.shape == (self.batch_size, self.action_size)
         assert batch_next_obs.shape == (self.batch_size, self.obs_size)
