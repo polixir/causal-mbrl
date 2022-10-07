@@ -1,0 +1,20 @@
+defaults:
+  - algorithm: off_dyna
+  - dynamics: plain_dynamics
+  - task: BIPS
+  - _self_
+
+seed: 0
+device: "cuda:0"
+
+exp_name: default
+wandb: true
+
+root_dir: "./exp"
+hydra:
+  run:
+    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+  sweep:
+    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+  job:
+    chdir: true
