@@ -84,4 +84,3 @@ optional arguments:
 | Walker2d-v2| 0.2|
 | Ant-v2| 0.2|
 | Humanoid-v2| 0.05|
-

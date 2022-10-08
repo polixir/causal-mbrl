@@ -1,92 +1,104 @@
+import abc
 import collections
+import copy
+import itertools
+import pathlib
+from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
+import numpy as np
+import omegaconf
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import torch
-import pathlib
-import abc
-import omegaconf
-import itertools
-from typing import Optional, Union, Tuple, Callable, Dict, List, cast
-import copy
-
 from stable_baselines3.common.logger import Logger
 
-from cmrl.models.nns import EnsembleMLP
-from cmrl.models.util import to_tensor
-from cmrl.models.transition.base_transition import BaseEnsembleTransition
-from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
 from cmrl.models.dynamics import BaseDynamics
-from cmrl.util.replay_buffer import ReplayBuffer, TransitionIterator, BootstrapIterator
+from cmrl.models.nns import EnsembleMLP
+from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
+from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.util import to_tensor
 from cmrl.types import InteractionBatch, TensorType
+from cmrl.util.replay_buffer import BootstrapIterator, ReplayBuffer, TransitionIterator
 
 
 class ConstraintBasedDynamics(BaseDynamics):
-    def __init__(self,
-                 transition: BaseEnsembleTransition,
-                 learned_reward: bool = True,
-                 reward_mech: Optional[BaseRewardMech] = None,
-                 learned_termination: bool = False,
-                 termination_mech: Optional[BaseTerminationMech] = None,
-                 # trainer
-                 optim_lr: float = 1e-4,
-                 weight_decay: float = 1e-5,
-                 optim_eps: float = 1e-8,
-                 logger: Optional[Logger] = None, ):
-        super(ConstraintBasedDynamics, self).__init__(transition=transition,
-                                                      learned_reward=learned_reward,
-                                                      reward_mech=reward_mech,
-                                                      learned_termination=learned_termination,
-                                                      termination_mech=termination_mech,
-                                                      optim_lr=optim_lr,
-                                                      weight_decay=weight_decay,
-                                                      optim_eps=optim_eps,
-                                                      logger=logger)
+    def __init__(
+        self,
+        transition: BaseEnsembleTransition,
+        learned_reward: bool = True,
+        reward_mech: Optional[BaseRewardMech] = None,
+        learned_termination: bool = False,
+        termination_mech: Optional[BaseTerminationMech] = None,
+        # trainer
+        optim_lr: float = 1e-4,
+        weight_decay: float = 1e-5,
+        optim_eps: float = 1e-8,
+        logger: Optional[Logger] = None,
+    ):
+        super(ConstraintBasedDynamics, self).__init__(
+            transition=transition,
+            learned_reward=learned_reward,
+            reward_mech=reward_mech,
+            learned_termination=learned_termination,
+            termination_mech=termination_mech,
+            optim_lr=optim_lr,
+            weight_decay=weight_decay,
+            optim_eps=optim_eps,
+            logger=logger,
+        )
 
         for mech in self.learn_mech:
             if hasattr(getattr(self, mech), "input_mask"):
                 setattr(self, "{}_oracle_mask".format(mech), None)
-                setattr(self, "{}_history_mask".format(mech),
-                        torch.ones(getattr(self, mech).input_mask.shape).to(self.device))
+                setattr(
+                    self,
+                    "{}_history_mask".format(mech),
+                    torch.ones(getattr(self, mech).input_mask.shape).to(self.device),
+                )
 
-    def set_oracle_mask(self,
-                        mech: str,
-                        mask: TensorType):
+    def set_oracle_mask(self, mech: str, mask: TensorType):
         assert hasattr(self, "{}_oracle_mask".format(mech))
         setattr(self, "{}_oracle_mask".format(mech), to_tensor(mask))
 
-    def learn(self,
-              # data
-              replay_buffer: ReplayBuffer,
-              # dataset split
-              validation_ratio: float = 0.2,
-              batch_size: int = 256,
-              shuffle_each_epoch: bool = True,
-              bootstrap_permutes: bool = False,
-              # model learning
-              longest_epoch: Optional[int] = None,
-              improvement_threshold: float = 0.1,
-              patience: int = 5,
-              work_dir: Optional[Union[str, pathlib.Path]] = None,
-              # other
-              **kwargs):
+    def learn(
+        self,
+        # data
+        replay_buffer: ReplayBuffer,
+        # dataset split
+        validation_ratio: float = 0.2,
+        batch_size: int = 256,
+        shuffle_each_epoch: bool = True,
+        bootstrap_permutes: bool = False,
+        # model learning
+        longest_epoch: Optional[int] = None,
+        improvement_threshold: float = 0.1,
+        patience: int = 5,
+        work_dir: Optional[Union[str, pathlib.Path]] = None,
+        # other
+        **kwargs
+    ):
         # improvement_threshold = 0
         # patience = 30
 
-        train_dataset, val_dataset = self.dataset_split(replay_buffer,
-                                                        validation_ratio,
-                                                        batch_size,
-                                                        shuffle_each_epoch,
-                                                        bootstrap_permutes)
+        train_dataset, val_dataset = self.dataset_split(
+            replay_buffer,
+            validation_ratio,
+            batch_size,
+            shuffle_each_epoch,
+            bootstrap_permutes,
+        )
         longest_epoch = longest_epoch
 
         for mech in self.learn_mech:
             if hasattr(self, "{}_oracle_mask".format(mech)):
-                getattr(self, mech).set_input_mask(getattr(self, "{}_oracle_mask".format(mech)))
+                getattr(self, mech).set_input_mask(
+                    getattr(self, "{}_oracle_mask".format(mech))
+                )
 
             best_weights: Optional[Dict] = None
-            epoch_iter = range(longest_epoch) if longest_epoch > 0 else itertools.count()
+            epoch_iter = (
+                range(longest_epoch) if longest_epoch > 0 else itertools.count()
+            )
             epochs_since_update = 0
 
             best_val_loss = self.evaluate(val_dataset, mech=mech).mean(dim=(1, 2))
@@ -96,7 +108,10 @@ class ConstraintBasedDynamics(BaseDynamics):
                 val_loss = self.evaluate(val_dataset, mech=mech).mean(dim=(1, 2))
 
                 maybe_best_weights = self.maybe_get_best_weights(
-                    best_val_loss, val_loss, mech, improvement_threshold,
+                    best_val_loss,
+                    val_loss,
+                    mech,
+                    improvement_threshold,
                 )
                 if maybe_best_weights:
                     # best loss
@@ -108,26 +123,41 @@ class ConstraintBasedDynamics(BaseDynamics):
 
                 # log
                 if self.logger is not None:
-                    self.logger.record("{}/epoch".format(mech), epoch, exclude="tensorboard")
-                    self.logger.record("{}/train_dataset_size".format(mech), train_dataset.num_stored)
-                    self.logger.record("{}/val_dataset_size".format(mech), val_dataset.num_stored)
-                    self.logger.record("{}/train_loss".format(mech), train_loss.mean().item())
-                    self.logger.record("{}/val_loss".format(mech), val_loss.mean().item())
-                    self.logger.record("{}/best_val_loss".format(mech), best_val_loss.mean().item())
+                    self.logger.record(
+                        "{}/epoch".format(mech), epoch, exclude="tensorboard"
+                    )
+                    self.logger.record(
+                        "{}/train_dataset_size".format(mech), train_dataset.num_stored
+                    )
+                    self.logger.record(
+                        "{}/val_dataset_size".format(mech), val_dataset.num_stored
+                    )
+                    self.logger.record(
+                        "{}/train_loss".format(mech), train_loss.mean().item()
+                    )
+                    self.logger.record(
+                        "{}/val_loss".format(mech), val_loss.mean().item()
+                    )
+                    self.logger.record(
+                        "{}/best_val_loss".format(mech), best_val_loss.mean().item()
+                    )
                     self.logger.dump(epoch)
                 if patience and epochs_since_update >= patience:
                     break
 
             # saving the best models:
-            self.maybe_set_best_weights_and_elite(best_weights, best_val_loss, mech=mech)
+            self.maybe_set_best_weights_and_elite(
+                best_weights, best_val_loss, mech=mech
+            )
         self.save(work_dir)
 
     def maybe_get_best_weights(
-            self,
-            best_val_loss: torch.Tensor,
-            val_loss: torch.Tensor,
-            mech: str = "transition",
-            threshold: float = 0.01, ):
+        self,
+        best_val_loss: torch.Tensor,
+        val_loss: torch.Tensor,
+        mech: str = "transition",
+        threshold: float = 0.01,
+    ):
         improvement = (best_val_loss - val_loss) / torch.abs(best_val_loss)
         if (improvement > threshold).any().item():
             model = getattr(self, mech)
@@ -138,10 +168,10 @@ class ConstraintBasedDynamics(BaseDynamics):
         return best_weights
 
     def maybe_set_best_weights_and_elite(
-            self,
-            best_weights: Optional[Dict],
-            best_val_loss: torch.Tensor,
-            mech: str = "transition",
+        self,
+        best_weights: Optional[Dict],
+        best_val_loss: torch.Tensor,
+        mech: str = "transition",
     ):
         model = getattr(self, mech)
         assert isinstance(model, EnsembleMLP)

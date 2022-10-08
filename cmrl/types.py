@@ -29,13 +29,25 @@ class InteractionBatch:
 
     @property
     def attrs(self):
-        return ["batch_obs", "batch_action", "batch_next_obs", "batch_reward", "batch_done"]
+        return [
+            "batch_obs",
+            "batch_action",
+            "batch_next_obs",
+            "batch_reward",
+            "batch_done",
+        ]
 
     def __len__(self):
         return self.batch_obs.shape[0]
 
     def as_tuple(self) -> InteractionData:
-        return self.batch_obs, self.batch_action, self.batch_next_obs, self.batch_reward, self.batch_done
+        return (
+            self.batch_obs,
+            self.batch_action,
+            self.batch_next_obs,
+            self.batch_reward,
+            self.batch_done,
+        )
 
     def __getitem__(self, item):
         return InteractionBatch(
@@ -60,11 +72,21 @@ class InteractionBatch:
                 "multiple of the new batch size. "
             )
         return InteractionBatch(
-            self.batch_obs.reshape(self._get_new_shape(self.batch_obs.shape, batch_size)),
-            self.batch_action.reshape(self._get_new_shape(self.batch_action.shape, batch_size)),
-            self.batch_next_obs.reshape(self._get_new_shape(self.batch_obs.shape, batch_size)),
-            self.batch_reward.reshape(self._get_new_shape(self.batch_reward.shape, batch_size)),
-            self.batch_done.reshape(self._get_new_shape(self.batch_done.shape, batch_size)),
+            self.batch_obs.reshape(
+                self._get_new_shape(self.batch_obs.shape, batch_size)
+            ),
+            self.batch_action.reshape(
+                self._get_new_shape(self.batch_action.shape, batch_size)
+            ),
+            self.batch_next_obs.reshape(
+                self._get_new_shape(self.batch_obs.shape, batch_size)
+            ),
+            self.batch_reward.reshape(
+                self._get_new_shape(self.batch_reward.shape, batch_size)
+            ),
+            self.batch_done.reshape(
+                self._get_new_shape(self.batch_done.shape, batch_size)
+            ),
         )
 
 

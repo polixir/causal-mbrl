@@ -7,14 +7,15 @@ from typing import List, Sequence, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
+
 import cmrl.types
 
 
 def gaussian_nll(
-        pred_mean: torch.Tensor,
-        pred_logvar: torch.Tensor,
-        target: torch.Tensor,
-        reduce: bool = True,
+    pred_mean: torch.Tensor,
+    pred_logvar: torch.Tensor,
+    target: torch.Tensor,
+    reduce: bool = True,
 ) -> torch.Tensor:
     """Negative log-likelihood for Gaussian distribution
 
@@ -39,7 +40,7 @@ def gaussian_nll(
 # inplace truncated normal function for pytorch.
 # credit to https://github.com/Xingyu-Lin/mbpo_pytorch/blob/main/model.py#L64
 def truncated_normal_(
-        tensor: torch.Tensor, mean: float = 0, std: float = 1
+    tensor: torch.Tensor, mean: float = 0, std: float = 1
 ) -> torch.Tensor:
     """Samples from a truncated normal distribution in-place.
 

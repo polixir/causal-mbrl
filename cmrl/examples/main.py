@@ -1,12 +1,12 @@
 import hydra
 import numpy as np
-from omegaconf import DictConfig, OmegaConf
 import torch
 import wandb
+from omegaconf import DictConfig, OmegaConf
 
 import cmrl.algorithms.offline.mopo as mopo
-import cmrl.algorithms.online.mbpo as mbpo
 import cmrl.algorithms.offline.off_dyna as off_dyna
+import cmrl.algorithms.online.mbpo as mbpo
 from cmrl.util.env import make_env
 
 
@@ -14,10 +14,10 @@ from cmrl.util.env import make_env
 def run(cfg: DictConfig):
     if cfg.wandb:
         wandb.init(
-            project='causal-mbrl',
+            project="causal-mbrl",
             group=cfg.exp_name,
             config=OmegaConf.to_container(cfg, resolve=True),
-            sync_tensorboard=True
+            sync_tensorboard=True,
         )
 
     env, term_fn, reward_fn, init_obs_fn = make_env(cfg)

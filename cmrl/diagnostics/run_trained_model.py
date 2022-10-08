@@ -1,35 +1,29 @@
 import argparse
-import os
-import torch
-import hydra
-from copy import copy, deepcopy
-import pathlib
-from typing import Generator, List, Optional, Tuple, cast, Union
 import math
-
-import stable_baselines3
-from stable_baselines3.common.base_class import BaseAlgorithm
+import os
+import pathlib
+from copy import copy, deepcopy
+from typing import Generator, List, Optional, Tuple, Union, cast
 
 import gym
+import hydra
 import numpy as np
+import stable_baselines3
+import torch
+from stable_baselines3 import PPO
+from stable_baselines3.common.base_class import BaseAlgorithm
+from stable_baselines3.common.callbacks import EvalCallback
+
 import cmrl
-import cmrl.models
 import cmrl.agent
+import cmrl.models
+import cmrl.util.creator
 from cmrl.util.config import load_hydra_cfg
 from cmrl.util.env import make_env
-import cmrl.util.creator
-
-from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import EvalCallback
 
 
 class Runner:
-    def __init__(
-            self,
-            model_dir: str,
-            device: str = "cuda:0",
-            render: bool = False
-    ):
+    def __init__(self, model_dir: str, device: str = "cuda:0", render: bool = False):
         self.render = render
 
         self.model_path = pathlib.Path(model_dir)
@@ -38,23 +32,29 @@ class Runner:
         self.env, self.term_fn, self.reward_fn, self.init_obs_fn = make_env(self.cfg)
         cmrl.agent.complete_agent_cfg(self.env, self.cfg.algorithm.agent)
 
-        self.dynamics = cmrl.util.creator.create_dynamics(self.cfg.dynamics,
-                                                          self.env.observation_space.shape,
-                                                          self.env.action_space.shape,
-                                                          load_dir=self.model_path,
-                                                          load_device=device)
+        self.dynamics = cmrl.util.creator.create_dynamics(
+            self.cfg.dynamics,
+            self.env.observation_space.shape,
+            self.env.action_space.shape,
+            load_dir=self.model_path,
+            load_device=device,
+        )
 
         numpy_generator = np.random.default_rng(seed=self.cfg.seed)
 
         eval_env_cfg = deepcopy(self.cfg.algorithm.agent.env)
         eval_env_cfg.num_envs = 1
-        fake_eval_env = cast(cmrl.models.VecFakeEnv, hydra.utils.instantiate(eval_env_cfg))
-        fake_eval_env.set_up(self.dynamics,
-                             self.reward_fn,
-                             self.term_fn,
-                             self.init_obs_fn,
-                             max_episode_steps=self.env.spec.max_episode_steps,
-                             penalty_coeff=0.3)
+        fake_eval_env = cast(
+            cmrl.models.VecFakeEnv, hydra.utils.instantiate(eval_env_cfg)
+        )
+        fake_eval_env.set_up(
+            self.dynamics,
+            self.reward_fn,
+            self.term_fn,
+            self.init_obs_fn,
+            max_episode_steps=self.env.spec.max_episode_steps,
+            penalty_coeff=0.3,
+        )
         fake_eval_env.seed(seed=self.cfg.seed)
         self.fake_eval_env = cmrl.models.GymBehaviouralFakeEnv(fake_eval_env, self.env)
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         "model_dir",
         type=str,
         help="The directory where the agent configuration and data is stored. "
-             "If not provided, a random agent will be used.",
+        "If not provided, a random agent will be used.",
     )
     parser.add_argument(
         "--type",
@@ -106,8 +106,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    runner = Runner(
-        model_dir=args.model_dir,
-        render=args.render
-    )
+    runner = Runner(model_dir=args.model_dir, render=args.render)
     runner.run()

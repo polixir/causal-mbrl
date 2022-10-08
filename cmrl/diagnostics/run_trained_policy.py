@@ -1,26 +1,21 @@
 import argparse
+import math
 import os
 import pathlib
-from typing import Generator, List, Optional, Tuple, cast, Union
-import math
+from typing import Generator, List, Optional, Tuple, Union, cast
 
 import stable_baselines3
 from stable_baselines3.common.base_class import BaseAlgorithm
 
 import cmrl
-import cmrl.models
 import cmrl.agent
+import cmrl.models
 from cmrl.util.config import load_hydra_cfg
 from cmrl.util.env import make_env
 
 
 class Runner:
-    def __init__(
-            self,
-            agent_dir: str,
-            type: str = "best",
-            device="cuda:0"
-    ):
+    def __init__(self, agent_dir: str, type: str = "best", device="cuda:0"):
         self.agent_dir = pathlib.Path(agent_dir)
         self.cfg = load_hydra_cfg(self.agent_dir)
         self.cfg.device = device
@@ -54,7 +49,7 @@ if __name__ == "__main__":
         "agent_dir",
         type=str,
         help="The directory where the agent configuration and data is stored. "
-             "If not provided, a random agent will be used.",
+        "If not provided, a random agent will be used.",
     )
     parser.add_argument(
         "--type",
@@ -63,8 +58,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    runner = Runner(
-        agent_dir=args.agent_dir,
-        type=args.type
-    )
+    runner = Runner(agent_dir=args.agent_dir, type=args.type)
     runner.run()

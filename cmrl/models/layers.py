@@ -1,7 +1,9 @@
 from typing import Optional, Sequence
+
+import numpy as np
 import torch
 from torch import nn as nn
-import numpy as np
+
 import cmrl.models.util as model_util
 
 
@@ -31,20 +33,20 @@ def truncated_normal_init(m: nn.Module):
 class EnsembleLinearLayer(nn.Module):
     """Implements an ensemble of layers.
 
-     Args:
-         in_size (int): the input size of this layer.
-         out_size (int): the output size of this layer.
-         use_bias (bool): use bias in this layer or not.
-         ensemble_num (int): the ensemble dimension of this layer,
-             the corresponding part of each dimension is called a "member".
-     """
+    Args:
+        in_size (int): the input size of this layer.
+        out_size (int): the output size of this layer.
+        use_bias (bool): use bias in this layer or not.
+        ensemble_num (int): the ensemble dimension of this layer,
+            the corresponding part of each dimension is called a "member".
+    """
 
     def __init__(
-            self,
-            in_size: int,
-            out_size: int,
-            use_bias: bool = True,
-            ensemble_num: int = 1,
+        self,
+        in_size: int,
+        out_size: int,
+        use_bias: bool = True,
+        ensemble_num: int = 1,
     ):
         super().__init__()
         self.ensemble_num = ensemble_num
@@ -76,23 +78,23 @@ class EnsembleLinearLayer(nn.Module):
 class ParallelEnsembleLinearLayer(nn.Module):
     """Implements an ensemble of parallel layers.
 
-     Args:
-         in_size (int): the input size of this layer.
-         out_size (int): the output size of this layer.
-         use_bias (bool): use bias in this layer or not.
-         parallel_num (int): the parallel dimension of this layer,
-             the corresponding part of each dimension is called a "sub-network".
-         ensemble_num (int): the ensemble dimension of this layer,
-             the corresponding part of each dimension is called a "member".
-     """
+    Args:
+        in_size (int): the input size of this layer.
+        out_size (int): the output size of this layer.
+        use_bias (bool): use bias in this layer or not.
+        parallel_num (int): the parallel dimension of this layer,
+            the corresponding part of each dimension is called a "sub-network".
+        ensemble_num (int): the ensemble dimension of this layer,
+            the corresponding part of each dimension is called a "member".
+    """
 
     def __init__(
-            self,
-            in_size: int,
-            out_size: int,
-            use_bias: bool = True,
-            parallel_num: int = 1,
-            ensemble_num: int = 1,
+        self,
+        in_size: int,
+        out_size: int,
+        use_bias: bool = True,
+        parallel_num: int = 1,
+        ensemble_num: int = 1,
     ):
         super().__init__()
         self.parallel_num = parallel_num
@@ -100,10 +102,14 @@ class ParallelEnsembleLinearLayer(nn.Module):
         self.in_size = in_size
         self.out_size = out_size
         self.weight = nn.Parameter(
-            torch.rand(self.parallel_num, self.ensemble_num, self.in_size, self.out_size)
+            torch.rand(
+                self.parallel_num, self.ensemble_num, self.in_size, self.out_size
+            )
         )
         if use_bias:
-            self.bias = nn.Parameter(torch.rand(self.parallel_num, self.ensemble_num, 1, self.out_size))
+            self.bias = nn.Parameter(
+                torch.rand(self.parallel_num, self.ensemble_num, 1, self.out_size)
+            )
             self.use_bias = True
         else:
             self.use_bias = False

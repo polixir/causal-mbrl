@@ -1,6 +1,7 @@
 import pathlib
+from typing import Tuple, Union
+
 import omegaconf
-from typing import Union, Tuple
 
 
 def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfig:
@@ -23,9 +24,11 @@ def load_hydra_cfg(results_dir: Union[str, pathlib.Path]) -> omegaconf.DictConfi
     return cfg
 
 
-def get_complete_dynamics_cfg(dynamics_cfg: omegaconf.DictConfig,
-                              obs_shape: Tuple[int, ...],
-                              act_shape: Tuple[int, ...], ):
+def get_complete_dynamics_cfg(
+    dynamics_cfg: omegaconf.DictConfig,
+    obs_shape: Tuple[int, ...],
+    act_shape: Tuple[int, ...],
+):
     transition_cfg = dynamics_cfg.transition
     transition_cfg.obs_size = obs_shape[0]
     transition_cfg.action_size = act_shape[0]

@@ -61,4 +61,3 @@ improvement_threshold: ${task.improvement_threshold}
 
 normalize: true
 normalize_double_precision: true
-

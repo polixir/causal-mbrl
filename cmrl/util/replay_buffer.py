@@ -52,11 +52,11 @@ class TransitionIterator:
     """
 
     def __init__(
-            self,
-            transitions: InteractionBatch,
-            batch_size: int,
-            shuffle_each_epoch: bool = False,
-            rng: Optional[np.random.Generator] = None,
+        self,
+        transitions: InteractionBatch,
+        batch_size: int,
+        shuffle_each_epoch: bool = False,
+        rng: Optional[np.random.Generator] = None,
     ):
         self.transitions = transitions
         self.num_stored = len(transitions)
@@ -124,13 +124,13 @@ class BootstrapIterator(TransitionIterator):
     """
 
     def __init__(
-            self,
-            transitions: InteractionBatch,
-            batch_size: int,
-            ensemble_size: int,
-            shuffle_each_epoch: bool = False,
-            permute_indices: bool = True,
-            rng: Optional[np.random.Generator] = None,
+        self,
+        transitions: InteractionBatch,
+        batch_size: int,
+        ensemble_size: int,
+        shuffle_each_epoch: bool = False,
+        permute_indices: bool = True,
+        rng: Optional[np.random.Generator] = None,
     ):
         super().__init__(
             transitions, batch_size, shuffle_each_epoch=shuffle_each_epoch, rng=rng
@@ -178,11 +178,11 @@ class BootstrapIterator(TransitionIterator):
 
 
 def _sequence_getitem_impl(
-        transitions: InteractionBatch,
-        batch_size: int,
-        sequence_length: int,
-        valid_starts: np.ndarray,
-        item: Any,
+    transitions: InteractionBatch,
+    batch_size: int,
+    sequence_length: int,
+    valid_starts: np.ndarray,
+    item: Any,
 ):
     start_indices = valid_starts[item].repeat(sequence_length)
     increment_array = np.tile(np.arange(sequence_length), len(item))
@@ -231,15 +231,15 @@ class SequenceTransitionIterator(BootstrapIterator):
     """
 
     def __init__(
-            self,
-            transitions: InteractionBatch,
-            trajectory_indices: List[Tuple[int, int]],
-            batch_size: int,
-            sequence_length: int,
-            ensemble_size: int,
-            shuffle_each_epoch: bool = False,
-            rng: Optional[np.random.Generator] = None,
-            max_batches_per_loop: Optional[int] = None,
+        self,
+        transitions: InteractionBatch,
+        trajectory_indices: List[Tuple[int, int]],
+        batch_size: int,
+        sequence_length: int,
+        ensemble_size: int,
+        shuffle_each_epoch: bool = False,
+        rng: Optional[np.random.Generator] = None,
+        max_batches_per_loop: Optional[int] = None,
     ):
         self._sequence_length = sequence_length
         self._valid_starts = self._get_indices_valid_starts(
@@ -266,8 +266,8 @@ class SequenceTransitionIterator(BootstrapIterator):
 
     @staticmethod
     def _get_indices_valid_starts(
-            trajectory_indices: List[Tuple[int, int]],
-            sequence_length: int,
+        trajectory_indices: List[Tuple[int, int]],
+        sequence_length: int,
     ) -> np.ndarray:
         # This is memory and time inefficient but it's only done once when creating the
         # iterator. It's a good price to pay for now, since it simplifies things
@@ -285,8 +285,8 @@ class SequenceTransitionIterator(BootstrapIterator):
 
     def __next__(self):
         if (
-                self._max_batches_per_loop is not None
-                and self._current_batch >= self._max_batches_per_loop
+            self._max_batches_per_loop is not None
+            and self._current_batch >= self._max_batches_per_loop
         ):
             raise StopIteration
         return super().__next__()
@@ -330,13 +330,13 @@ class SequenceTransitionSampler(TransitionIterator):
     """
 
     def __init__(
-            self,
-            transitions: InteractionBatch,
-            trajectory_indices: List[Tuple[int, int]],
-            batch_size: int,
-            sequence_length: int,
-            batches_per_loop: int,
-            rng: Optional[np.random.Generator] = None,
+        self,
+        transitions: InteractionBatch,
+        trajectory_indices: List[Tuple[int, int]],
+        batch_size: int,
+        sequence_length: int,
+        batches_per_loop: int,
+        rng: Optional[np.random.Generator] = None,
     ):
         self._sequence_length = sequence_length
         self._valid_starts = self._get_indices_valid_starts(
@@ -361,8 +361,8 @@ class SequenceTransitionSampler(TransitionIterator):
 
     @staticmethod
     def _get_indices_valid_starts(
-            trajectory_indices: List[Tuple[int, int]],
-            sequence_length: int,
+        trajectory_indices: List[Tuple[int, int]],
+        sequence_length: int,
     ) -> np.ndarray:
         # This is memory and time inefficient but it's only done once when creating the
         # iterator. It's a good price to pay for now, since it simplifies things
@@ -425,15 +425,15 @@ class ReplayBuffer:
     """
 
     def __init__(
-            self,
-            capacity: int,
-            obs_shape: Sequence[int],
-            action_shape: Sequence[int],
-            obs_type: Type = np.float32,
-            action_type: Type = np.float32,
-            reward_type: Type = np.float32,
-            rng: Optional[np.random.Generator] = None,
-            max_trajectory_length: Optional[int] = None,
+        self,
+        capacity: int,
+        obs_shape: Sequence[int],
+        action_shape: Sequence[int],
+        obs_type: Type = np.float32,
+        action_type: Type = np.float32,
+        reward_type: Type = np.float32,
+        rng: Optional[np.random.Generator] = None,
+        max_trajectory_length: Optional[int] = None,
     ):
         self.cur_idx = 0
         self.capacity = capacity
@@ -515,12 +515,12 @@ class ReplayBuffer:
         self._start_last_trajectory = self.cur_idx
 
     def add(
-            self,
-            obs: np.ndarray,
-            action: np.ndarray,
-            next_obs: np.ndarray,
-            reward: float,
-            done: bool,
+        self,
+        obs: np.ndarray,
+        action: np.ndarray,
+        next_obs: np.ndarray,
+        reward: float,
+        done: bool,
     ):
         """Adds a transition (s, a, s', r, done) to the replay buffer.
 
@@ -544,12 +544,12 @@ class ReplayBuffer:
             self.num_stored = min(self.num_stored + 1, self.capacity)
 
     def add_batch(
-            self,
-            obs: np.ndarray,
-            action: np.ndarray,
-            next_obs: np.ndarray,
-            reward: np.ndarray,
-            done: np.ndarray,
+        self,
+        obs: np.ndarray,
+        action: np.ndarray,
+        next_obs: np.ndarray,
+        reward: np.ndarray,
+        done: np.ndarray,
     ):
         """Adds a transition (s, a, s', r, done) to the replay buffer.
 

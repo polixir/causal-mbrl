@@ -1,12 +1,12 @@
 import abc
 import pathlib
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 
 import gym
 import hydra
-from omegaconf import DictConfig, OmegaConf
 import numpy as np
 import omegaconf
+from omegaconf import DictConfig, OmegaConf
 
 import cmrl.models
 import cmrl.types
@@ -37,9 +37,7 @@ class RandomAgent(Agent):
         return self.env.action_space.sample()
 
 
-def complete_agent_cfg(
-        env: gym.Env, agent_cfg: omegaconf.DictConfig
-):
+def complete_agent_cfg(env: gym.Env, agent_cfg: omegaconf.DictConfig):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
 
@@ -52,14 +50,16 @@ def complete_agent_cfg(
         return {
             "_target_": "numpy.array",
             "object": array.tolist(),
-            "dtype": str(array.dtype)
+            "dtype": str(array.dtype),
         }
 
     _check_and_replace("num_inputs", obs_shape[0], agent_cfg)
     if "action_space" in agent_cfg.keys() and isinstance(
-            agent_cfg.action_space, omegaconf.DictConfig
+        agent_cfg.action_space, omegaconf.DictConfig
     ):
-        _check_and_replace("low", _create_numpy_config(env.action_space.low), agent_cfg.action_space)
+        _check_and_replace(
+            "low", _create_numpy_config(env.action_space.low), agent_cfg.action_space
+        )
         _check_and_replace(
             "high", _create_numpy_config(env.action_space.high), agent_cfg.action_space
         )
@@ -80,25 +80,41 @@ def complete_agent_cfg(
         agent_cfg.action_ub = _create_numpy_config(env.action_space.high)
 
     if "env" in agent_cfg.keys():
-        _check_and_replace("low", _create_numpy_config(env.action_space.low), agent_cfg.env.action_space)
         _check_and_replace(
-            "high", _create_numpy_config(env.action_space.high), agent_cfg.env.action_space
+            "low",
+            _create_numpy_config(env.action_space.low),
+            agent_cfg.env.action_space,
+        )
+        _check_and_replace(
+            "high",
+            _create_numpy_config(env.action_space.high),
+            agent_cfg.env.action_space,
         )
         _check_and_replace("shape", env.action_space.shape, agent_cfg.env.action_space)
 
-        _check_and_replace("low", _create_numpy_config(env.observation_space.low), agent_cfg.env.observation_space)
         _check_and_replace(
-            "high", _create_numpy_config(env.observation_space.high), agent_cfg.env.observation_space
+            "low",
+            _create_numpy_config(env.observation_space.low),
+            agent_cfg.env.observation_space,
         )
-        _check_and_replace("shape", env.observation_space.shape, agent_cfg.env.observation_space)
+        _check_and_replace(
+            "high",
+            _create_numpy_config(env.observation_space.high),
+            agent_cfg.env.observation_space,
+        )
+        _check_and_replace(
+            "shape", env.observation_space.shape, agent_cfg.env.observation_space
+        )
 
     return agent_cfg
 
 
-def load_agent(agent_path: Union[str, pathlib.Path],
-               env: gym.Env,
-               type: Optional[str] = "best",
-               device: Optional[str] = None) -> Agent:
+def load_agent(
+    agent_path: Union[str, pathlib.Path],
+    env: gym.Env,
+    type: Optional[str] = "best",
+    device: Optional[str] = None,
+) -> Agent:
     """Loads an agent from a Hydra config file at the given path.
 
     For agent of type "pytorch_sac.agent.sac.SACAgent", the directory
@@ -127,7 +143,9 @@ def load_agent(agent_path: Union[str, pathlib.Path],
 
         complete_agent_cfg(env, cfg.algorithm.agent)
         agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
-        agent.load_checkpoint(ckpt_path=agent_path / "sac_{}.pth".format(type), device=device)
+        agent.load_checkpoint(
+            ckpt_path=agent_path / "sac_{}.pth".format(type), device=device
+        )
         return SACAgent(agent)
     else:
         raise ValueError("Invalid agent configuration.")

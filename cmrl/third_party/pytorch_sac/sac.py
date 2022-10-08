@@ -1,10 +1,16 @@
 import os
+from typing import Optional
+
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
-from typing import Optional
-from cmrl.third_party.pytorch_sac.utils import soft_update, hard_update
-from cmrl.third_party.pytorch_sac.model import GaussianPolicy, QNetwork, DeterministicPolicy
+
+from cmrl.third_party.pytorch_sac.model import (
+    DeterministicPolicy,
+    GaussianPolicy,
+    QNetwork,
+)
+from cmrl.third_party.pytorch_sac.utils import hard_update, soft_update
 
 
 class SAC(object):
@@ -20,10 +26,14 @@ class SAC(object):
 
         self.device = args.device
 
-        self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+        self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(
+            device=self.device
+        )
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
 
-        self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
+        self.critic_target = QNetwork(
+            num_inputs, action_space.shape[0], args.hidden_size
+        ).to(self.device)
         hard_update(self.critic_target, self.critic)
 
         if self.policy_type == "Gaussian":
@@ -39,14 +49,16 @@ class SAC(object):
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
             self.policy = GaussianPolicy(
-                num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+                num_inputs, action_space.shape[0], args.hidden_size, action_space
+            ).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
-            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(
-                self.device)
+            self.policy = DeterministicPolicy(
+                num_inputs, action_space.shape[0], args.hidden_size, action_space
+            ).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
     def select_action(self, state, batched=False, evaluate=False):
@@ -63,7 +75,7 @@ class SAC(object):
         return action.detach().cpu().numpy()[0]
 
     def update_parameters(
-            self, memory, batch_size, updates, logger=None, reverse_mask=False
+        self, memory, batch_size, updates, logger=None, reverse_mask=False
     ):
         # Sample a batch from memory
         (
@@ -90,8 +102,8 @@ class SAC(object):
                 next_state_batch, next_state_action
             )
             min_qf_next_target = (
-                    torch.min(qf1_next_target, qf2_next_target)
-                    - self.alpha * next_state_log_pi
+                torch.min(qf1_next_target, qf2_next_target)
+                - self.alpha * next_state_log_pi
             )
             next_q_value = reward_batch + mask_batch * self.gamma * (min_qf_next_target)
         qf1, qf2 = self.critic(
@@ -115,7 +127,7 @@ class SAC(object):
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
         policy_loss = (
-                (self.alpha * log_pi) - min_qf_pi
+            (self.alpha * log_pi) - min_qf_pi
         ).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
 
         self.policy_optim.zero_grad()
@@ -124,7 +136,7 @@ class SAC(object):
 
         if self.automatic_entropy_tuning:
             alpha_loss = -(
-                    self.log_alpha * (log_pi + self.target_entropy).detach()
+                self.log_alpha * (log_pi + self.target_entropy).detach()
             ).mean()
 
             self.alpha_optim.zero_grad()
@@ -163,30 +175,32 @@ class SAC(object):
 
     # Save model parameters
     def save_checkpoint(self, suffix="", ckpt_path=None, silence=False):
-        os.makedirs('sac_checkpoints/', exist_ok=True)
+        os.makedirs("sac_checkpoints/", exist_ok=True)
         if ckpt_path is None:
             ckpt_path = "sac_checkpoints/checkpoint_{}.pth".format(suffix)
         if not silence:
-            print('Saving models to {}'.format(ckpt_path))
-        torch.save({'policy_state_dict': self.policy.state_dict(),
-                    'critic_state_dict': self.critic.state_dict(),
-                    'critic_target_state_dict': self.critic_target.state_dict(),
-                    'critic_optimizer_state_dict': self.critic_optim.state_dict(),
-                    'policy_optimizer_state_dict': self.policy_optim.state_dict()}, ckpt_path)
+            print("Saving models to {}".format(ckpt_path))
+        torch.save(
+            {
+                "policy_state_dict": self.policy.state_dict(),
+                "critic_state_dict": self.critic.state_dict(),
+                "critic_target_state_dict": self.critic_target.state_dict(),
+                "critic_optimizer_state_dict": self.critic_optim.state_dict(),
+                "policy_optimizer_state_dict": self.policy_optim.state_dict(),
+            },
+            ckpt_path,
+        )
 
     # Load model parameters
-    def load_checkpoint(self,
-                        ckpt_path,
-                        evaluate=False,
-                        device: Optional[str] = None):
-        print('Loading models from {}'.format(ckpt_path))
+    def load_checkpoint(self, ckpt_path, evaluate=False, device: Optional[str] = None):
+        print("Loading models from {}".format(ckpt_path))
         if ckpt_path is not None:
             checkpoint = torch.load(ckpt_path, map_location=device)
-            self.policy.load_state_dict(checkpoint['policy_state_dict'])
-            self.critic.load_state_dict(checkpoint['critic_state_dict'])
-            self.critic_target.load_state_dict(checkpoint['critic_target_state_dict'])
-            self.critic_optim.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-            self.policy_optim.load_state_dict(checkpoint['policy_optimizer_state_dict'])
+            self.policy.load_state_dict(checkpoint["policy_state_dict"])
+            self.critic.load_state_dict(checkpoint["critic_state_dict"])
+            self.critic_target.load_state_dict(checkpoint["critic_target_state_dict"])
+            self.critic_optim.load_state_dict(checkpoint["critic_optimizer_state_dict"])
+            self.policy_optim.load_state_dict(checkpoint["policy_optimizer_state_dict"])
 
             if evaluate:
                 self.policy.eval()

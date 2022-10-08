@@ -1,35 +1,35 @@
 import os
 import pathlib
-from typing import Optional, Sequence, cast, Dict, Callable, List, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, cast
 
-import gym
 import emei
+import gym
 import numpy as np
+from omegaconf import DictConfig, OmegaConf
 
+import cmrl.agent
 import cmrl.constants
 import cmrl.models
-import cmrl.agent
 import cmrl.types
-from omegaconf import DictConfig, OmegaConf
 from cmrl.agent.sac_wrapper import SACAgent
-from cmrl.util.video import VideoRecorder
-from cmrl.util.config import load_hydra_cfg, get_complete_dynamics_cfg
-from cmrl.util.replay_buffer import ReplayBuffer
 from cmrl.models.dynamics import BaseDynamics
+from cmrl.util.config import get_complete_dynamics_cfg, load_hydra_cfg
+from cmrl.util.replay_buffer import ReplayBuffer
+from cmrl.util.video import VideoRecorder
 
 
 def rollout_model_and_populate_sac_buffer(
-        query_env: emei.EmeiEnv,
-        fake_env: cmrl.models.VecFakeEnv,
-        replay_buffer: cmrl.util.ReplayBuffer,
-        agent: SACAgent,
-        sac_buffer: cmrl.util.ReplayBuffer,
-        sac_samples_action: bool,
-        rollout_horizon: int,
-        batch_size: int,
-        logger,
-        epoch: int,
-        query_ratio: float = 5e-3
+    query_env: emei.EmeiEnv,
+    fake_env: cmrl.models.VecFakeEnv,
+    replay_buffer: cmrl.util.ReplayBuffer,
+    agent: SACAgent,
+    sac_buffer: cmrl.util.ReplayBuffer,
+    sac_samples_action: bool,
+    rollout_horizon: int,
+    batch_size: int,
+    logger,
+    epoch: int,
+    query_ratio: float = 5e-3,
 ):
     batch = replay_buffer.sample(batch_size)
     initial_obs, *_ = cast(cmrl.types.InteractionBatch, batch).as_tuple()
@@ -77,10 +77,10 @@ def rollout_model_and_populate_sac_buffer(
 
 
 def evaluate(
-        env: gym.Env,
-        agent: SACAgent,
-        num_episodes: int,
-        video_recorder: VideoRecorder,
+    env: gym.Env,
+    agent: SACAgent,
+    num_episodes: int,
+    video_recorder: VideoRecorder,
 ) -> [float, float]:
     episodes_reward = []
     episodes_length = []
@@ -102,11 +102,11 @@ def evaluate(
 
 
 def maybe_replace_sac_buffer(
-        sac_buffer: Optional[cmrl.util.ReplayBuffer],
-        obs_shape: Sequence[int],
-        act_shape: Sequence[int],
-        new_capacity: int,
-        seed: int,
+    sac_buffer: Optional[cmrl.util.ReplayBuffer],
+    obs_shape: Sequence[int],
+    act_shape: Sequence[int],
+    new_capacity: int,
+    seed: int,
 ) -> cmrl.util.ReplayBuffer:
     if sac_buffer is None or new_capacity != sac_buffer.capacity:
         if sac_buffer is None:
@@ -123,7 +123,7 @@ def maybe_replace_sac_buffer(
 
 
 def truncated_linear(
-        min_x: float, max_x: float, min_y: float, max_y: float, x: float
+    min_x: float, max_x: float, min_y: float, max_y: float, x: float
 ) -> float:
     """Truncated linear function.
 
@@ -149,7 +149,9 @@ def is_same_dict(dict1, dict2):
         if key not in dict2:
             return False
         else:
-            if isinstance(dict1[key], DictConfig) and isinstance(dict2[key], DictConfig):
+            if isinstance(dict1[key], DictConfig) and isinstance(
+                dict2[key], DictConfig
+            ):
                 if not is_same_dict(dict1[key], dict2[key]):
                     return False
             else:
@@ -158,11 +160,9 @@ def is_same_dict(dict1, dict2):
     return True
 
 
-def maybe_load_trained_offline_model(dynamics: BaseDynamics,
-                                     cfg,
-                                     obs_shape,
-                                     act_shape,
-                                     work_dir):
+def maybe_load_trained_offline_model(
+    dynamics: BaseDynamics, cfg, obs_shape, act_shape, work_dir
+):
     work_dir = pathlib.Path(work_dir)
     if "." not in work_dir.name:  # exp by hydra's MULTIRUN mode
         task_exp_dir = work_dir.parent.parent.parent
@@ -172,7 +172,9 @@ def maybe_load_trained_offline_model(dynamics: BaseDynamics,
 
     for date_dir in task_exp_dir.glob(r"*"):
         for time_dir in date_dir.glob(r"*"):
-            if (time_dir / "multirun.yaml").exists():  # exp by hydra's MULTIRUN mode, multi exp in this time
+            if (
+                time_dir / "multirun.yaml"
+            ).exists():  # exp by hydra's MULTIRUN mode, multi exp in this time
                 this_time_exp_dir_list = list(time_dir.glob(r"*"))
             else:  # only one exp in this time
                 this_time_exp_dir_list = [time_dir]
@@ -181,9 +183,13 @@ def maybe_load_trained_offline_model(dynamics: BaseDynamics,
                 if not (exp_dir / ".hydra").exists():
                     continue
                 exp_cfg = load_hydra_cfg(exp_dir)
-                exp_dynamics_cfg = get_complete_dynamics_cfg(exp_cfg.dynamics, obs_shape, act_shape)
+                exp_dynamics_cfg = get_complete_dynamics_cfg(
+                    exp_cfg.dynamics, obs_shape, act_shape
+                )
 
-                if exp_cfg.seed == cfg.seed and is_same_dict(dynamics_cfg, exp_dynamics_cfg):
+                if exp_cfg.seed == cfg.seed and is_same_dict(
+                    dynamics_cfg, exp_dynamics_cfg
+                ):
                     exist_model_file = True
                     for mech in dynamics.learn_mech:
                         mech_file_name = getattr(dynamics, mech).model_file_name
@@ -197,15 +203,15 @@ def maybe_load_trained_offline_model(dynamics: BaseDynamics,
 
 
 def rollout_agent_trajectories(
-        env: gym.Env,
-        steps_or_trials_to_collect: int,
-        agent: cmrl.agent.Agent,
-        agent_kwargs: Dict,
-        trial_length: Optional[int] = None,
-        callback: Optional[Callable] = None,
-        replay_buffer: Optional[ReplayBuffer] = None,
-        collect_full_trajectories: bool = False,
-        agent_uses_low_dim_obs: bool = False,
+    env: gym.Env,
+    steps_or_trials_to_collect: int,
+    agent: cmrl.agent.Agent,
+    agent_kwargs: Dict,
+    trial_length: Optional[int] = None,
+    callback: Optional[Callable] = None,
+    replay_buffer: Optional[ReplayBuffer] = None,
+    collect_full_trajectories: bool = False,
+    agent_uses_low_dim_obs: bool = False,
 ) -> List[float]:
     """Rollout agent trajectories in the given environment.
 
@@ -240,9 +246,9 @@ def rollout_agent_trajectories(
         (list(float)): Total rewards obtained at each complete trial.
     """
     if (
-            replay_buffer is not None
-            and replay_buffer.stores_trajectories
-            and not collect_full_trajectories
+        replay_buffer is not None
+        and replay_buffer.stores_trajectories
+        and not collect_full_trajectories
     ):
         # Might be better as a warning but it's possible that users will miss it.
         raise RuntimeError(
@@ -298,13 +304,13 @@ def rollout_agent_trajectories(
 
 
 def step_env_and_add_to_buffer(
-        env: gym.Env,
-        obs: np.ndarray,
-        agent: cmrl.agent.Agent,
-        agent_kwargs: Dict,
-        replay_buffer: ReplayBuffer,
-        callback: Optional[Callable] = None,
-        agent_uses_low_dim_obs: bool = False,
+    env: gym.Env,
+    obs: np.ndarray,
+    agent: cmrl.agent.Agent,
+    agent_kwargs: Dict,
+    replay_buffer: ReplayBuffer,
+    callback: Optional[Callable] = None,
+    agent_uses_low_dim_obs: bool = False,
 ) -> Tuple[np.ndarray, float, bool, Dict]:
     """Steps the environment with an agent's action and populates the replay buffer.
 
