@@ -43,7 +43,7 @@ def make_env(
                 for item in params.split("&")
             ]
         )
-        env = cast(emei.EmeiEnv, gym.make(env_name, **kwargs, new_step_api=False))
+        env = cast(emei.EmeiEnv, gym.make(env_name, **kwargs))
         term_fn = env.get_terminal
         reward_fn = env.get_reward
         init_obs_fn = env.get_batch_init_obs

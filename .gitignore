@@ -1,3 +1,5 @@
 /cmrl.egg-info/
 /exp/
 /stable-baselines3/
+/.coverage
+/.pytest_cache/
