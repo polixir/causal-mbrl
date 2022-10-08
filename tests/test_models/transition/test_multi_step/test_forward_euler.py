@@ -19,7 +19,7 @@ class TestForwardEulerTransition(TestCase):
         self.hid_size = 200
         self.batch_size = 128
         self.repeat_times = 3
-        self.device = "cuda"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.deterministic_one_step = PlainEnsembleGaussianTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,

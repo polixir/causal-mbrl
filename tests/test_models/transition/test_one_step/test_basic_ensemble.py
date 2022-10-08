@@ -17,7 +17,7 @@ class TestBasicEnsembleGaussianMLP(TestCase):
         self.ensemble_num = 7
         self.hid_size = 200
         self.batch_size = 128
-        self.device = "cuda"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.deterministic_transition = PlainEnsembleGaussianTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
