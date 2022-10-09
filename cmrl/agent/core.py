@@ -6,10 +6,6 @@ import gym
 import hydra
 import numpy as np
 import omegaconf
-from omegaconf import DictConfig, OmegaConf
-
-import cmrl.models
-import cmrl.types
 
 
 class Agent:
@@ -54,15 +50,9 @@ def complete_agent_cfg(env: gym.Env, agent_cfg: omegaconf.DictConfig):
         }
 
     _check_and_replace("num_inputs", obs_shape[0], agent_cfg)
-    if "action_space" in agent_cfg.keys() and isinstance(
-        agent_cfg.action_space, omegaconf.DictConfig
-    ):
-        _check_and_replace(
-            "low", _create_numpy_config(env.action_space.low), agent_cfg.action_space
-        )
-        _check_and_replace(
-            "high", _create_numpy_config(env.action_space.high), agent_cfg.action_space
-        )
+    if "action_space" in agent_cfg.keys() and isinstance(agent_cfg.action_space, omegaconf.DictConfig):
+        _check_and_replace("low", _create_numpy_config(env.action_space.low), agent_cfg.action_space)
+        _check_and_replace("high", _create_numpy_config(env.action_space.high), agent_cfg.action_space)
         _check_and_replace("shape", env.action_space.shape, agent_cfg.action_space)
 
     if "obs_dim" in agent_cfg.keys() and "obs_dim" not in agent_cfg:
@@ -102,9 +92,7 @@ def complete_agent_cfg(env: gym.Env, agent_cfg: omegaconf.DictConfig):
             _create_numpy_config(env.observation_space.high),
             agent_cfg.env.observation_space,
         )
-        _check_and_replace(
-            "shape", env.observation_space.shape, agent_cfg.env.observation_space
-        )
+        _check_and_replace("shape", env.observation_space.shape, agent_cfg.env.observation_space)
 
     return agent_cfg
 
@@ -143,9 +131,7 @@ def load_agent(
 
         complete_agent_cfg(env, cfg.algorithm.agent)
         agent: pytorch_sac.SAC = hydra.utils.instantiate(cfg.algorithm.agent)
-        agent.load_checkpoint(
-            ckpt_path=agent_path / "sac_{}.pth".format(type), device=device
-        )
+        agent.load_checkpoint(ckpt_path=agent_path / "sac_{}.pth".format(type), device=device)
         return SACAgent(agent)
     else:
         raise ValueError("Invalid agent configuration.")

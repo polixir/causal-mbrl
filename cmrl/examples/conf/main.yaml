@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: off_dyna
+  - algorithm: on_dyna
   - dynamics: plain_dynamics
   - task: BIPS
   - _self_

@@ -5,8 +5,6 @@ from omegaconf import DictConfig
 import gym
 import emei
 
-from cmrl.util.env import make_env
-from cmrl.util.creator import create_dynamics, create_replay_buffer
 from cmrl.sb3_extension.online_mb_callback import OnlineModelBasedCallback
 from cmrl.models.dynamics import ConstraintBasedDynamics, PlainEnsembleDynamics
 from cmrl.models.transition.one_step.plain_ensemble import PlainEnsembleGaussianTransition
@@ -29,10 +27,10 @@ def test_callback():
         termination_mech=term_fn,
     )
 
-    fake_env = VecFakeEnv(16, env.observation_space, env.action_space)
+    fake_env = VecFakeEnv(1, env.observation_space, env.action_space)
     fake_env.set_up(dynamics, reward_fn, term_fn, init_obs_fn)
 
-    callback = OnlineModelBasedCallback(env, dynamics)
+    callback = OnlineModelBasedCallback(env, dynamics, freq_train_model=5)
 
     model = SAC("MlpPolicy", fake_env, verbose=1)
     model.learn(total_timesteps=100, log_interval=4, callback=callback)

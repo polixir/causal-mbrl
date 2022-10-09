@@ -1,8 +1,4 @@
 import os
-from typing import Optional, Sequence, cast
-
-import os
-from copy import deepcopy
 from typing import Optional, cast
 
 import emei
@@ -10,17 +6,16 @@ import hydra.utils
 import numpy as np
 from omegaconf import DictConfig
 from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
-from torch.utils.data import DataLoader, Dataset
+from stable_baselines3.common.callbacks import CallbackList
 
 from cmrl.agent import complete_agent_cfg
 from cmrl.algorithms.util import setup_fake_env
 from cmrl.models.dynamics import ConstraintBasedDynamics
-from cmrl.models.fake_env import VecFakeEnv
 from cmrl.sb3_extension.eval_callback import EvalCallback
+from cmrl.sb3_extension.online_mb_callback import OnlineModelBasedCallback
 from cmrl.sb3_extension.logger import configure as logger_configure
 from cmrl.types import InitObsFnType, RewardFnType, TermFnType
-from cmrl.util.creator import create_dynamics, create_replay_buffer
+from cmrl.util.creator import create_dynamics
 
 
 def train(
@@ -45,12 +40,6 @@ def train(
     numpy_generator = np.random.default_rng(seed=cfg.seed)
 
     dynamics = create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
-    replay_buffer = create_replay_buffer(
-        cfg,
-        obs_shape,
-        act_shape,
-        numpy_generator=numpy_generator,
-    )
 
     fake_eval_env = setup_fake_env(
         cfg=cfg,
@@ -80,6 +69,14 @@ def train(
         deterministic=True,
         render=False,
     )
+    omb_callback = OnlineModelBasedCallback(
+        env,
+        dynamics,
+        total_num_steps=cfg.task.num_steps,
+        initial_exploration_steps=cfg.algorithm.initial_exploration_steps,
+        freq_train_model=cfg.task.freq_train_model,
+        device=cfg.device,
+    )
 
     agent.set_logger(logger)
-    agent.learn(total_timesteps=cfg.task.num_steps, callback=eval_callback)
+    agent.learn(total_timesteps=int(1e10), callback=CallbackList([eval_callback, omb_callback]))

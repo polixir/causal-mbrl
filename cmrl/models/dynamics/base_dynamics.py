@@ -1,7 +1,7 @@
 import abc
 import collections
 import pathlib
-from typing import Dict, List, Optional, Tuple, Union, cast
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -76,6 +76,10 @@ class BaseDynamics:
                 eps=optim_eps,
             )
             self.learn_mech.append("termination_mech")
+
+        self.total_epoch = {}
+        for mech in self.learn_mech:
+            self.total_epoch[mech] = 0
 
     @abc.abstractmethod
     def learn(self, replay_buffer: ReplayBuffer, **kwargs):

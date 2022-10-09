@@ -20,15 +20,6 @@ from cmrl.agent.sac_wrapper import SACAgent
 from cmrl.algorithms.util import maybe_load_trained_offline_model
 from cmrl.util.video import VideoRecorder
 
-MBPO_LOG_FORMAT = cmrl.constants.RESULTS_LOG_FORMAT + [
-    ("epoch", "E", "int"),
-    ("rollout_length", "RL", "int"),
-]
-MODEL_EVAL_LOG_FORMAT = [
-    ("epoch", "E", "int"),
-    ("rollout", "RO", "int"),
-]
-
 
 def train(
     env: emei.EmeiEnv,

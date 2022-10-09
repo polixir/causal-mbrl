@@ -1,15 +1,10 @@
-import abc
-import collections
 import copy
 import itertools
 import pathlib
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
-import omegaconf
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
@@ -18,7 +13,7 @@ from cmrl.models.nns import EnsembleMLP
 from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.util import to_tensor
-from cmrl.types import InteractionBatch, TensorType
+from cmrl.types import TensorType
 
 
 class ConstraintBasedDynamics(BaseDynamics):
@@ -115,14 +110,15 @@ class ConstraintBasedDynamics(BaseDynamics):
                     epochs_since_update += 1
 
                 # log
+                self.total_epoch[mech] += 1
                 if self.logger is not None:
-                    self.logger.record("{}/epoch".format(mech), epoch, exclude="tensorboard")
+                    self.logger.record("{}/epoch".format(mech), epoch)
                     self.logger.record("{}/train_dataset_size".format(mech), train_dataset.num_stored)
                     self.logger.record("{}/val_dataset_size".format(mech), val_dataset.num_stored)
                     self.logger.record("{}/train_loss".format(mech), train_loss.mean().item())
                     self.logger.record("{}/val_loss".format(mech), val_loss.mean().item())
                     self.logger.record("{}/best_val_loss".format(mech), best_val_loss.mean().item())
-                    self.logger.dump(epoch)
+                    self.logger.dump(self.total_epoch[mech])
                 if patience and epochs_since_update >= patience:
                     break
 

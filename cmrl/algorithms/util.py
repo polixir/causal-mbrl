@@ -1,12 +1,11 @@
-import os
 import pathlib
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, cast
+from typing import Optional, cast
 from copy import deepcopy
 
 import emei
 import hydra
 import numpy as np
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
 from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 from stable_baselines3.common.base_class import BaseAlgorithm

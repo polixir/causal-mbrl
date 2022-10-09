@@ -15,14 +15,10 @@ class BaseEnsembleTransition(EnsembleMLP):
         elite_num: int = 5,
         device: Union[str, torch.device] = "cpu",
     ):
-        super(BaseEnsembleTransition, self).__init__(
-            ensemble_num=ensemble_num, elite_num=elite_num, device=device
-        )
+        super(BaseEnsembleTransition, self).__init__(ensemble_num=ensemble_num, elite_num=elite_num, device=device)
         self.obs_size = obs_size
         self.action_size = action_size
         self.deterministic = deterministic
 
-    def forward(
-        self, state: torch.Tensor, action: torch.Tensor, only_elite: bool = False
-    ):
+    def forward(self, state: torch.Tensor, action: torch.Tensor, only_elite: bool = False):
         pass
