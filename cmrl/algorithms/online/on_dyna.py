@@ -1,4 +1,7 @@
 import os
+from typing import Optional, Sequence, cast
+
+import os
 from copy import deepcopy
 from typing import Optional, cast
 
@@ -7,11 +10,11 @@ import hydra.utils
 import numpy as np
 from omegaconf import DictConfig
 from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.buffers import ReplayBuffer
+from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 from torch.utils.data import DataLoader, Dataset
 
 from cmrl.agent import complete_agent_cfg
-from cmrl.algorithms.util import maybe_load_trained_offline_model, setup_fake_env, load_offline_data
+from cmrl.algorithms.util import setup_fake_env
 from cmrl.models.dynamics import ConstraintBasedDynamics
 from cmrl.models.fake_env import VecFakeEnv
 from cmrl.sb3_extension.eval_callback import EvalCallback
@@ -41,19 +44,13 @@ def train(
 
     numpy_generator = np.random.default_rng(seed=cfg.seed)
 
-    # create initial dataset and add it to replay buffer
     dynamics = create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
-    replay_buffer = ReplayBuffer(
-        cfg.task.num_steps, env.observation_space, env.action_space, cfg.device, handle_timeout_termination=False
+    replay_buffer = create_replay_buffer(
+        cfg,
+        obs_shape,
+        act_shape,
+        numpy_generator=numpy_generator,
     )
-    load_offline_data(cfg, env, replay_buffer)
-
-    if cfg.dynamics.name == "plain_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff
-    elif cfg.dynamics.name == "constraint_based_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff / 3
-    else:
-        raise NotImplementedError
 
     fake_eval_env = setup_fake_env(
         cfg=cfg,
@@ -64,20 +61,15 @@ def train(
         get_init_obs_fn=get_init_obs_fn,
         logger=logger,
         max_episode_steps=env.spec.max_episode_steps,
-        penalty_coeff=penalty_coeff,
     )
 
-    if hasattr(env, "get_causal_graph"):
-        oracle_causal_graph = env.get_causal_graph()
+    if hasattr(env, "causal_graph"):
+        oracle_causal_graph = env.causal_graph
     else:
         oracle_causal_graph = None
 
     if isinstance(dynamics, ConstraintBasedDynamics):
         dynamics.set_oracle_mask("transition", oracle_causal_graph.T)
-
-    existed_trained_model = maybe_load_trained_offline_model(dynamics, cfg, obs_shape, act_shape, work_dir=work_dir)
-    if not existed_trained_model:
-        dynamics.learn(replay_buffer, **cfg.dynamics, work_dir=work_dir)
 
     eval_callback = EvalCallback(
         eval_env,

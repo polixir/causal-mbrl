@@ -4,9 +4,7 @@ import torch
 import wandb
 from omegaconf import DictConfig, OmegaConf
 
-import cmrl.algorithms.offline.mopo as mopo
-import cmrl.algorithms.offline.off_dyna as off_dyna
-import cmrl.algorithms.online.mbpo as mbpo
+from cmrl.algorithms import mopo, mbpo, off_dyna, on_dyna
 from cmrl.util.env import make_env
 
 
@@ -25,7 +23,10 @@ def run(cfg: DictConfig):
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
 
-    if cfg.algorithm.name == "mopo":
+    if cfg.algorithm.name == "on_dyna":
+        test_env, *_ = make_env(cfg)
+        return on_dyna.train(env, test_env, term_fn, reward_fn, init_obs_fn, cfg)
+    elif cfg.algorithm.name == "mopo":
         test_env, *_ = make_env(cfg)
         return mopo.train(env, test_env, term_fn, reward_fn, cfg)
     elif cfg.algorithm.name == "off_dyna":

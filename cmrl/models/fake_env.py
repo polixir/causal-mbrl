@@ -50,7 +50,7 @@ class VecFakeEnv(VecEnv):
         self._current_batch_obs = None
         self._current_batch_action = None
 
-        self._envs_length = [0 for _ in range(self.num_envs)]
+        self._envs_length = np.zeros(self.num_envs, dtype=int)
 
     def set_up(
         self,
@@ -88,45 +88,23 @@ class VecFakeEnv(VecEnv):
         assert self.has_set_up, "fake-env has not set up"
         assert len(self._current_batch_action.shape) == 2  # batch, action_dim
         with torch.no_grad():
-            batch_obs_tensor = (
-                torch.from_numpy(self._current_batch_obs)
-                .to(torch.float32)
-                .to(self.device)
-            )
-            batch_action_tensor = (
-                torch.from_numpy(self._current_batch_action)
-                .to(torch.float32)
-                .to(self.device)
-            )
-            dynamics_pred = self.dynamics.query(
-                batch_obs_tensor, batch_action_tensor, return_as_np=True
-            )
+            batch_obs_tensor = torch.from_numpy(self._current_batch_obs).to(torch.float32).to(self.device)
+            batch_action_tensor = torch.from_numpy(self._current_batch_action).to(torch.float32).to(self.device)
+            dynamics_pred = self.dynamics.query(batch_obs_tensor, batch_action_tensor, return_as_np=True)
 
             # transition
-            batch_next_obs = self.get_dynamics_predict(
-                dynamics_pred, "transition", deterministic=self.deterministic
-            )
+            batch_next_obs = self.get_dynamics_predict(dynamics_pred, "transition", deterministic=self.deterministic)
             if self.learned_reward:
-                batch_reward = self.get_dynamics_predict(
-                    dynamics_pred, "reward_mech", deterministic=self.deterministic
-                )
+                batch_reward = self.get_dynamics_predict(dynamics_pred, "reward_mech", deterministic=self.deterministic)
             else:
-                batch_reward = self.reward_fn(
-                    batch_next_obs, self._current_batch_obs, self._current_batch_action
-                )
+                batch_reward = self.reward_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
             if self.learned_termination:
-                batch_terminal = self.get_dynamics_predict(
-                    dynamics_pred, "termination_mech", deterministic=self.deterministic
-                )
+                batch_terminal = self.get_dynamics_predict(dynamics_pred, "termination_mech", deterministic=self.deterministic)
             else:
-                batch_terminal = self.termination_fn(
-                    batch_next_obs, self._current_batch_obs, self._current_batch_action
-                )
+                batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
 
             if self.penalty_coeff != 0:
-                penalty = self.get_penalty(
-                    dynamics_pred["batch_next_obs"]["mean"]
-                ).reshape(batch_reward.shape)
+                penalty = self.get_penalty(dynamics_pred["batch_next_obs"]["mean"]).reshape(batch_reward.shape)
                 batch_reward -= penalty * self.penalty_coeff
 
                 if self.logger is not None:
@@ -136,19 +114,20 @@ class VecFakeEnv(VecEnv):
         batch_reward = batch_reward.reshape(self.num_envs)
         batch_terminal = batch_terminal.reshape(self.num_envs)
         infos = [{} for _ in range(self.num_envs)]
+
+        self._envs_length += 1
+        batch_truncate = self._envs_length >= self.max_episode_steps
+        batch_done = np.logical_or(batch_terminal, batch_truncate)
         for idx in range(self.num_envs):
-            self._envs_length[idx] += 1
-            batch_terminal[idx] = (
-                batch_terminal[idx] or self._envs_length[idx] >= self.max_episode_steps
-            )
-            if batch_terminal[idx]:
+            infos[idx]["TimeLimit.truncated"] = batch_truncate[idx]
+            if batch_done[idx]:
+                infos[idx]["terminal_observation"] = batch_next_obs[idx].copy()
                 self.single_reset(idx)
-                infos[idx]["terminal_observation"] = batch_next_obs[idx]
 
         return (
             self._current_batch_obs.copy(),
             batch_reward.copy(),
-            batch_terminal.copy(),
+            batch_done.copy(),
             infos,
         )
 
@@ -161,7 +140,7 @@ class VecFakeEnv(VecEnv):
     ):
         if self.has_set_up:
             self._current_batch_obs = self.get_batch_init_obs_fn(self.num_envs)
-            self._envs_length = [0 for _ in range(self.num_envs)]
+            self._envs_length = np.zeros(self.num_envs, dtype=int)
             return self._current_batch_obs.copy()
 
     def seed(self, seed: Optional[int] = None):
@@ -170,9 +149,7 @@ class VecFakeEnv(VecEnv):
     def close(self) -> None:
         pass
 
-    def env_is_wrapped(
-        self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None
-    ) -> List[bool]:
+    def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None) -> List[bool]:
         return [False for _ in range(self.num_envs)]
 
     def single_reset(self, idx, init_batch_obs=None):
@@ -191,9 +168,7 @@ class VecFakeEnv(VecEnv):
 
     @staticmethod
     def get_penalty(ensemble_batch_next_obs):
-        avg = np.mean(
-            ensemble_batch_next_obs, axis=0
-        )  # average predictions over models
+        avg = np.mean(ensemble_batch_next_obs, axis=0)  # average predictions over models
         diffs = ensemble_batch_next_obs - avg
         dists = np.linalg.norm(diffs, axis=2)  # distance in obs space
         penalty = np.max(dists, axis=0)  # max distances over models
@@ -212,9 +187,7 @@ class VecFakeEnv(VecEnv):
             origin_predict[variable]["logvar"],
         )
         batch_size = ensemble_mean.shape[1]
-        random_index = getattr(self.dynamics, mech).get_random_index(
-            batch_size, self.generator
-        )
+        random_index = getattr(self.dynamics, mech).get_random_index(batch_size, self.generator)
         if deterministic:
             pred = ensemble_mean[random_index, np.arange(batch_size)]
         else:
@@ -236,9 +209,7 @@ class VecFakeEnv(VecEnv):
     def get_attr(self, attr_name: str, indices: VecEnvIndices = None) -> List[Any]:
         pass
 
-    def set_attr(
-        self, attr_name: str, value: Any, indices: VecEnvIndices = None
-    ) -> None:
+    def set_attr(self, attr_name: str, value: Any, indices: VecEnvIndices = None) -> None:
         pass
 
 
@@ -254,9 +225,7 @@ class GymBehaviouralFakeEnv(gym.Env):
         self.observation_space = self.vec_fake_env.observation_space
 
     def step(self, action):
-        batch_next_obs, batch_reward, batch_terminal, _ = self.vec_fake_env.step(
-            np.array([action], dtype=np.float32)
-        )
+        batch_next_obs, batch_reward, batch_terminal, _ = self.vec_fake_env.step(np.array([action], dtype=np.float32))
         self.current_obs = batch_next_obs[0]
         return batch_next_obs[0], batch_reward[0], batch_terminal[0], {}
 

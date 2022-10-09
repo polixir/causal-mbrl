@@ -1,13 +1,12 @@
-name: "off_dyna"
+name: "on_dyna"
 
 freq_train_model: ${task.freq_train_model}
 real_data_ratio: 0.0
 
 sac_samples_action: true
+initial_exploration_steps: 5000
+random_initial_explore: true
 num_eval_episodes: 5
-
-dataset_size: 1000000
-penalty_coeff: ${task.penalty_coeff}
 
 # --------------------------------------------
 #          SAC Agent configuration
@@ -28,7 +27,7 @@ agent:
       low: ???
       high: ???
       shape: ???
-  learning_starts: 0
+  learning_starts: 100
   batch_size: 256
   tau: 0.005
   gamma: 0.99

@@ -8,7 +8,7 @@ seed: 0
 device: "cuda:0"
 
 exp_name: default
-wandb: true
+wandb: false
 
 root_dir: "./exp"
 hydra:

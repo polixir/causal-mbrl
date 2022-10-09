@@ -16,13 +16,7 @@ import cmrl.types
 import cmrl.util
 import cmrl.util.creator as creator
 from cmrl.agent.sac_wrapper import SACAgent
-from cmrl.algorithms.util import (
-    evaluate,
-    maybe_load_trained_offline_model,
-    maybe_replace_sac_buffer,
-    rollout_model_and_populate_sac_buffer,
-    truncated_linear,
-)
+from cmrl.algorithms.util import maybe_load_trained_offline_model
 from cmrl.util.video import VideoRecorder
 
 MBPO_LOG_FORMAT = cmrl.constants.RESULTS_LOG_FORMAT + [
@@ -69,9 +63,7 @@ def train(
     act_shape = env.action_space.shape
 
     cmrl.agent.complete_agent_cfg(env, cfg.algorithm.agent)
-    agent = SACAgent(
-        cast(pytorch_sac.SAC, hydra.utils.instantiate(cfg.algorithm.agent))
-    )
+    agent = SACAgent(cast(pytorch_sac.SAC, hydra.utils.instantiate(cfg.algorithm.agent)))
 
     work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
@@ -106,9 +98,7 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     # -------------- Create initial dataset --------------
-    dynamics = creator.create_dynamics(
-        cfg.dynamics, obs_shape, act_shape, logger=logger
-    )
+    dynamics = creator.create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
     replay_buffer = creator.create_replay_buffer(
         cfg,
         obs_shape,
@@ -126,15 +116,11 @@ def train(
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
-    rollout_batch_size = (
-        cfg.task.effective_model_rollouts_per_step * cfg.algorithm.freq_train_model
-    )
+    rollout_batch_size = cfg.task.effective_model_rollouts_per_step * cfg.algorithm.freq_train_model
     trains_per_epoch = int(np.ceil(cfg.task.epoch_length / cfg.task.freq_train_model))
     updates_made = 0
     env_steps = 0
-    fake_env = cmrl.models.FakeEnv(
-        env, dynamics, reward_fn, termination_fn, generator=torch_generator
-    )
+    fake_env = cmrl.models.FakeEnv(env, dynamics, reward_fn, termination_fn, generator=torch_generator)
     if hasattr(env, "causal_graph"):
         oracle_causal_graph = env.causal_graph
     else:
@@ -150,14 +136,10 @@ def train(
     obs, done = env.reset(), False
 
     for epoch in range(cfg.task.num_steps // cfg.task.epoch_length):
-        rollout_length = int(
-            truncated_linear(*(cfg.task.rollout_schedule + [epoch + 1]))
-        )
+        rollout_length = int(truncated_linear(*(cfg.task.rollout_schedule + [epoch + 1])))
         sac_buffer_capacity = rollout_length * rollout_batch_size * trains_per_epoch
         sac_buffer_capacity *= cfg.task.num_epochs_to_retain_sac_buffer
-        sac_buffer = maybe_replace_sac_buffer(
-            sac_buffer, obs_shape, act_shape, sac_buffer_capacity, cfg.seed
-        )
+        sac_buffer = maybe_replace_sac_buffer(sac_buffer, obs_shape, act_shape, sac_buffer_capacity, cfg.seed)
         for steps_epoch in range(cfg.task.epoch_length):
             if done:
                 obs, done = env.reset(), False
@@ -173,9 +155,7 @@ def train(
                     sample_rewards = 0
                     sample_length = 0
                 # --- Doing env step and adding to model dataset ---
-            next_obs, reward, done, _ = cmrl.algorithms.util.step_env_and_add_to_buffer(
-                env, obs, agent, {}, replay_buffer
-            )
+            next_obs, reward, done, _ = cmrl.algorithms.util.step_env_and_add_to_buffer(env, obs, agent, {}, replay_buffer)
             sample_rewards += reward
             sample_length += 1
 
@@ -209,9 +189,7 @@ def train(
             for _ in range(cfg.task.num_sac_updates_per_step):
                 use_real_data = rng.random() < cfg.algorithm.real_data_ratio
                 which_buffer = replay_buffer if use_real_data else sac_buffer
-                if (env_steps + 1) % cfg.task.sac_updates_every_steps != 0 or len(
-                    which_buffer
-                ) < cfg.task.sac_batch_size:
+                if (env_steps + 1) % cfg.task.sac_updates_every_steps != 0 or len(which_buffer) < cfg.task.sac_batch_size:
                     break  # only update every once in a while
 
                 agent.sac_agent.update_parameters(
@@ -227,9 +205,7 @@ def train(
 
             # ------ Epoch ended (evaluate and save model) ------
             if (env_steps + 1) % cfg.task.test_freq == 0:
-                rewards, lengths = evaluate(
-                    test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder
-                )
+                rewards, lengths = evaluate(test_env, agent, cfg.algorithm.num_eval_episodes, video_recorder)
                 logger.log_data(
                     cmrl.constants.RESULTS_LOG_NAME,
                     {
@@ -245,9 +221,7 @@ def train(
                 if rewards.mean() > best_eval_reward:
                     video_recorder.save(f"{epoch}.mp4")
                     best_eval_reward = rewards.mean()
-                    agent.sac_agent.save_checkpoint(
-                        ckpt_path=os.path.join(work_dir, "sac_best.pth")
-                    )
+                    agent.sac_agent.save_checkpoint(ckpt_path=os.path.join(work_dir, "sac_best.pth"))
                 # agent.sac_agent.save_checkpoint(suffix=env_steps)
 
             env_steps += 1

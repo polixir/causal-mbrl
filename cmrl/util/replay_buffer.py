@@ -96,33 +96,6 @@ class TransitionIterator:
 
 
 class BootstrapIterator(TransitionIterator):
-    """A transition iterator that can be used to train ensemble of bootstrapped models.
-
-    When iterating, this iterator samples from a different set of indices for each model in the
-    ensemble, essentially assigning a different dataset to each model. Each batch is of
-    shape (ensemble_size x batch_size x obs_size) -- likewise for actions, rewards, dones.
-
-    Args:
-        transitions (:class:`InteractionBatch`): the transition data used to built
-            the iterator.
-        batch_size (int): the batch size to use when iterating over the stored data.
-        ensemble_size (int): the number of models in the ensemble.
-        shuffle_each_epoch (bool): if ``True`` the iteration order is shuffled everytime a
-            loop over the data is completed. Defaults to ``False``.
-        permute_indices (boot): if ``True`` the bootstrap datasets are just
-            permutations of the original data. If ``False`` they are sampled with
-            replacement. Defaults to ``True``.
-        rng (np.random.Generator, optional): a random number generator when sampling
-            batches. If None (default value), a new default generator will be used.
-
-    Note:
-        If you want to make other custom types of iterators compatible with ensembles
-        of bootstrapped models, the easiest way is to subclass :class:`BootstrapIterator`
-        and overwrite ``__getitem()__`` method. The sampling methods of this class
-        will then batch the result of of ``self[item]`` along a model dimension, where each
-        batch is sampled independently.
-    """
-
     def __init__(
         self,
         transitions: InteractionBatch,
@@ -132,9 +105,7 @@ class BootstrapIterator(TransitionIterator):
         permute_indices: bool = True,
         rng: Optional[np.random.Generator] = None,
     ):
-        super().__init__(
-            transitions, batch_size, shuffle_each_epoch=shuffle_each_epoch, rng=rng
-        )
+        super().__init__(transitions, batch_size, shuffle_each_epoch=shuffle_each_epoch, rng=rng)
         self._ensemble_size = ensemble_size
         self._permute_indices = permute_indices
         self._bootstrap_iter = ensemble_size > 1
@@ -187,9 +158,7 @@ def _sequence_getitem_impl(
     start_indices = valid_starts[item].repeat(sequence_length)
     increment_array = np.tile(np.arange(sequence_length), len(item))
     full_trajectory_indices = start_indices + increment_array
-    return transitions[full_trajectory_indices].add_new_batch_dim(
-        min(batch_size, len(item))
-    )
+    return transitions[full_trajectory_indices].add_new_batch_dim(min(batch_size, len(item)))
 
 
 class SequenceTransitionIterator(BootstrapIterator):
@@ -242,15 +211,10 @@ class SequenceTransitionIterator(BootstrapIterator):
         max_batches_per_loop: Optional[int] = None,
     ):
         self._sequence_length = sequence_length
-        self._valid_starts = self._get_indices_valid_starts(
-            trajectory_indices, sequence_length
-        )
+        self._valid_starts = self._get_indices_valid_starts(trajectory_indices, sequence_length)
         self._max_batches_per_loop = max_batches_per_loop
         if len(self._valid_starts) < 0.5 * len(trajectory_indices):
-            warnings.warn(
-                "More than 50% of the trajectories were discarded for being shorter "
-                "than the specified length."
-            )
+            warnings.warn("More than 50% of the trajectories were discarded for being shorter " "than the specified length.")
         # no need to pass transitions to super(), since it's only used by __getitem__,
         # which this class replaces. Passing the set of possible starts allow us to
         # use all the indexing machinery of the superclasses.
@@ -284,10 +248,7 @@ class SequenceTransitionIterator(BootstrapIterator):
         return self
 
     def __next__(self):
-        if (
-            self._max_batches_per_loop is not None
-            and self._current_batch >= self._max_batches_per_loop
-        ):
+        if self._max_batches_per_loop is not None and self._current_batch >= self._max_batches_per_loop:
             raise StopIteration
         return super().__next__()
 
@@ -339,15 +300,10 @@ class SequenceTransitionSampler(TransitionIterator):
         rng: Optional[np.random.Generator] = None,
     ):
         self._sequence_length = sequence_length
-        self._valid_starts = self._get_indices_valid_starts(
-            trajectory_indices, sequence_length
-        )
+        self._valid_starts = self._get_indices_valid_starts(trajectory_indices, sequence_length)
         self._batches_per_loop = batches_per_loop
         if len(self._valid_starts) < 0.5 * len(trajectory_indices):
-            warnings.warn(
-                "More than 50% of the trajectories were discarded for being shorter "
-                "than the specified length."
-            )
+            warnings.warn("More than 50% of the trajectories were discarded for being shorter " "than the specified length.")
         # no need to pass transitions to super(), since it's only used by __getitem__,
         # which this class replaces. Passing the set of possible starts allow us to
         # use all the indexing machinery of the superclasses.
@@ -505,10 +461,7 @@ class ReplayBuffer:
         self.trajectory_indices.append(new_trajectory)
 
         if self.cur_idx - self._start_last_trajectory > (len(self.obs) - self.capacity):
-            warnings.warn(
-                "A trajectory was saved with length longer than expected. "
-                "Unexpected behavior might occur."
-            )
+            warnings.warn("A trajectory was saved with length longer than expected. " "Unexpected behavior might occur.")
 
         if self.cur_idx >= self.capacity:
             self.cur_idx = 0
@@ -613,9 +566,7 @@ class ReplayBuffer:
         if self.trajectory_indices is None or len(self.trajectory_indices) == 0:
             return None
         idx = self._rng.choice(len(self.trajectory_indices))
-        indices = np.arange(
-            self.trajectory_indices[idx][0], self.trajectory_indices[idx][1]
-        )
+        indices = np.arange(self.trajectory_indices[idx][0], self.trajectory_indices[idx][1])
         return self._batch_from_indices(indices)
 
     def _batch_from_indices(self, indices: Sized) -> InteractionBatch:

@@ -6,11 +6,12 @@ from typing import Dict, List, Optional, Tuple, Union, cast
 import numpy as np
 import torch
 from stable_baselines3.common.logger import Logger
+from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.types import InteractionBatch
-from cmrl.util.replay_buffer import BootstrapIterator, ReplayBuffer, TransitionIterator
+from cmrl.util.replay_buffer import BootstrapIterator, TransitionIterator
 
 
 def split_dict(old_dict: Dict, need_keys: List[str]):
@@ -103,18 +104,15 @@ class BaseDynamics:
     ):
         data = {}
         for attr in batch.attrs:
-            data[attr] = self.get_3d_tensor(
-                getattr(batch, attr).copy(), is_ensemble=is_ensemble
-            )
+            data[attr] = self.get_3d_tensor(getattr(batch, attr).copy(), is_ensemble=is_ensemble)
         model_in = split_dict(data, ["batch_obs", "batch_action"])
 
         if loss_type == "default":
             loss_type = "mse" if getattr(self, mech).deterministic else "nll"
 
         variable = self._MECH_TO_VARIABLE[mech]
-        return getattr(getattr(self, mech), "get_{}_loss".format(loss_type))(
-            model_in, data[variable]
-        )
+        get_loss = getattr(getattr(self, mech), "get_{}_loss".format(loss_type))
+        return get_loss(model_in, data[variable])
 
     # auxiliary method for "replay buffer"
     def dataset_split(
@@ -125,7 +123,14 @@ class BaseDynamics:
         shuffle_each_epoch: bool = True,
         bootstrap_permutes: bool = False,
     ) -> Tuple[TransitionIterator, Optional[TransitionIterator]]:
-        data = replay_buffer.get_all(shuffle=True)
+        size = replay_buffer.buffer_size if replay_buffer.full else replay_buffer.pos
+        data = InteractionBatch(
+            replay_buffer.observations[:size, 0].astype(np.float32),
+            replay_buffer.actions[:size, 0],
+            replay_buffer.next_observations[:size, 0].astype(np.float32),
+            replay_buffer.rewards[:size, 0],
+            replay_buffer.dones[:size, 0],
+        )
 
         val_size = int(len(data) * validation_ratio)
         train_size = len(data) - val_size
@@ -136,15 +141,12 @@ class BaseDynamics:
             self.ensemble_num,
             shuffle_each_epoch=shuffle_each_epoch,
             permute_indices=bootstrap_permutes,
-            rng=replay_buffer.rng,
         )
 
         val_iter = None
         if val_size > 0:
             val_data = data[train_size:]
-            val_iter = TransitionIterator(
-                val_data, batch_size, shuffle_each_epoch=False, rng=replay_buffer.rng
-            )
+            val_iter = TransitionIterator(val_data, batch_size, shuffle_each_epoch=False)
 
         return train_iter, val_iter
 
@@ -159,9 +161,7 @@ class BaseDynamics:
         batch_loss_list = []
         with torch.no_grad():
             for batch in dataset:
-                val_loss = self.get_mech_loss(
-                    batch, mech=mech, loss_type="mse", is_ensemble=False
-                )
+                val_loss = self.get_mech_loss(batch, mech=mech, loss_type="mse", is_ensemble=False)
                 batch_loss_list.append(val_loss)
         return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2).cpu()
 
@@ -180,9 +180,7 @@ class BaseDynamics:
             train_loss.mean().backward()
             optim.step()
             batch_loss_list.append(train_loss)
-        return (
-            torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2).detach().cpu()
-        )
+        return torch.cat(batch_loss_list, dim=batch_loss_list[0].ndim - 2).detach().cpu()
 
     def query(self, obs, action, return_as_np=True):
         result = collections.defaultdict(dict)
@@ -205,9 +203,7 @@ class BaseDynamics:
         for mech in self.learn_mech:
             getattr(self, mech).save(save_dir=save_dir)
 
-    def load(
-        self, load_dir: Union[str, pathlib.Path], load_device: Optional[str] = None
-    ):
+    def load(self, load_dir: Union[str, pathlib.Path], load_device: Optional[str] = None):
         for mech in self.learn_mech:
             getattr(self, mech).load(load_dir=load_dir, load_device=load_device)
 
