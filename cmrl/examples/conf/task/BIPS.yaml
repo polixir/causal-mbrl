@@ -4,9 +4,11 @@ freq_rate: 1
 time_step: 0.02
 
 # basic RL params
-num_steps: 3000000
-epoch_length: 1000
+num_steps: 300000
+online_num_steps: 10000
+epoch_length: 10000
 n_eval_episodes: 8
+eval_freq: 100
 
 # dynamics
 learning_reward: false
@@ -18,7 +20,7 @@ multi_step: "none"
 # conditional independence tests(causal discovery)
 oracle: true
 cit_threshold: 0.02
-test_freq: 1000
+test_freq: 100
 # causal
 update_causal_mask_ratio: 0.25
 discovery_schedule: [ 1, 30, 250, 250 ]

@@ -65,14 +65,14 @@ def train(
         fake_eval_env,
         n_eval_episodes=cfg.task.n_eval_episodes,
         best_model_save_path="./",
-        eval_freq=1000,
+        eval_freq=cfg.task.eval_freq,
         deterministic=True,
         render=False,
     )
     omb_callback = OnlineModelBasedCallback(
         env,
         dynamics,
-        total_num_steps=cfg.task.num_steps,
+        total_num_steps=cfg.task.online_num_steps,
         initial_exploration_steps=cfg.algorithm.initial_exploration_steps,
         freq_train_model=cfg.task.freq_train_model,
         device=cfg.device,
