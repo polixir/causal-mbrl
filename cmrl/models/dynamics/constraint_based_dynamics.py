@@ -1,24 +1,19 @@
-import abc
-import collections
 import copy
 import itertools
 import pathlib
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
-import omegaconf
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from stable_baselines3.common.logger import Logger
+from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.dynamics import BaseDynamics
 from cmrl.models.nns import EnsembleMLP
 from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.util import to_tensor
-from cmrl.types import InteractionBatch, TensorType
-from cmrl.util.replay_buffer import BootstrapIterator, ReplayBuffer, TransitionIterator
+from cmrl.types import TensorType
 
 
 class ConstraintBasedDynamics(BaseDynamics):
@@ -77,9 +72,6 @@ class ConstraintBasedDynamics(BaseDynamics):
         # other
         **kwargs
     ):
-        # improvement_threshold = 0
-        # patience = 30
-
         train_dataset, val_dataset = self.dataset_split(
             replay_buffer,
             validation_ratio,
@@ -91,14 +83,10 @@ class ConstraintBasedDynamics(BaseDynamics):
 
         for mech in self.learn_mech:
             if hasattr(self, "{}_oracle_mask".format(mech)):
-                getattr(self, mech).set_input_mask(
-                    getattr(self, "{}_oracle_mask".format(mech))
-                )
+                getattr(self, mech).set_input_mask(getattr(self, "{}_oracle_mask".format(mech)))
 
             best_weights: Optional[Dict] = None
-            epoch_iter = (
-                range(longest_epoch) if longest_epoch > 0 else itertools.count()
-            )
+            epoch_iter = range(longest_epoch) if longest_epoch > 0 else itertools.count()
             epochs_since_update = 0
 
             best_val_loss = self.evaluate(val_dataset, mech=mech).mean(dim=(1, 2))
@@ -122,33 +110,20 @@ class ConstraintBasedDynamics(BaseDynamics):
                     epochs_since_update += 1
 
                 # log
+                self.total_epoch[mech] += 1
                 if self.logger is not None:
-                    self.logger.record(
-                        "{}/epoch".format(mech), epoch, exclude="tensorboard"
-                    )
-                    self.logger.record(
-                        "{}/train_dataset_size".format(mech), train_dataset.num_stored
-                    )
-                    self.logger.record(
-                        "{}/val_dataset_size".format(mech), val_dataset.num_stored
-                    )
-                    self.logger.record(
-                        "{}/train_loss".format(mech), train_loss.mean().item()
-                    )
-                    self.logger.record(
-                        "{}/val_loss".format(mech), val_loss.mean().item()
-                    )
-                    self.logger.record(
-                        "{}/best_val_loss".format(mech), best_val_loss.mean().item()
-                    )
-                    self.logger.dump(epoch)
+                    self.logger.record("{}/epoch".format(mech), epoch)
+                    self.logger.record("{}/train_dataset_size".format(mech), train_dataset.num_stored)
+                    self.logger.record("{}/val_dataset_size".format(mech), val_dataset.num_stored)
+                    self.logger.record("{}/train_loss".format(mech), train_loss.mean().item())
+                    self.logger.record("{}/val_loss".format(mech), val_loss.mean().item())
+                    self.logger.record("{}/best_val_loss".format(mech), best_val_loss.mean().item())
+                    self.logger.dump(self.total_epoch[mech])
                 if patience and epochs_since_update >= patience:
                     break
 
             # saving the best models:
-            self.maybe_set_best_weights_and_elite(
-                best_weights, best_val_loss, mech=mech
-            )
+            self.maybe_set_best_weights_and_elite(best_weights, best_val_loss, mech=mech)
         self.save(work_dir)
 
     def maybe_get_best_weights(

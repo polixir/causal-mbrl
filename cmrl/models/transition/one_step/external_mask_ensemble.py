@@ -1,8 +1,6 @@
-import pathlib
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import hydra
-import numpy as np
 import omegaconf
 import torch
 from torch import nn as nn
@@ -70,9 +68,7 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         self.num_layers = num_layers
         self.hid_size = hid_size
 
-        self._input_mask: Optional[torch.Tensor] = torch.ones(
-            (obs_size, obs_size + action_size)
-        ).to(device)
+        self._input_mask: Optional[torch.Tensor] = torch.ones((obs_size, obs_size + action_size)).to(device)
         self.add_save_attr("input_mask")
 
         def create_activation():
@@ -100,20 +96,14 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
             self.mean_and_logvar = self.create_linear_layer(hid_size, 1)
         else:
             self.mean_and_logvar = self.create_linear_layer(hid_size, 2)
-            self.min_logvar = nn.Parameter(
-                -10 * torch.ones(obs_size, 1, 1, 1), requires_grad=learn_logvar_bounds
-            )
-            self.max_logvar = nn.Parameter(
-                0.5 * torch.ones(obs_size, 1, 1, 1), requires_grad=learn_logvar_bounds
-            )
+            self.min_logvar = nn.Parameter(-10 * torch.ones(obs_size, 1, 1, 1), requires_grad=learn_logvar_bounds)
+            self.max_logvar = nn.Parameter(0.5 * torch.ones(obs_size, 1, 1, 1), requires_grad=learn_logvar_bounds)
 
         self.apply(truncated_normal_init)
         self.to(self.device)
 
     def create_linear_layer(self, l_in, l_out):
-        return ParallelEnsembleLinearLayer(
-            l_in, l_out, parallel_num=self.obs_size, ensemble_num=self.ensemble_num
-        )
+        return ParallelEnsembleLinearLayer(l_in, l_out, parallel_num=self.obs_size, ensemble_num=self.ensemble_num)
 
     def set_input_mask(self, mask: cmrl.types.TensorType):
         self._input_mask = to_tensor(mask).to(self.device)
@@ -126,10 +116,7 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         assert x.ndim == 4
         assert self._input_mask is not None
         assert 2 <= self._input_mask.ndim <= 4
-        assert (
-            x.shape[0] == self._input_mask.shape[0]
-            and x.shape[-1] == self._input_mask.shape[-1]
-        )
+        assert x.shape[0] == self._input_mask.shape[0] and x.shape[-1] == self._input_mask.shape[-1]
 
         if self._input_mask.ndim == 2:
             # [parallel_size x in_dim]
@@ -142,10 +129,7 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
                 # [parallel_size x batch_size x in_dim]
                 input_mask = self._input_mask[:, None, :, :]
             else:
-                raise RuntimeError(
-                    "input mask shape %a does not match x shape %a"
-                    % (self._input_mask.shape, x.shape)
-                )
+                raise RuntimeError("input mask shape %a does not match x shape %a" % (self._input_mask.shape, x.shape))
         else:
             assert self._input_mask.shape == x.shape
             input_mask = self._input_mask
@@ -160,13 +144,9 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         only_elite: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
-        assert (
-            len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
-        )
+        assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
 
-        repeated_input = torch.concat([batch_obs, batch_action], dim=-1).repeat(
-            (self.obs_size, 1, 1, 1)
-        )
+        repeated_input = torch.concat([batch_obs, batch_action], dim=-1).repeat((self.obs_size, 1, 1, 1))
         masked_input = self.mask_input(repeated_input)
         hidden = self.hidden_layers(masked_input)
         mean_and_logvar = self.mean_and_logvar(hidden)

@@ -1,23 +1,17 @@
-import abc
-import collections
 import copy
 import itertools
 import pathlib
 from typing import Callable, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
-import omegaconf
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from stable_baselines3.common.logger import Logger
+from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.dynamics import BaseDynamics
 from cmrl.models.nns import EnsembleMLP
 from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
-from cmrl.types import InteractionBatch
-from cmrl.util.logger import Logger
-from cmrl.util.replay_buffer import BootstrapIterator, ReplayBuffer, TransitionIterator
 
 
 class PlainEnsembleDynamics(BaseDynamics):
@@ -56,7 +50,7 @@ class PlainEnsembleDynamics(BaseDynamics):
         shuffle_each_epoch: bool = True,
         bootstrap_permutes: bool = False,
         # model learning
-        longest_epoch: Optional[int] = None,
+        longest_epoch: int = -1,
         improvement_threshold: float = 0.1,
         patience: int = 5,
         work_dir: Optional[Union[str, pathlib.Path]] = None,
@@ -70,13 +64,10 @@ class PlainEnsembleDynamics(BaseDynamics):
             shuffle_each_epoch,
             bootstrap_permutes,
         )
-        longest_epoch = longest_epoch
 
         for mech in self.learn_mech:
             best_weights: Optional[Dict] = None
-            epoch_iter = (
-                range(longest_epoch) if longest_epoch > 0 else itertools.count()
-            )
+            epoch_iter = range(longest_epoch) if longest_epoch > 0 else itertools.count()
             epochs_since_update = 0
 
             best_val_loss = self.evaluate(val_dataset, mech=mech).mean(dim=(1, 2))
@@ -100,35 +91,23 @@ class PlainEnsembleDynamics(BaseDynamics):
                     epochs_since_update += 1
 
                 # log
+                self.total_epoch[mech] += 1
                 if self.logger is not None:
-                    self.logger.record(
-                        "{}/epoch".format(mech), epoch, exclude="tensorboard"
-                    )
-                    self.logger.record(
-                        "{}/train_dataset_size".format(mech), train_dataset.num_stored
-                    )
-                    self.logger.record(
-                        "{}/val_dataset_size".format(mech), val_dataset.num_stored
-                    )
-                    self.logger.record(
-                        "{}/train_loss".format(mech), train_loss.mean().item()
-                    )
-                    self.logger.record(
-                        "{}/val_loss".format(mech), val_loss.mean().item()
-                    )
-                    self.logger.record(
-                        "{}/best_val_loss".format(mech), best_val_loss.mean().item()
-                    )
-                    self.logger.dump(epoch)
+                    self.logger.record("{}/epoch".format(mech), epoch)
+                    self.logger.record("{}/train_dataset_size".format(mech), train_dataset.num_stored)
+                    self.logger.record("{}/val_dataset_size".format(mech), val_dataset.num_stored)
+                    self.logger.record("{}/train_loss".format(mech), train_loss.mean().item())
+                    self.logger.record("{}/val_loss".format(mech), val_loss.mean().item())
+                    self.logger.record("{}/best_val_loss".format(mech), best_val_loss.mean().item())
+                    self.logger.dump(self.total_epoch[mech])
 
                 if patience and epochs_since_update >= patience:
                     break
 
             # saving the best models:
-            self.maybe_set_best_weights_and_elite(
-                best_weights, best_val_loss, mech=mech
-            )
-        self.save(work_dir)
+            self.maybe_set_best_weights_and_elite(best_weights, best_val_loss, mech=mech)
+        if work_dir is not None:
+            self.save(work_dir)
 
     def maybe_get_best_weights(
         self,

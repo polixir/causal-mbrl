@@ -1,5 +1,3 @@
-from typing import Optional, Sequence
-
 import numpy as np
 import torch
 from torch import nn as nn
@@ -52,9 +50,7 @@ class EnsembleLinearLayer(nn.Module):
         self.ensemble_num = ensemble_num
         self.in_size = in_size
         self.out_size = out_size
-        self.weight = nn.Parameter(
-            torch.rand(self.ensemble_num, self.in_size, self.out_size)
-        )
+        self.weight = nn.Parameter(torch.rand(self.ensemble_num, self.in_size, self.out_size))
         if use_bias:
             self.bias = nn.Parameter(torch.rand(self.ensemble_num, 1, self.out_size))
             self.use_bias = True
@@ -70,8 +66,7 @@ class EnsembleLinearLayer(nn.Module):
 
     def __repr__(self) -> str:
         return (
-            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}"
-            f"ensemble_num={self.ensemble_num}"
+            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}" f"ensemble_num={self.ensemble_num}"
         )
 
 
@@ -101,15 +96,9 @@ class ParallelEnsembleLinearLayer(nn.Module):
         self.ensemble_num = ensemble_num
         self.in_size = in_size
         self.out_size = out_size
-        self.weight = nn.Parameter(
-            torch.rand(
-                self.parallel_num, self.ensemble_num, self.in_size, self.out_size
-            )
-        )
+        self.weight = nn.Parameter(torch.rand(self.parallel_num, self.ensemble_num, self.in_size, self.out_size))
         if use_bias:
-            self.bias = nn.Parameter(
-                torch.rand(self.parallel_num, self.ensemble_num, 1, self.out_size)
-            )
+            self.bias = nn.Parameter(torch.rand(self.parallel_num, self.ensemble_num, 1, self.out_size))
             self.use_bias = True
         else:
             self.use_bias = False

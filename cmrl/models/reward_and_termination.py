@@ -1,4 +1,3 @@
-import pathlib
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import hydra
@@ -31,9 +30,7 @@ class BaseRewardMech(EnsembleMLP):
         # others
         device: Union[str, torch.device] = "cpu",
     ):
-        super(BaseRewardMech, self).__init__(
-            ensemble_num=ensemble_num, elite_num=elite_num, device=device
-        )
+        super(BaseRewardMech, self).__init__(ensemble_num=ensemble_num, elite_num=elite_num, device=device)
         self.obs_size = obs_size
         self.action_size = action_size
         self.deterministic = deterministic
@@ -66,12 +63,8 @@ class BaseRewardMech(EnsembleMLP):
             self.mean_and_logvar = self.create_linear_layer(hid_size, 1)
         else:
             self.mean_and_logvar = self.create_linear_layer(hid_size, 2)
-            self.min_logvar = nn.Parameter(
-                -10 * torch.ones(1), requires_grad=learn_logvar_bounds
-            )
-            self.max_logvar = nn.Parameter(
-                0.5 * torch.ones(1), requires_grad=learn_logvar_bounds
-            )
+            self.min_logvar = nn.Parameter(-10 * torch.ones(1), requires_grad=learn_logvar_bounds)
+            self.max_logvar = nn.Parameter(0.5 * torch.ones(1), requires_grad=learn_logvar_bounds)
 
         self.apply(truncated_normal_init)
         self.to(self.device)
@@ -82,9 +75,7 @@ class BaseRewardMech(EnsembleMLP):
         batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
-        assert (
-            len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
-        )
+        assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
 
         hidden = self.hidden_layers(torch.concat([batch_obs, batch_action], dim=-1))
         mean_and_logvar = self.mean_and_logvar(hidden)

@@ -4,7 +4,6 @@ freq_train_model: ${task.freq_train_model}
 real_data_ratio: 0.0
 
 sac_samples_action: true
-random_initial_explore: false
 num_eval_episodes: 5
 
 dataset_size: 1000000
@@ -14,21 +13,27 @@ penalty_coeff: ${task.penalty_coeff}
 #          SAC Agent configuration
 # --------------------------------------------
 agent:
-  _target_: cmrl.third_party.pytorch_sac.sac.SAC
-  num_inputs: ???
-  action_space:
-    _target_: gym.spaces.Box
-    low: ???
-    high: ???
-    shape: ???
-  args:
-    gamma: ${task.sac_gamma}
-    tau: ${task.sac_tau}
-    alpha: ${task.sac_alpha}
-    policy: ${task.sac_policy}
-    target_update_interval: ${task.sac_target_update_interval}
-    automatic_entropy_tuning: ${task.sac_automatic_entropy_tuning}
-    target_entropy: ${task.sac_target_entropy}
-    hidden_size: ${task.sac_hidden_size}
-    device: ${device}
-    lr: ${task.sac_lr}
+  _target_: stable_baselines3.sac.SAC
+  policy: "MlpPolicy"
+  env:
+    _target_: cmrl.models.fake_env.VecFakeEnv
+    num_envs: 1000
+    action_space:
+      _target_: gym.spaces.Box
+      low: ???
+      high: ???
+      shape: ???
+    observation_space:
+      _target_: gym.spaces.Box
+      low: ???
+      high: ???
+      shape: ???
+  learning_starts: 0
+  batch_size: 256
+  tau: 0.005
+  gamma: 0.99
+  ent_coef: "auto"
+  target_entropy: "auto"
+  verbose: 0
+  seed: ${seed}
+  device: ${device}

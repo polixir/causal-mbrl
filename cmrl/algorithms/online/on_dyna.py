@@ -6,12 +6,14 @@ import hydra.utils
 import numpy as np
 from omegaconf import DictConfig
 from stable_baselines3.common.base_class import BaseAlgorithm
+from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.agent import complete_agent_cfg
-from cmrl.algorithms.util import maybe_load_trained_offline_model, setup_fake_env, load_offline_data
+from cmrl.algorithms.util import setup_fake_env
 from cmrl.models.dynamics import ConstraintBasedDynamics
 from cmrl.sb3_extension.eval_callback import EvalCallback
+from cmrl.sb3_extension.online_mb_callback import OnlineModelBasedCallback
 from cmrl.sb3_extension.logger import configure as logger_configure
 from cmrl.types import InitObsFnType, RewardFnType, TermFnType
 from cmrl.util.creator import create_dynamics
@@ -38,19 +40,15 @@ def train(
 
     numpy_generator = np.random.default_rng(seed=cfg.seed)
 
-    # create initial dataset and add it to replay buffer
     dynamics = create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
     real_replay_buffer = ReplayBuffer(
-        cfg.task.num_steps, env.observation_space, env.action_space, cfg.device, handle_timeout_termination=False
+        cfg.task.online_num_steps,
+        env.observation_space,
+        env.action_space,
+        device=cfg.device,
+        n_envs=1,
+        optimize_memory_usage=False,
     )
-    load_offline_data(cfg, env, real_replay_buffer)
-
-    if cfg.dynamics.name == "plain_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff
-    elif cfg.dynamics.name == "constraint_based_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff / 3
-    else:
-        raise NotImplementedError
 
     fake_eval_env = setup_fake_env(
         cfg=cfg,
@@ -61,30 +59,35 @@ def train(
         get_init_obs_fn=get_init_obs_fn,
         logger=logger,
         max_episode_steps=env.spec.max_episode_steps,
-        penalty_coeff=penalty_coeff,
     )
 
-    if hasattr(env, "get_causal_graph"):
-        oracle_causal_graph = env.get_causal_graph()
+    if hasattr(env, "causal_graph"):
+        oracle_causal_graph = env.causal_graph
     else:
         oracle_causal_graph = None
 
     if isinstance(dynamics, ConstraintBasedDynamics):
         dynamics.set_oracle_mask("transition", oracle_causal_graph.T)
 
-    existed_trained_model = maybe_load_trained_offline_model(dynamics, cfg, obs_shape, act_shape, work_dir=work_dir)
-    if not existed_trained_model:
-        dynamics.learn(real_replay_buffer, **cfg.dynamics, work_dir=work_dir)
-
     eval_callback = EvalCallback(
         eval_env,
         fake_eval_env,
         n_eval_episodes=cfg.task.n_eval_episodes,
         best_model_save_path="./",
-        eval_freq=1000,
+        eval_freq=cfg.task.eval_freq,
         deterministic=True,
         render=False,
     )
 
+    omb_callback = OnlineModelBasedCallback(
+        env,
+        dynamics,
+        real_replay_buffer,
+        total_num_steps=cfg.task.online_num_steps,
+        initial_exploration_steps=cfg.algorithm.initial_exploration_steps,
+        freq_train_model=cfg.task.freq_train_model,
+        device=cfg.device,
+    )
+
     agent.set_logger(logger)
-    agent.learn(total_timesteps=cfg.task.num_steps, callback=eval_callback)
+    agent.learn(total_timesteps=int(1e10), callback=CallbackList([eval_callback, omb_callback]))

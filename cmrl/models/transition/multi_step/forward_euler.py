@@ -1,20 +1,12 @@
-import pathlib
 from typing import Dict, Optional, Sequence, Tuple, Union
 
-import hydra
-import omegaconf
 import torch
-from torch import nn as nn
-from torch.nn import functional as F
 
-from cmrl.models.layers import EnsembleLinearLayer, truncated_normal_init
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 
 
 class ForwardEulerTransition(BaseEnsembleTransition):
-    def __init__(
-        self, one_step_transition: BaseEnsembleTransition, repeat_times: int = 2
-    ):
+    def __init__(self, one_step_transition: BaseEnsembleTransition, repeat_times: int = 2):
         super().__init__(
             obs_size=one_step_transition.obs_size,
             action_size=one_step_transition.action_size,
@@ -46,7 +38,5 @@ class ForwardEulerTransition(BaseEnsembleTransition):
         logvar = torch.zeros(batch_obs.shape, device=self.device)
         mean = batch_obs
         for t in range(self.repeat_times):
-            mean, logvar = self.one_step_transition.forward(
-                mean, batch_action.clone(), only_elite
-            )
+            mean, logvar = self.one_step_transition.forward(mean, batch_action.clone(), only_elite)
         return mean, logvar

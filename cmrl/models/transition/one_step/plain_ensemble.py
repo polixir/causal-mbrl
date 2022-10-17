@@ -1,4 +1,3 @@
-import pathlib
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import hydra
@@ -91,12 +90,8 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
             self.mean_and_logvar = self.create_linear_layer(hid_size, obs_size)
         else:
             self.mean_and_logvar = self.create_linear_layer(hid_size, 2 * obs_size)
-            self.min_logvar = nn.Parameter(
-                -10 * torch.ones(1, obs_size), requires_grad=learn_logvar_bounds
-            )
-            self.max_logvar = nn.Parameter(
-                0.5 * torch.ones(1, obs_size), requires_grad=learn_logvar_bounds
-            )
+            self.min_logvar = nn.Parameter(-10 * torch.ones(1, obs_size), requires_grad=learn_logvar_bounds)
+            self.max_logvar = nn.Parameter(0.5 * torch.ones(1, obs_size), requires_grad=learn_logvar_bounds)
 
         self.apply(truncated_normal_init)
         self.to(self.device)
@@ -108,9 +103,7 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
         only_elite: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
-        assert (
-            len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
-        )
+        assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
 
         hidden = self.hidden_layers(torch.concat([batch_obs, batch_action], dim=-1))
         mean_and_logvar = self.mean_and_logvar(hidden)

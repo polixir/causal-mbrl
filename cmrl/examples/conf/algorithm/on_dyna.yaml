@@ -1,12 +1,12 @@
-name: "mbpo"
+name: "on_dyna"
 
 freq_train_model: ${task.freq_train_model}
 real_data_ratio: 0.0
 
 sac_samples_action: true
-initial_exploration_steps: 5000
-random_initial_explore: false
 num_eval_episodes: 5
+
+initial_exploration_steps: 1000
 
 # --------------------------------------------
 #          SAC Agent configuration
@@ -16,7 +16,7 @@ agent:
   policy: "MlpPolicy"
   env:
     _target_: cmrl.models.fake_env.VecFakeEnv
-    num_envs: 1000
+    num_envs: 16
     action_space:
       _target_: gym.spaces.Box
       low: ???
