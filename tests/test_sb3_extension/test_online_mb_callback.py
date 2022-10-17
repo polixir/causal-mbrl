@@ -27,7 +27,9 @@ def test_callback():
         learned_termination=False,
         termination_mech=term_fn,
     )
-    real_replay_buffer = ReplayBuffer(100, env.observation_space, env.action_space, "cpu", handle_timeout_termination=False)
+    real_replay_buffer = ReplayBuffer(
+        100, env.observation_space, env.action_space, device="cpu", handle_timeout_termination=False
+    )
 
     fake_env = VecFakeEnv(1, env.observation_space, env.action_space)
     fake_env.set_up(dynamics, reward_fn, term_fn, init_obs_fn)
