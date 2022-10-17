@@ -7,6 +7,7 @@ import numpy as np
 from omegaconf import DictConfig
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import CallbackList
+from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.agent import complete_agent_cfg
 from cmrl.algorithms.util import setup_fake_env
@@ -40,6 +41,14 @@ def train(
     numpy_generator = np.random.default_rng(seed=cfg.seed)
 
     dynamics = create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
+    real_replay_buffer = ReplayBuffer(
+        cfg.task.online_num_steps,
+        env.observation_space,
+        env.action_space,
+        device=cfg.device,
+        n_envs=1,
+        optimize_memory_usage=False,
+    )
 
     fake_eval_env = setup_fake_env(
         cfg=cfg,
@@ -69,9 +78,11 @@ def train(
         deterministic=True,
         render=False,
     )
+
     omb_callback = OnlineModelBasedCallback(
         env,
         dynamics,
+        real_replay_buffer,
         total_num_steps=cfg.task.online_num_steps,
         initial_exploration_steps=cfg.algorithm.initial_exploration_steps,
         freq_train_model=cfg.task.freq_train_model,

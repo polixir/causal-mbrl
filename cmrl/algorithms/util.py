@@ -72,8 +72,9 @@ def setup_fake_env(
     reward_fn: Optional[RewardFnType],
     termination_fn: Optional[TermFnType],
     get_init_obs_fn: Optional[InitObsFnType],
-    logger,
-    max_episode_steps: int,
+    real_replay_buffer: Optional[ReplayBuffer] = None,
+    logger=None,
+    max_episode_steps: int = 1000,
     penalty_coeff: Optional[float] = 0,
 ):
     fake_env = cast(VecFakeEnv, agent.env)
@@ -81,7 +82,8 @@ def setup_fake_env(
         dynamics,
         reward_fn,
         termination_fn,
-        get_init_obs_fn,
+        get_init_obs_fn=get_init_obs_fn,
+        real_replay_buffer=real_replay_buffer,
         logger=logger,
         max_episode_steps=max_episode_steps,
         penalty_coeff=penalty_coeff,
@@ -95,7 +97,7 @@ def setup_fake_env(
         dynamics,
         reward_fn,
         termination_fn,
-        get_init_obs_fn,
+        get_init_obs_fn=get_init_obs_fn,
         max_episode_steps=max_episode_steps,
         penalty_coeff=penalty_coeff,
     )

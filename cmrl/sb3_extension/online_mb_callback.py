@@ -23,6 +23,7 @@ class OnlineModelBasedCallback(BaseCallback):
         self,
         env: gym.Env,
         dynamics: BaseDynamics,
+        real_replay_buffer: ReplayBuffer,
         total_num_steps: int = int(1e5),
         initial_exploration_steps: int = 1000,
         freq_train_model: int = 250,
@@ -40,14 +41,7 @@ class OnlineModelBasedCallback(BaseCallback):
         self.action_space = env.action_space
         self.observation_space = env.observation_space
 
-        self.replay_buffer = ReplayBuffer(
-            total_num_steps,
-            env.observation_space,
-            env.action_space,
-            device=self.device,
-            n_envs=1,
-            optimize_memory_usage=False,
-        )
+        self.real_replay_buffer = real_replay_buffer
 
         self.now_num_steps = 0
         self.step_times = 0
@@ -55,7 +49,7 @@ class OnlineModelBasedCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         if self.step_times % self.freq_train_model == 0:
-            self.dynamics.learn(self.replay_buffer)
+            self.dynamics.learn(self.real_replay_buffer)
 
         self.step_and_add(explore=False)
         self.step_times += 1
@@ -84,6 +78,6 @@ class OnlineModelBasedCallback(BaseCallback):
         next_obs = deepcopy(new_obs)
         if dones[0] and infos[0].get("terminal_observation") is not None:
             next_obs[0] = infos[0]["terminal_observation"]
-        self.replay_buffer.add(self._last_obs, next_obs, buffer_actions, rewards, dones, infos)
+        self.real_replay_buffer.add(self._last_obs, next_obs, buffer_actions, rewards, dones, infos)
 
         self._last_obs = new_obs.copy()

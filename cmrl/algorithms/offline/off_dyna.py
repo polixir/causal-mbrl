@@ -1,5 +1,4 @@
 import os
-from copy import deepcopy
 from typing import Optional, cast
 
 import emei
@@ -41,10 +40,10 @@ def train(
 
     # create initial dataset and add it to replay buffer
     dynamics = create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
-    replay_buffer = ReplayBuffer(
+    real_replay_buffer = ReplayBuffer(
         cfg.task.num_steps, env.observation_space, env.action_space, cfg.device, handle_timeout_termination=False
     )
-    load_offline_data(cfg, env, replay_buffer)
+    load_offline_data(cfg, env, real_replay_buffer)
 
     if cfg.dynamics.name == "plain_dynamics":
         penalty_coeff = cfg.algorithm.penalty_coeff
@@ -75,7 +74,7 @@ def train(
 
     existed_trained_model = maybe_load_trained_offline_model(dynamics, cfg, obs_shape, act_shape, work_dir=work_dir)
     if not existed_trained_model:
-        dynamics.learn(replay_buffer, **cfg.dynamics, work_dir=work_dir)
+        dynamics.learn(real_replay_buffer, **cfg.dynamics, work_dir=work_dir)
 
     eval_callback = EvalCallback(
         eval_env,

@@ -14,6 +14,7 @@ from stable_baselines3.common.vec_env.base_vec_env import (
     VecEnvObs,
     VecEnvStepReturn,
 )
+from stable_baselines3.common.buffers import ReplayBuffer
 
 import cmrl.types
 from cmrl.models.dynamics import BaseDynamics
@@ -43,12 +44,16 @@ class VecFakeEnv(VecEnv):
         self.termination_fn = None
         self.learned_reward = None
         self.learned_termination = None
-        self.get_batch_init_obs_fn = None
+        self.get_init_obs_fn = None
+        self.replay_buffer = None
         self.generator = np.random.default_rng()
         self.device = None
+        self.logger = None
 
         self._current_batch_obs = None
         self._current_batch_action = None
+
+        self._reset_by_buffer = True
 
         self._envs_length = np.zeros(self.num_envs, dtype=int)
 
@@ -58,6 +63,7 @@ class VecFakeEnv(VecEnv):
         reward_fn: Optional[cmrl.types.RewardFnType] = None,
         termination_fn: Optional[cmrl.types.TermFnType] = None,
         get_init_obs_fn: Optional[cmrl.types.InitObsFnType] = None,
+        real_replay_buffer: Optional[ReplayBuffer] = None,
         penalty_coeff: float = 0.0,
         deterministic=False,
         max_episode_steps=1000,
@@ -75,8 +81,12 @@ class VecFakeEnv(VecEnv):
         assert self.dynamics.learned_termination or termination_fn
         self.learned_reward = self.dynamics.learned_reward
         self.learned_termination = self.dynamics.learned_termination
-        self.get_batch_init_obs_fn = get_init_obs_fn
+        self.get_init_obs_fn = get_init_obs_fn
+        self.replay_buffer = real_replay_buffer
         self.logger = logger
+
+        assert self.get_init_obs_fn or self.replay_buffer
+        self._reset_by_buffer = self.replay_buffer is not None
 
         self.device = dynamics.device
         self.has_set_up = True
@@ -139,8 +149,14 @@ class VecFakeEnv(VecEnv):
         options: Optional[dict] = None,
     ):
         if self.has_set_up:
-            self._current_batch_obs = self.get_batch_init_obs_fn(self.num_envs)
+            if self._reset_by_buffer:
+                upper_bound = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
+                batch_inds = np.random.randint(0, upper_bound, size=self.num_envs)
+                self._current_batch_obs = self.replay_buffer.observations[batch_inds, 0]
+            else:
+                self._current_batch_obs = self.get_init_obs_fn(self.num_envs)
             self._envs_length = np.zeros(self.num_envs, dtype=int)
+
             return self._current_batch_obs.copy()
 
     def seed(self, seed: Optional[int] = None):
@@ -152,16 +168,17 @@ class VecFakeEnv(VecEnv):
     def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None) -> List[bool]:
         return [False for _ in range(self.num_envs)]
 
-    def single_reset(self, idx, init_batch_obs=None):
+    def single_reset(self, idx):
         assert self.has_set_up, "fake-env has not set up"
 
         self._envs_length[idx] = 0
-        if init_batch_obs is None:
-            assert self.get_batch_init_obs_fn is not None
-            self._current_batch_obs[idx] = self.get_batch_init_obs_fn(1)
+        if self._reset_by_buffer:
+            upper_bound = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
+            batch_inds = np.random.randint(0, upper_bound)
+            self._current_batch_obs[idx] = self.replay_buffer.observations[batch_inds, 0]
         else:
-            assert len(init_batch_obs.shape) == 2  # batch, obs_dim
-            pass
+            assert self.get_init_obs_fn is not None
+            self._current_batch_obs[idx] = self.get_init_obs_fn(1)
 
     def render(self, mode="human"):
         raise NotImplementedError
