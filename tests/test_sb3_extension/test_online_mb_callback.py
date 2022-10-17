@@ -1,7 +1,6 @@
 from typing import cast
 
 from stable_baselines3 import SAC
-from omegaconf import DictConfig
 import gym
 import emei
 
