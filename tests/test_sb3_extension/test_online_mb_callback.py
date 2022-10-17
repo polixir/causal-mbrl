@@ -7,7 +7,7 @@ import emei
 from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.sb3_extension.online_mb_callback import OnlineModelBasedCallback
-from cmrl.models.dynamics import ConstraintBasedDynamics, PlainEnsembleDynamics
+from cmrl.models.dynamics import PlainEnsembleDynamics
 from cmrl.models.transition.one_step.plain_ensemble import PlainEnsembleGaussianTransition
 from cmrl.models.fake_env import VecFakeEnv
 
