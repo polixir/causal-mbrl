@@ -45,15 +45,9 @@ class TestForwardEulerTransition(TestCase):
         self.gaussian_transition = ForwardEulerTransition(
             one_step_transition=self.gaussian_one_step, repeat_times=self.repeat_times
         )
-        self.batch_obs = torch.rand(
-            [self.ensemble_num, self.batch_size, self.obs_size]
-        ).to(self.device)
-        self.batch_action = torch.rand(
-            [self.ensemble_num, self.batch_size, self.action_size]
-        ).to(self.device)
+        self.batch_obs = torch.rand([self.ensemble_num, self.batch_size, self.obs_size]).to(self.device)
+        self.batch_action = torch.rand([self.ensemble_num, self.batch_size, self.action_size]).to(self.device)
 
     def test_deterministic_forward(self):
-        mean, logvar = self.deterministic_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        mean, logvar = self.deterministic_transition.forward(self.batch_obs, self.batch_action)
         assert mean.shape == (self.ensemble_num, self.batch_size, self.obs_size)

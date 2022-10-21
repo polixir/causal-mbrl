@@ -66,7 +66,7 @@ class EnsembleLinearLayer(nn.Module):
 
     def __repr__(self) -> str:
         return (
-            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}" f"ensemble_num={self.ensemble_num}"
+            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}, " f"ensemble_num={self.ensemble_num}"
         )
 
 
@@ -112,6 +112,6 @@ class ParallelEnsembleLinearLayer(nn.Module):
 
     def __repr__(self) -> str:
         return (
-            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}"
+            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}, "
             f"parallel_num={self.parallel_num}, ensemble_num={self.ensemble_num}"
         )

@@ -45,3 +45,4 @@ Emoji | Description
 :twisted_rightwards_arrows: `:twisted_rightwards_arrows:` | When you merged a branch.
 :fire: `:fire:` | When you removed something.
 :truck: `:truck:` | When you moved / renamed something.
+:white_check_mark:  `:white_check_mark:`|	add test

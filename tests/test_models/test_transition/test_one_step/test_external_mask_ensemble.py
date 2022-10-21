@@ -36,49 +36,30 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
             hid_size=self.hid_size,
             deterministic=False,
         )
-        self.batch_obs = torch.rand(
-            [self.ensemble_num, self.batch_size, self.obs_size]
-        ).to(self.device)
-        self.batch_action = torch.rand(
-            [self.ensemble_num, self.batch_size, self.action_size]
-        ).to(self.device)
+        self.batch_obs = torch.rand([self.ensemble_num, self.batch_size, self.obs_size]).to(self.device)
+        self.batch_action = torch.rand([self.ensemble_num, self.batch_size, self.action_size]).to(self.device)
 
     def test_deterministic_forward(self):
         input_mask = torch.ones(self.obs_size, self.obs_size + self.action_size)
         self.deterministic_transition.set_input_mask(input_mask)
-        mean, logvar = self.deterministic_transition.forward(
-            self.batch_obs, self.batch_action
-        )
-        assert (
-            mean.shape == (self.ensemble_num, self.batch_size, self.obs_size)
-            and logvar is None
-        )
+        mean, logvar = self.deterministic_transition.forward(self.batch_obs, self.batch_action)
+        assert mean.shape == (self.ensemble_num, self.batch_size, self.obs_size) and logvar is None
 
     def test_gaussian_forward(self):
         input_mask = torch.ones(self.obs_size, self.obs_size + self.action_size)
         self.gaussian_transition.set_input_mask(input_mask)
-        mean, logvar = self.gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
-        assert (
-            mean.shape
-            == logvar.shape
-            == (self.ensemble_num, self.batch_size, self.obs_size)
-        )
+        mean, logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
+        assert mean.shape == logvar.shape == (self.ensemble_num, self.batch_size, self.obs_size)
 
     def test_mask_input(self):
         input_mask = torch.ones(self.obs_size, self.obs_size + self.action_size)
         self.gaussian_transition.set_input_mask(input_mask)
-        mean, logvar = self.gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        mean, logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
 
         new_input_mask = input_mask.clone()
         new_input_mask[0] = torch.zeros(self.obs_size + self.action_size)
         self.gaussian_transition.set_input_mask(new_input_mask)
-        new_mean, new_logvar = self.gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        new_mean, new_logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
         assert not (mean == new_mean).all()
         assert (mean[..., 1:] == new_mean[..., 1:]).all()
 
@@ -90,9 +71,7 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
 
         input_mask = torch.ones(self.obs_size, self.obs_size + self.action_size)
         self.gaussian_transition.set_input_mask(input_mask)
-        mean, logvar = self.gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        mean, logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
         self.gaussian_transition.save(model_dir)
 
         new_gaussian_transition = ExternalMaskEnsembleGaussianTransition(
@@ -106,13 +85,9 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
         )
 
         new_gaussian_transition.set_input_mask(input_mask)
-        new_mean, new_logvar = new_gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        new_mean, new_logvar = new_gaussian_transition.forward(self.batch_obs, self.batch_action)
         assert not (mean == new_mean).all()
 
         new_gaussian_transition.load(model_dir)
-        new_mean, new_logvar = new_gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        new_mean, new_logvar = new_gaussian_transition.forward(self.batch_obs, self.batch_action)
         assert (mean == new_mean).all()

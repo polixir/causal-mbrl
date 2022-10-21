@@ -36,31 +36,16 @@ class TestBasicEnsembleGaussianMLP(TestCase):
             hid_size=self.hid_size,
             deterministic=False,
         )
-        self.batch_obs = torch.rand(
-            [self.ensemble_num, self.batch_size, self.obs_size]
-        ).to(self.device)
-        self.batch_action = torch.rand(
-            [self.ensemble_num, self.batch_size, self.action_size]
-        ).to(self.device)
+        self.batch_obs = torch.rand([self.ensemble_num, self.batch_size, self.obs_size]).to(self.device)
+        self.batch_action = torch.rand([self.ensemble_num, self.batch_size, self.action_size]).to(self.device)
 
     def test_deterministic_forward(self):
-        mean, logvar = self.deterministic_transition.forward(
-            self.batch_obs, self.batch_action
-        )
-        assert (
-            mean.shape == (self.ensemble_num, self.batch_size, self.obs_size)
-            and logvar is None
-        )
+        mean, logvar = self.deterministic_transition.forward(self.batch_obs, self.batch_action)
+        assert mean.shape == (self.ensemble_num, self.batch_size, self.obs_size) and logvar is None
 
     def test_gaussian_forward(self):
-        mean, logvar = self.gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
-        assert (
-            mean.shape
-            == logvar.shape
-            == (self.ensemble_num, self.batch_size, self.obs_size)
-        )
+        mean, logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
+        assert mean.shape == logvar.shape == (self.ensemble_num, self.batch_size, self.obs_size)
 
     def test_load(self):
         tempdir = Path(tempfile.gettempdir())
@@ -68,9 +53,7 @@ class TestBasicEnsembleGaussianMLP(TestCase):
         if not model_dir.exists():
             model_dir.mkdir()
 
-        mean, logvar = self.gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        mean, logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
         self.gaussian_transition.save(model_dir)
 
         new_gaussian_transition = PlainEnsembleGaussianTransition(
@@ -83,13 +66,9 @@ class TestBasicEnsembleGaussianMLP(TestCase):
             deterministic=False,
         )
 
-        new_mean, new_logvar = new_gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        new_mean, new_logvar = new_gaussian_transition.forward(self.batch_obs, self.batch_action)
         assert not (mean == new_mean).all()
 
         new_gaussian_transition.load(model_dir)
-        new_mean, new_logvar = new_gaussian_transition.forward(
-            self.batch_obs, self.batch_action
-        )
+        new_mean, new_logvar = new_gaussian_transition.forward(self.batch_obs, self.batch_action)
         assert (mean == new_mean).all()
