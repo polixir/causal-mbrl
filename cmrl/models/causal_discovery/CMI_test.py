@@ -6,13 +6,13 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-import cmrl.types
+from cmrl.models.util import gaussian_nll
 from cmrl.models.layers import ParallelEnsembleLinearLayer, truncated_normal_init
-from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.nns import EnsembleMLP
 from cmrl.models.util import to_tensor
 
 
-class ConditionalMutualInformationTest(BaseEnsembleTransition):
+class TransitionConditionalMutualInformationTest(EnsembleMLP):
     _MODEL_FILENAME = "conditional_mutual_information_test.pth"
 
     def __init__(
@@ -20,7 +20,6 @@ class ConditionalMutualInformationTest(BaseEnsembleTransition):
         # transition info
         obs_size: int,
         action_size: int,
-        deterministic: bool = False,
         # algorithm parameters
         ensemble_num: int = 7,
         elite_num: int = 5,
@@ -34,13 +33,12 @@ class ConditionalMutualInformationTest(BaseEnsembleTransition):
         device: Union[str, torch.device] = "cpu",
     ):
         super().__init__(
-            obs_size=obs_size,
-            action_size=action_size,
-            deterministic=deterministic,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
             device=device,
         )
+        self.obs_size = obs_size
+        self.action_size = action_size
         self.residual = residual
         self.learn_logvar_bounds = learn_logvar_bounds
 
@@ -72,16 +70,13 @@ class ConditionalMutualInformationTest(BaseEnsembleTransition):
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
 
-        if deterministic:
-            self.mean_and_logvar = self.create_linear_layer(hid_size, self.obs_size)
-        else:
-            self.mean_and_logvar = self.create_linear_layer(hid_size, 2 * self.obs_size)
-            self.min_logvar = nn.Parameter(
-                -10 * torch.ones(self.parallel_num, 1, 1, self.obs_size), requires_grad=learn_logvar_bounds
-            )
-            self.max_logvar = nn.Parameter(
-                0.5 * torch.ones(self.parallel_num, 1, 1, self.obs_size), requires_grad=learn_logvar_bounds
-            )
+        self.mean_and_logvar = self.create_linear_layer(hid_size, 2 * self.obs_size)
+        self.min_logvar = nn.Parameter(
+            -10 * torch.ones(self.parallel_num, 1, 1, self.obs_size), requires_grad=learn_logvar_bounds
+        )
+        self.max_logvar = nn.Parameter(
+            0.5 * torch.ones(self.parallel_num, 1, 1, self.obs_size), requires_grad=learn_logvar_bounds
+        )
 
         self.apply(truncated_normal_init)
         self.to(self.device)
@@ -117,15 +112,20 @@ class ConditionalMutualInformationTest(BaseEnsembleTransition):
         hidden = self.hidden_layers(masked_input)
         mean_and_logvar = self.mean_and_logvar(hidden)
 
-        if self.deterministic:
-            mean, logvar = mean_and_logvar, None
-        else:
-            mean = mean_and_logvar[..., : self.obs_size]
-            logvar = mean_and_logvar[..., self.obs_size :]
-            logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
-            logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
+        mean = mean_and_logvar[..., : self.obs_size]
+        logvar = mean_and_logvar[..., self.obs_size :]
+        logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
+        logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
 
         if self.residual:
             mean += batch_obs.detach()
 
         return mean, logvar
+
+    def get_nll_loss(self, model_in: Dict[(str, torch.Tensor)], target: torch.Tensor) -> torch.Tensor:
+        pred_mean, pred_logvar = self.forward(**model_in)
+        target = target.repeat((self.parallel_num, 1, 1, 1))
+
+        nll_loss = gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
+        nll_loss += 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
+        return nll_loss

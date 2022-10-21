@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import cmrl.models.util as models_util
+from cmrl.models.util import gaussian_nll
 from cmrl.models.layers import EnsembleLinearLayer
 
 
@@ -71,7 +71,7 @@ class EnsembleMLP(nn.Module):
 
     def get_nll_loss(self, model_in: Dict[(str, torch.Tensor)], target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(**model_in)
-        nll_loss = models_util.gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
+        nll_loss = gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
         nll_loss += 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
         return nll_loss
 

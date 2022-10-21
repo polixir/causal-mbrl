@@ -4,10 +4,10 @@ from unittest import TestCase
 
 import torch
 
-from cmrl.models.causal_discovery.CMI_test import ConditionalMutualInformationTest
+from cmrl.models.causal_discovery.CMI_test import TransitionConditionalMutualInformationTest
 
 
-class TestExternalMaskEnsembleGaussianTransition(TestCase):
+class TestTransitionConditionalMutualInformationTest(TestCase):
     def setUp(self) -> None:
         self.obs_size = 11
         self.action_size = 3
@@ -16,46 +16,31 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
         self.hid_size = 200
         self.batch_size = 128
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.deterministic_test = ConditionalMutualInformationTest(
+
+        self.cmi_test = TransitionConditionalMutualInformationTest(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
             num_layers=self.num_layers,
             ensemble_num=self.ensemble_num,
             hid_size=self.hid_size,
-            deterministic=True,
-        )
-        self.gaussian_test = ConditionalMutualInformationTest(
-            obs_size=self.obs_size,
-            action_size=self.action_size,
-            device=self.device,
-            num_layers=self.num_layers,
-            ensemble_num=self.ensemble_num,
-            hid_size=self.hid_size,
-            deterministic=False,
         )
         self.batch_obs = torch.rand([self.ensemble_num, self.batch_size, self.obs_size]).to(self.device)
         self.batch_action = torch.rand([self.ensemble_num, self.batch_size, self.action_size]).to(self.device)
-
-    def test_deterministic_forward(self):
-        mean, logvar = self.deterministic_test.forward(self.batch_obs, self.batch_action)
-        assert (
-            mean.shape == (self.obs_size + self.action_size + 1, self.ensemble_num, self.batch_size, self.obs_size)
-            and logvar is None
-        )
 
     def test_parallel_deterministic_forward(self):
         parallel_batch_obs = torch.rand(
             [self.obs_size + self.action_size + 1, self.ensemble_num, self.batch_size, self.obs_size]
         ).to(self.device)
-        mean, logvar = self.deterministic_test.forward(parallel_batch_obs, self.batch_action)
+        mean, logvar = self.cmi_test.forward(parallel_batch_obs, self.batch_action)
         assert (
-            mean.shape == (self.obs_size + self.action_size + 1, self.ensemble_num, self.batch_size, self.obs_size)
-            and logvar is None
+            mean.shape
+            == logvar.shape
+            == (self.obs_size + self.action_size + 1, self.ensemble_num, self.batch_size, self.obs_size)
         )
 
     def test_gaussian_forward(self):
-        mean, logvar = self.gaussian_test.forward(self.batch_obs, self.batch_action)
+        mean, logvar = self.cmi_test.forward(self.batch_obs, self.batch_action)
         assert (
             mean.shape
             == logvar.shape
@@ -68,22 +53,21 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
         if not model_dir.exists():
             model_dir.mkdir()
 
-        mean, logvar = self.gaussian_test.forward(self.batch_obs, self.batch_action)
-        self.gaussian_test.save(model_dir)
+        mean, logvar = self.cmi_test.forward(self.batch_obs, self.batch_action)
+        self.cmi_test.save(model_dir)
 
-        new_gaussian_test = ConditionalMutualInformationTest(
+        new_cmi_test = TransitionConditionalMutualInformationTest(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
             num_layers=self.num_layers,
             ensemble_num=self.ensemble_num,
             hid_size=self.hid_size,
-            deterministic=False,
         )
 
-        new_mean, new_logvar = new_gaussian_test.forward(self.batch_obs, self.batch_action)
+        new_mean, new_logvar = new_cmi_test.forward(self.batch_obs, self.batch_action)
         assert not (mean == new_mean).all()
 
-        new_gaussian_test.load(model_dir)
-        new_mean, new_logvar = new_gaussian_test.forward(self.batch_obs, self.batch_action)
+        new_cmi_test.load(model_dir)
+        new_mean, new_logvar = new_cmi_test.forward(self.batch_obs, self.batch_action)
         assert (mean == new_mean).all()
