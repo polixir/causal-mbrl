@@ -12,29 +12,8 @@ from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.util import to_tensor
 
 
-class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
-    """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution
-        corresponding to each independent dimension.
-
-    Args:
-        obs_size (int): size of state.
-        action_size (int): size of action.
-        device (str or torch.device): the device to use for the model.
-        num_layers (int): the number of layers in the model
-                          (e.g., if ``num_layers == 3``, then model graph looks like
-                          input -h1-> -h2-> -l3-> output).
-        ensemble_num (int): the number of members in the ensemble. Defaults to 1.
-        hid_size (int): the size of the hidden layers (e.g., size of h1 and h2 in the graph above).
-        deterministic (bool): if ``True``, the model predicts the mean and logvar of the conditional
-            gaussian distribution, otherwise only predicts the mean. Defaults to ``False``.
-        residual (bool): if ``True``, the model predicts the residual of output and input. Defaults to ``True``.
-        learn_logvar_bounds (bool): if ``True``, the log-var bounds will be learned, otherwise
-            they will be constant. Defaults to ``False``.
-        activation_fn_cfg (dict or omegaconf.DictConfig, optional): configuration of the
-            desired activation function. Defaults to torch.nn.ReLU when ``None``.
-    """
-
-    _MODEL_FILENAME = "external_mask_ensemble_transition.pth"
+class ConditionalMutualInformationTest(BaseEnsembleTransition):
+    _MODEL_FILENAME = "miss_one_mask_ensemble_transition.pth"
 
     def __init__(
             self,
@@ -67,7 +46,6 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
 
         self.num_layers = num_layers
         self.hid_size = hid_size
-        self.activation_fn_cfg = activation_fn_cfg
 
         self._input_mask: Optional[torch.Tensor] = torch.ones((obs_size, obs_size + action_size)).to(device)
         self.add_save_attr("input_mask")
@@ -94,17 +72,20 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         self.hidden_layers = nn.Sequential(*hidden_layers)
 
         if deterministic:
-            self.mean_and_logvar = self.create_linear_layer(hid_size, 1)
+            self.mean_and_logvar = self.create_linear_layer(hid_size, self.obs_size)
         else:
-            self.mean_and_logvar = self.create_linear_layer(hid_size, 2)
-            self.min_logvar = nn.Parameter(-10 * torch.ones(obs_size, 1, 1, 1), requires_grad=learn_logvar_bounds)
-            self.max_logvar = nn.Parameter(0.5 * torch.ones(obs_size, 1, 1, 1), requires_grad=learn_logvar_bounds)
+            self.mean_and_logvar = self.create_linear_layer(hid_size, 2 * self.obs_size)
+            self.min_logvar = nn.Parameter(-10 * torch.ones(obs_size, 1, 1, self.obs_size),
+                                           requires_grad=learn_logvar_bounds)
+            self.max_logvar = nn.Parameter(0.5 * torch.ones(obs_size, 1, 1, self.obs_size),
+                                           requires_grad=learn_logvar_bounds)
 
         self.apply(truncated_normal_init)
         self.to(self.device)
 
     def create_linear_layer(self, l_in, l_out):
-        return ParallelEnsembleLinearLayer(l_in, l_out, parallel_num=self.obs_size, ensemble_num=self.ensemble_num)
+        return ParallelEnsembleLinearLayer(l_in, l_out, parallel_num=self.obs_size + self.action_size,
+                                           ensemble_num=self.ensemble_num)
 
     def set_input_mask(self, mask: cmrl.types.TensorType):
         self._input_mask = to_tensor(mask).to(self.device)

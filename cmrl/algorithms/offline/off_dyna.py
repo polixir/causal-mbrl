@@ -18,13 +18,13 @@ from cmrl.util.creator import create_dynamics
 
 
 def train(
-    env: emei.EmeiEnv,
-    eval_env: emei.EmeiEnv,
-    termination_fn: Optional[TermFnType],
-    reward_fn: Optional[RewardFnType],
-    get_init_obs_fn: Optional[InitObsFnType],
-    cfg: DictConfig,
-    work_dir: Optional[str] = None,
+        env: emei.EmeiEnv,
+        eval_env: emei.EmeiEnv,
+        termination_fn: Optional[TermFnType],
+        reward_fn: Optional[RewardFnType],
+        get_init_obs_fn: Optional[InitObsFnType],
+        cfg: DictConfig,
+        work_dir: Optional[str] = None,
 ):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
