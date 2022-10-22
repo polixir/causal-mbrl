@@ -1,6 +1,5 @@
 ![](/img/cmrl_logo.png)
 
-
 # causal-mbrl
 
 <a href="https://github.com/FrankTianTT/causal-mbrl"><img src="https://github.com/FrankTianTT/causal-mbrl/actions/workflows/ci.yml/badge.svg"></a>

@@ -10,23 +10,24 @@ from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.dynamics import BaseDynamics
 from cmrl.models.nns import EnsembleMLP
-from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
+from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
+from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 
 
 class PlainEnsembleDynamics(BaseDynamics):
     def __init__(
-        self,
-        transition: BaseEnsembleTransition,
-        learned_reward: bool = True,
-        reward_mech: Optional[BaseRewardMech] = None,
-        learned_termination: bool = False,
-        termination_mech: Optional[BaseTerminationMech] = None,
-        # trainer
-        optim_lr: float = 1e-4,
-        weight_decay: float = 1e-5,
-        optim_eps: float = 1e-8,
-        logger: Optional[Logger] = None,
+            self,
+            transition: BaseEnsembleTransition,
+            learned_reward: bool = True,
+            reward_mech: Optional[BaseRewardMech] = None,
+            learned_termination: bool = False,
+            termination_mech: Optional[BaseTerminationMech] = None,
+            # trainer
+            optim_lr: float = 1e-4,
+            weight_decay: float = 1e-5,
+            optim_eps: float = 1e-8,
+            logger: Optional[Logger] = None,
     ):
         super(PlainEnsembleDynamics, self).__init__(
             transition=transition,
@@ -41,21 +42,21 @@ class PlainEnsembleDynamics(BaseDynamics):
         )
 
     def learn(
-        self,
-        # data
-        replay_buffer: ReplayBuffer,
-        # dataset split
-        validation_ratio: float = 0.2,
-        batch_size: int = 256,
-        shuffle_each_epoch: bool = True,
-        bootstrap_permutes: bool = False,
-        # model learning
-        longest_epoch: int = -1,
-        improvement_threshold: float = 0.1,
-        patience: int = 5,
-        work_dir: Optional[Union[str, pathlib.Path]] = None,
-        # other
-        **kwargs
+            self,
+            # data
+            replay_buffer: ReplayBuffer,
+            # dataset split
+            validation_ratio: float = 0.2,
+            batch_size: int = 256,
+            shuffle_each_epoch: bool = True,
+            bootstrap_permutes: bool = False,
+            # model learning
+            longest_epoch: int = -1,
+            improvement_threshold: float = 0.1,
+            patience: int = 5,
+            work_dir: Optional[Union[str, pathlib.Path]] = None,
+            # other
+            **kwargs
     ):
         train_dataset, val_dataset = self.dataset_split(
             replay_buffer,
@@ -110,11 +111,11 @@ class PlainEnsembleDynamics(BaseDynamics):
             self.save(work_dir)
 
     def maybe_get_best_weights(
-        self,
-        best_val_loss: torch.Tensor,
-        val_loss: torch.Tensor,
-        mech: str = "transition",
-        threshold: float = 0.01,
+            self,
+            best_val_loss: torch.Tensor,
+            val_loss: torch.Tensor,
+            mech: str = "transition",
+            threshold: float = 0.01,
     ):
         improvement = (best_val_loss - val_loss) / torch.abs(best_val_loss)
         if (improvement > threshold).any().item():
@@ -126,10 +127,10 @@ class PlainEnsembleDynamics(BaseDynamics):
         return best_weights
 
     def maybe_set_best_weights_and_elite(
-        self,
-        best_weights: Optional[Dict],
-        best_val_loss: torch.Tensor,
-        mech: str = "transition",
+            self,
+            best_weights: Optional[Dict],
+            best_val_loss: torch.Tensor,
+            mech: str = "transition",
     ):
         model = getattr(self, mech)
         assert isinstance(model, EnsembleMLP)

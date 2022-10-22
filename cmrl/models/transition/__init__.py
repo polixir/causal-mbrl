@@ -1,4 +1,6 @@
-from .base_transition import BaseEnsembleTransition
-from .multi_step.forward_euler import ForwardEulerTransition
-from .one_step.external_mask_ensemble import ExternalMaskEnsembleGaussianTransition
-from .one_step.plain_ensemble import PlainEnsembleGaussianTransition
+from cmrl.models.transition.base_transition import BaseEnsembleTransition
+
+from cmrl.models.transition.one_step.external_mask_transition import ExternalMaskTransition
+from cmrl.models.transition.one_step.plain_transition import PlainTransition
+
+from cmrl.models.transition.multi_step.forward_euler import ForwardEulerTransition

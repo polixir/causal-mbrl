@@ -12,7 +12,7 @@ from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.util import to_tensor
 
 
-class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
+class ExternalMaskTransition(BaseEnsembleTransition):
     """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution
         corresponding to each independent dimension.
 
@@ -34,25 +34,25 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
             desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
 
-    _MODEL_FILENAME = "external_mask_ensemble_transition.pth"
+    _MODEL_FILENAME = "external_mask_transition.pth"
 
     def __init__(
-        self,
-        # transition info
-        obs_size: int,
-        action_size: int,
-        deterministic: bool = False,
-        # algorithm parameters
-        ensemble_num: int = 7,
-        elite_num: int = 5,
-        residual: bool = True,
-        learn_logvar_bounds: bool = False,
-        # network parameters
-        num_layers: int = 4,
-        hid_size: int = 200,
-        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
-        # others
-        device: Union[str, torch.device] = "cpu",
+            self,
+            # transition info
+            obs_size: int,
+            action_size: int,
+            deterministic: bool = False,
+            # algorithm parameters
+            ensemble_num: int = 7,
+            elite_num: int = 5,
+            residual: bool = True,
+            learn_logvar_bounds: bool = False,
+            # network parameters
+            num_layers: int = 4,
+            hid_size: int = 200,
+            activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
+            # others
+            device: Union[str, torch.device] = "cpu",
     ):
         super().__init__(
             obs_size=obs_size,
@@ -67,6 +67,7 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
 
         self.num_layers = num_layers
         self.hid_size = hid_size
+        self.activation_fn_cfg = activation_fn_cfg
 
         self._input_mask: Optional[torch.Tensor] = torch.ones((obs_size, obs_size + action_size)).to(device)
         self.add_save_attr("input_mask")
@@ -138,10 +139,9 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
         return x
 
     def forward(
-        self,
-        batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, obs_size
-        batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
-        only_elite: bool = False,
+            self,
+            batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, obs_size
+            batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size

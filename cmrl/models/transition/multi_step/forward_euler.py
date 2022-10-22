@@ -30,13 +30,12 @@ class ForwardEulerTransition(BaseEnsembleTransition):
         self.one_step_transition.set_elite_members(elite_indices)
 
     def forward(
-        self,
-        batch_obs: torch.Tensor,
-        batch_action: torch.Tensor,
-        only_elite: bool = False,
+            self,
+            batch_obs: torch.Tensor,
+            batch_action: torch.Tensor,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         logvar = torch.zeros(batch_obs.shape, device=self.device)
         mean = batch_obs
         for t in range(self.repeat_times):
-            mean, logvar = self.one_step_transition.forward(mean, batch_action.clone(), only_elite)
+            mean, logvar = self.one_step_transition.forward(mean, batch_action.clone())
         return mean, logvar

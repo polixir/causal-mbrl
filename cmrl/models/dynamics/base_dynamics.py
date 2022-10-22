@@ -8,7 +8,8 @@ import torch
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
+from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
+from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.types import InteractionBatch
 from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator

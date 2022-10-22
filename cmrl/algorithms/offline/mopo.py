@@ -18,13 +18,13 @@ from cmrl.util.creator import create_dynamics
 
 
 def train(
-    env: emei.EmeiEnv,
-    eval_env: emei.EmeiEnv,
-    termination_fn: Optional[TermFnType],
-    reward_fn: Optional[RewardFnType],
-    get_init_obs_fn: Optional[InitObsFnType],
-    cfg: DictConfig,
-    work_dir: Optional[str] = None,
+        env: emei.EmeiEnv,
+        eval_env: emei.EmeiEnv,
+        termination_fn: Optional[TermFnType],
+        reward_fn: Optional[RewardFnType],
+        get_init_obs_fn: Optional[InitObsFnType],
+        cfg: DictConfig,
+        work_dir: Optional[str] = None,
 ):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
@@ -45,13 +45,6 @@ def train(
     )
     load_offline_data(cfg, env, real_replay_buffer)
 
-    if cfg.dynamics.name == "plain_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff
-    elif cfg.dynamics.name == "constraint_based_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff / 3
-    else:
-        raise NotImplementedError
-
     fake_eval_env = setup_fake_env(
         cfg=cfg,
         agent=agent,
@@ -62,7 +55,7 @@ def train(
         real_replay_buffer=real_replay_buffer,
         logger=logger,
         max_episode_steps=env.spec.max_episode_steps,
-        penalty_coeff=penalty_coeff,
+        penalty_coeff=cfg.algorithm.penalty_coeff,
     )
 
     if hasattr(env, "get_causal_graph"):

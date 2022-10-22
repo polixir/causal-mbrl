@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import hydra
 import omegaconf
@@ -6,35 +6,37 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from cmrl.models.layers import EnsembleLinearLayer, truncated_normal_init
-from cmrl.models.nns import EnsembleMLP
+from cmrl.models.layers import truncated_normal_init
+from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
 
 
-class BaseRewardMech(EnsembleMLP):
-    _MODEL_FILENAME = "reward_mech.pth"
+class PlainRewardMech(BaseRewardMech):
+    _MODEL_FILENAME = "plain_reward_mech.pth"
 
     def __init__(
-        self,
-        # transition info
-        obs_size: int,
-        action_size: int,
-        deterministic: bool = False,
-        # algorithm parameters
-        ensemble_num: int = 7,
-        elite_num: int = 5,
-        learn_logvar_bounds: bool = False,
-        # network parameters
-        num_layers: int = 4,
-        hid_size: int = 200,
-        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
-        # others
-        device: Union[str, torch.device] = "cpu",
+            self,
+            # transition info
+            obs_size: int,
+            action_size: int,
+            deterministic: bool = False,
+            # algorithm parameters
+            ensemble_num: int = 7,
+            elite_num: int = 5,
+            learn_logvar_bounds: bool = False,
+            # network parameters
+            num_layers: int = 4,
+            hid_size: int = 200,
+            activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
+            # others
+            device: Union[str, torch.device] = "cpu",
     ):
-        super(BaseRewardMech, self).__init__(ensemble_num=ensemble_num, elite_num=elite_num, device=device)
-        self.obs_size = obs_size
-        self.action_size = action_size
-        self.deterministic = deterministic
-
+        super(PlainRewardMech, self).__init__(
+            obs_size=obs_size,
+            action_size=action_size,
+            deterministic=deterministic,
+            ensemble_num=ensemble_num,
+            elite_num=elite_num,
+            device=device)
         self.num_layers = num_layers
         self.hid_size = hid_size
 
@@ -70,9 +72,9 @@ class BaseRewardMech(EnsembleMLP):
         self.to(self.device)
 
     def forward(
-        self,
-        batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, state_size
-        batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
+            self,
+            batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, state_size
+            batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
@@ -89,10 +91,3 @@ class BaseRewardMech(EnsembleMLP):
             logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
 
         return mean, logvar
-
-
-class BaseTerminationMech(nn.Module):
-    _MODEL_FILENAME = "termination_mech.pth"
-
-    def __init__(self):
-        super(BaseTerminationMech, self).__init__()

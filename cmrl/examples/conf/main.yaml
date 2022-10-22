@@ -1,6 +1,6 @@
 defaults:
-  - algorithm: on_dyna
-  - dynamics: plain_dynamics
+  - algorithm: off_dyna
+  - dynamics: constraint_based_dynamics
   - task: BIPS
   - _self_
 

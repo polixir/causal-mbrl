@@ -8,10 +8,13 @@ import torch
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.models.dynamics import BaseDynamics
+from cmrl.models.dynamics.base_dynamics import BaseDynamics
 from cmrl.models.nns import EnsembleMLP
-from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
+from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
+from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.causal_discovery.CMI_test import TransitionConditionalMutualInformationTest
+from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator
 from cmrl.models.util import to_tensor
 from cmrl.types import TensorType
 
@@ -41,15 +44,37 @@ class ConstraintBasedDynamics(BaseDynamics):
             optim_eps=optim_eps,
             logger=logger,
         )
+        # self.cmi_test: Optional[EnsembleMLP] = None
+        # self.build_cmi_test()
+        #
+        # self.cmi_test_optimizer = torch.optim.Adam(
+        #     self.cmi_test.parameters(),
+        #     lr=optim_lr,
+        #     weight_decay=weight_decay,
+        #     eps=optim_eps,
+        # )
+        # self.learn_mech.append("cmi_test")
+        # self.total_epoch["cmi_test"] = 0
+        # self._MECH_TO_VARIABLE["cmi_test"] = self._MECH_TO_VARIABLE["transition"]
 
         for mech in self.learn_mech:
             if hasattr(getattr(self, mech), "input_mask"):
                 setattr(self, "{}_oracle_mask".format(mech), None)
-                setattr(
-                    self,
-                    "{}_history_mask".format(mech),
-                    torch.ones(getattr(self, mech).input_mask.shape).to(self.device),
-                )
+                setattr(self, "{}_history_mask".format(mech), torch.ones(getattr(self, mech).input_mask.shape).to(self.device))
+
+    def build_cmi_test(self):
+        self.cmi_test = TransitionConditionalMutualInformationTest(
+            obs_size=self.transition.obs_size,
+            action_size=self.transition.action_size,
+            ensemble_num=1,
+            elite_num=1,
+            residual=self.transition.residual,
+            learn_logvar_bounds=self.transition.learn_logvar_bounds,
+            num_layers=4,
+            hid_size=200,
+            activation_fn_cfg=self.transition.activation_fn_cfg,
+            device=self.transition.device,
+        )
 
     def set_oracle_mask(self, mech: str, mask: TensorType):
         assert hasattr(self, "{}_oracle_mask".format(mech))
@@ -79,7 +104,6 @@ class ConstraintBasedDynamics(BaseDynamics):
             shuffle_each_epoch,
             bootstrap_permutes,
         )
-        longest_epoch = longest_epoch
 
         for mech in self.learn_mech:
             if hasattr(self, "{}_oracle_mask".format(mech)):

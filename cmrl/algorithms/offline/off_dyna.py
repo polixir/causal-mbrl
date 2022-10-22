@@ -18,13 +18,13 @@ from cmrl.util.creator import create_dynamics
 
 
 def train(
-    env: emei.EmeiEnv,
-    eval_env: emei.EmeiEnv,
-    termination_fn: Optional[TermFnType],
-    reward_fn: Optional[RewardFnType],
-    get_init_obs_fn: Optional[InitObsFnType],
-    cfg: DictConfig,
-    work_dir: Optional[str] = None,
+        env: emei.EmeiEnv,
+        eval_env: emei.EmeiEnv,
+        termination_fn: Optional[TermFnType],
+        reward_fn: Optional[RewardFnType],
+        get_init_obs_fn: Optional[InitObsFnType],
+        cfg: DictConfig,
+        work_dir: Optional[str] = None,
 ):
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
@@ -36,21 +36,12 @@ def train(
     work_dir = work_dir or os.getcwd()
     logger = logger_configure("log", ["tensorboard", "multi_csv", "stdout"])
 
-    numpy_generator = np.random.default_rng(seed=cfg.seed)
-
     # create initial dataset and add it to replay buffer
     dynamics = create_dynamics(cfg.dynamics, obs_shape, act_shape, logger=logger)
     real_replay_buffer = ReplayBuffer(
         cfg.task.num_steps, env.observation_space, env.action_space, cfg.device, handle_timeout_termination=False
     )
     load_offline_data(cfg, env, real_replay_buffer)
-
-    if cfg.dynamics.name == "plain_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff
-    elif cfg.dynamics.name == "constraint_based_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff / 3
-    else:
-        raise NotImplementedError
 
     fake_eval_env = setup_fake_env(
         cfg=cfg,
@@ -61,7 +52,7 @@ def train(
         get_init_obs_fn=get_init_obs_fn,
         logger=logger,
         max_episode_steps=env.spec.max_episode_steps,
-        penalty_coeff=penalty_coeff,
+        penalty_coeff=cfg.algorithm.penalty_coeff,
     )
 
     if hasattr(env, "get_causal_graph"):

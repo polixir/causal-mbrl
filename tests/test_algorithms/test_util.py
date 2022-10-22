@@ -1,10 +1,9 @@
-from cmrl.algorithms.util import load_offline_data
-
 from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.util.env import make_env
+from cmrl.algorithms.util import load_offline_data
 
-from tests.utils import cfg
+from tests.constants import cfg
 
 
 def test_load_offline_data():

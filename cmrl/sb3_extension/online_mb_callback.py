@@ -14,8 +14,8 @@ from stable_baselines3.common.vec_env import (
     sync_envs_normalization,
 )
 
-from cmrl.models import VecFakeEnv
-from cmrl.models.dynamics import BaseDynamics
+from cmrl.models.fake_env import VecFakeEnv
+from cmrl.models.dynamics.base_dynamics import BaseDynamics
 
 
 class OnlineModelBasedCallback(BaseCallback):
