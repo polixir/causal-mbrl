@@ -12,7 +12,7 @@ from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.util import to_tensor
 
 
-class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
+class ExternalMaskTransition(BaseEnsembleTransition):
     """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution
         corresponding to each independent dimension.
 
@@ -34,7 +34,7 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
             desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
 
-    _MODEL_FILENAME = "external_mask_ensemble_transition.pth"
+    _MODEL_FILENAME = "external_mask_transition.pth"
 
     def __init__(
             self,
@@ -142,7 +142,6 @@ class ExternalMaskEnsembleGaussianTransition(BaseEnsembleTransition):
             self,
             batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, obs_size
             batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
-            only_elite: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size

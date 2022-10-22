@@ -45,13 +45,6 @@ def train(
     )
     load_offline_data(cfg, env, real_replay_buffer)
 
-    if cfg.dynamics.name == "plain_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff
-    elif cfg.dynamics.name == "constraint_based_dynamics":
-        penalty_coeff = cfg.algorithm.penalty_coeff / 3
-    else:
-        raise NotImplementedError
-
     fake_eval_env = setup_fake_env(
         cfg=cfg,
         agent=agent,
@@ -62,7 +55,7 @@ def train(
         real_replay_buffer=real_replay_buffer,
         logger=logger,
         max_episode_steps=env.spec.max_episode_steps,
-        penalty_coeff=penalty_coeff,
+        penalty_coeff=cfg.algorithm.penalty_coeff,
     )
 
     if hasattr(env, "get_causal_graph"):

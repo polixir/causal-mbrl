@@ -4,8 +4,8 @@ from unittest import TestCase
 
 import torch
 
-from cmrl.models.transition.one_step.external_mask_ensemble import (
-    ExternalMaskEnsembleGaussianTransition,
+from cmrl.models.transition.one_step.external_mask_transition import (
+    ExternalMaskTransition,
 )
 
 
@@ -18,7 +18,7 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
         self.hid_size = 200
         self.batch_size = 128
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.deterministic_transition = ExternalMaskEnsembleGaussianTransition(
+        self.deterministic_transition = ExternalMaskTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
@@ -27,7 +27,7 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
             hid_size=self.hid_size,
             deterministic=True,
         )
-        self.gaussian_transition = ExternalMaskEnsembleGaussianTransition(
+        self.gaussian_transition = ExternalMaskTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
@@ -74,7 +74,7 @@ class TestExternalMaskEnsembleGaussianTransition(TestCase):
         mean, logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
         self.gaussian_transition.save(model_dir)
 
-        new_gaussian_transition = ExternalMaskEnsembleGaussianTransition(
+        new_gaussian_transition = ExternalMaskTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,

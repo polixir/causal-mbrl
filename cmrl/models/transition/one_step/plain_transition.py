@@ -10,7 +10,7 @@ from cmrl.models.layers import EnsembleLinearLayer, truncated_normal_init
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 
 
-class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
+class PlainTransition(BaseEnsembleTransition):
     """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.
 
     Args:
@@ -31,7 +31,7 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
             desired activation function. Defaults to torch.nn.ReLU when ``None``.
     """
 
-    _MODEL_FILENAME = "plain_ensemble_transition.pth"
+    _MODEL_FILENAME = "plain_transition.pth"
 
     def __init__(
             self,
@@ -101,7 +101,6 @@ class PlainEnsembleGaussianTransition(BaseEnsembleTransition):
             self,
             batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, obs_size
             batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
-            only_elite: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size

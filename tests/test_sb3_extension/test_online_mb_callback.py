@@ -8,7 +8,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.sb3_extension.online_mb_callback import OnlineModelBasedCallback
 from cmrl.models.dynamics import PlainEnsembleDynamics
-from cmrl.models.transition.one_step.plain_ensemble import PlainEnsembleGaussianTransition
+from cmrl.models.transition.one_step.plain_transition import PlainTransition
 from cmrl.models.fake_env import VecFakeEnv
 
 
@@ -18,7 +18,7 @@ def test_callback():
     reward_fn = env.get_reward
     init_obs_fn = env.get_batch_init_obs
 
-    transition = PlainEnsembleGaussianTransition(obs_size=5, action_size=1)
+    transition = PlainTransition(obs_size=5, action_size=1)
 
     dynamics = PlainEnsembleDynamics(
         transition=transition,

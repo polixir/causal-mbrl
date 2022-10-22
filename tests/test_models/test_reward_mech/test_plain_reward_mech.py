@@ -2,10 +2,10 @@ from unittest import TestCase
 
 import torch
 
-from cmrl.models.reward_and_termination import BaseRewardMech
+from cmrl.models.reward_mech.plain_reward_mech import PlainRewardMech
 
 
-class TestBaseRewardMech(TestCase):
+class TestPlainRewardMech(TestCase):
     def setUp(self) -> None:
         self.obs_size = 11
         self.action_size = 3
@@ -14,7 +14,7 @@ class TestBaseRewardMech(TestCase):
         self.hid_size = 200
         self.batch_size = 128
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.reward_mech = BaseRewardMech(
+        self.reward_mech = PlainRewardMech(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,

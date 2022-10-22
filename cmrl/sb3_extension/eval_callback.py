@@ -12,7 +12,7 @@ from stable_baselines3.common.vec_env import (
     sync_envs_normalization,
 )
 
-from cmrl.models import VecFakeEnv
+from cmrl.models.fake_env import VecFakeEnv
 
 
 class EvalCallback(EventCallback):

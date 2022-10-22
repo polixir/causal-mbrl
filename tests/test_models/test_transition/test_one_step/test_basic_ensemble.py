@@ -4,9 +4,7 @@ from unittest import TestCase
 
 import torch
 
-from cmrl.models.transition.one_step.plain_ensemble import (
-    PlainEnsembleGaussianTransition,
-)
+from cmrl.models.transition.one_step.plain_transition import PlainTransition
 
 
 class TestBasicEnsembleGaussianMLP(TestCase):
@@ -18,7 +16,7 @@ class TestBasicEnsembleGaussianMLP(TestCase):
         self.hid_size = 200
         self.batch_size = 128
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.deterministic_transition = PlainEnsembleGaussianTransition(
+        self.deterministic_transition = PlainTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
@@ -27,7 +25,7 @@ class TestBasicEnsembleGaussianMLP(TestCase):
             hid_size=self.hid_size,
             deterministic=True,
         )
-        self.gaussian_transition = PlainEnsembleGaussianTransition(
+        self.gaussian_transition = PlainTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
@@ -56,7 +54,7 @@ class TestBasicEnsembleGaussianMLP(TestCase):
         mean, logvar = self.gaussian_transition.forward(self.batch_obs, self.batch_action)
         self.gaussian_transition.save(model_dir)
 
-        new_gaussian_transition = PlainEnsembleGaussianTransition(
+        new_gaussian_transition = PlainTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,

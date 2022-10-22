@@ -5,9 +5,7 @@ from unittest import TestCase
 import torch
 
 from cmrl.models.transition.multi_step.forward_euler import ForwardEulerTransition
-from cmrl.models.transition.one_step.plain_ensemble import (
-    PlainEnsembleGaussianTransition,
-)
+from cmrl.models.transition.one_step.plain_transition import PlainTransition
 
 
 class TestForwardEulerTransition(TestCase):
@@ -20,7 +18,7 @@ class TestForwardEulerTransition(TestCase):
         self.batch_size = 128
         self.repeat_times = 3
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.deterministic_one_step = PlainEnsembleGaussianTransition(
+        self.deterministic_one_step = PlainTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
@@ -33,7 +31,7 @@ class TestForwardEulerTransition(TestCase):
             one_step_transition=self.deterministic_one_step,
             repeat_times=self.repeat_times,
         )
-        self.gaussian_one_step = PlainEnsembleGaussianTransition(
+        self.gaussian_one_step = PlainTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,

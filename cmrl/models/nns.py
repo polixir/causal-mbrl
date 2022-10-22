@@ -1,5 +1,5 @@
 import pathlib
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -14,10 +14,10 @@ class EnsembleMLP(nn.Module):
     _MODEL_FILENAME = "ensemble_mlp.pth"
 
     def __init__(
-        self,
-        ensemble_num: int = 7,
-        elite_num: int = 5,
-        device: Union[str, torch.device] = "cpu",
+            self,
+            ensemble_num: int = 7,
+            elite_num: int = 5,
+            device: Union[str, torch.device] = "cpu",
     ):
         super(EnsembleMLP, self).__init__()
         self.ensemble_num = ensemble_num

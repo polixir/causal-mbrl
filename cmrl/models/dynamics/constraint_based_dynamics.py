@@ -10,7 +10,8 @@ from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.dynamics.base_dynamics import BaseDynamics
 from cmrl.models.nns import EnsembleMLP
-from cmrl.models.reward_and_termination import BaseRewardMech, BaseTerminationMech
+from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
+from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseEnsembleTransition
 from cmrl.models.causal_discovery.CMI_test import TransitionConditionalMutualInformationTest
 from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator

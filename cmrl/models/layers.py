@@ -40,11 +40,11 @@ class EnsembleLinearLayer(nn.Module):
     """
 
     def __init__(
-        self,
-        in_size: int,
-        out_size: int,
-        use_bias: bool = True,
-        ensemble_num: int = 1,
+            self,
+            in_size: int,
+            out_size: int,
+            use_bias: bool = True,
+            ensemble_num: int = 1,
     ):
         super().__init__()
         self.ensemble_num = ensemble_num
@@ -84,12 +84,12 @@ class ParallelEnsembleLinearLayer(nn.Module):
     """
 
     def __init__(
-        self,
-        in_size: int,
-        out_size: int,
-        use_bias: bool = True,
-        parallel_num: int = 1,
-        ensemble_num: int = 1,
+            self,
+            in_size: int,
+            out_size: int,
+            use_bias: bool = True,
+            parallel_num: int = 1,
+            ensemble_num: int = 1,
     ):
         super().__init__()
         self.parallel_num = parallel_num
