@@ -7,10 +7,10 @@ from torch import nn as nn
 from torch.nn import functional as F
 
 from cmrl.models.layers import EnsembleLinearLayer, truncated_normal_init
-from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.transition.base_transition import BaseTransition
 
 
-class PlainTransition(BaseEnsembleTransition):
+class PlainTransition(BaseTransition):
     """Implements an ensemble of multi-layer perceptrons each modeling a Gaussian distribution.
 
     Args:
@@ -34,22 +34,22 @@ class PlainTransition(BaseEnsembleTransition):
     _MODEL_FILENAME = "plain_transition.pth"
 
     def __init__(
-            self,
-            # transition info
-            obs_size: int,
-            action_size: int,
-            deterministic: bool = False,
-            # algorithm parameters
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            residual: bool = True,
-            learn_logvar_bounds: bool = False,
-            # network parameters
-            num_layers: int = 4,
-            hid_size: int = 200,
-            activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
-            # others
-            device: Union[str, torch.device] = "cpu",
+        self,
+        # transition info
+        obs_size: int,
+        action_size: int,
+        deterministic: bool = False,
+        # algorithm parameters
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        residual: bool = True,
+        learn_logvar_bounds: bool = False,
+        # network parameters
+        num_layers: int = 4,
+        hid_size: int = 200,
+        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
+        # others
+        device: Union[str, torch.device] = "cpu",
     ):
         super().__init__(
             obs_size=obs_size,
@@ -98,9 +98,9 @@ class PlainTransition(BaseEnsembleTransition):
         self.to(self.device)
 
     def forward(
-            self,
-            batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, obs_size
-            batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
+        self,
+        batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, obs_size
+        batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
@@ -112,7 +112,7 @@ class PlainTransition(BaseEnsembleTransition):
             mean, logvar = mean_and_logvar, None
         else:
             mean = mean_and_logvar[..., : self.obs_size]
-            logvar = mean_and_logvar[..., self.obs_size:]
+            logvar = mean_and_logvar[..., self.obs_size :]
             logvar = self.max_logvar - F.softplus(self.max_logvar - logvar)
             logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
 

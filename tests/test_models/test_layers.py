@@ -23,9 +23,7 @@ class TestParallelEnsembleLinearLayer(TestCase):
         ).to(self.device)
 
     def test_forward(self):
-        model_in = torch.rand(
-            (self.parallel_num, self.ensemble_num, self.batch_size, self.in_size)
-        ).to(self.device)
+        model_in = torch.rand((self.parallel_num, self.ensemble_num, self.batch_size, self.in_size)).to(self.device)
         model_out = self.layer(model_in)
         assert model_out.shape == (
             self.parallel_num,
@@ -51,8 +49,6 @@ class TestEnsembleLinearLayer(TestCase):
         ).to(self.device)
 
     def test_forward(self):
-        model_in = torch.rand((self.ensemble_num, self.batch_size, self.in_size)).to(
-            self.device
-        )
+        model_in = torch.rand((self.ensemble_num, self.batch_size, self.in_size)).to(self.device)
         model_out = self.layer(model_in)
         assert model_out.shape == (self.ensemble_num, self.batch_size, self.out_size)

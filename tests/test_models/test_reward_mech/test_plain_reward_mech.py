@@ -22,12 +22,8 @@ class TestPlainRewardMech(TestCase):
             hid_size=self.hid_size,
             deterministic=True,
         )
-        self.batch_obs = torch.rand(
-            [self.ensemble_num, self.batch_size, self.obs_size]
-        ).to(self.device)
-        self.batch_action = torch.rand(
-            [self.ensemble_num, self.batch_size, self.action_size]
-        ).to(self.device)
+        self.batch_obs = torch.rand([self.ensemble_num, self.batch_size, self.obs_size]).to(self.device)
+        self.batch_action = torch.rand([self.ensemble_num, self.batch_size, self.action_size]).to(self.device)
 
     def test_forward(self):
         mean, logvar = self.reward_mech.forward(self.batch_obs, self.batch_action)

@@ -2,11 +2,11 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
 
-from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.transition.base_transition import BaseTransition
 
 
-class ForwardEulerTransition(BaseEnsembleTransition):
-    def __init__(self, one_step_transition: BaseEnsembleTransition, repeat_times: int = 2):
+class ForwardEulerTransition(BaseTransition):
+    def __init__(self, one_step_transition: BaseTransition, repeat_times: int = 2):
         super().__init__(
             obs_size=one_step_transition.obs_size,
             action_size=one_step_transition.action_size,
@@ -30,9 +30,9 @@ class ForwardEulerTransition(BaseEnsembleTransition):
         self.one_step_transition.set_elite_members(elite_indices)
 
     def forward(
-            self,
-            batch_obs: torch.Tensor,
-            batch_action: torch.Tensor,
+        self,
+        batch_obs: torch.Tensor,
+        batch_action: torch.Tensor,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         logvar = torch.zeros(batch_obs.shape, device=self.device)
         mean = batch_obs

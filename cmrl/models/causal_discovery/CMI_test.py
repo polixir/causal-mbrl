@@ -98,7 +98,6 @@ class TransitionConditionalMutualInformationTest(EnsembleMLP):
         self,
         batch_obs: torch.Tensor,  # shape: (parallel_num, )ensemble_num, batch_size, obs_size
         batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
-        only_elite: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size
 
@@ -118,7 +117,7 @@ class TransitionConditionalMutualInformationTest(EnsembleMLP):
         logvar = self.min_logvar + F.softplus(logvar - self.min_logvar)
 
         if self.residual:
-            mean += batch_obs.detach()
+            mean += batch_obs
 
         return mean, logvar
 

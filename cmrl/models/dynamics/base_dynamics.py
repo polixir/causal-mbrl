@@ -10,7 +10,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
 from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
-from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.transition.base_transition import BaseTransition
 from cmrl.types import InteractionBatch
 from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator
 
@@ -29,7 +29,7 @@ class BaseDynamics:
 
     def __init__(
         self,
-        transition: BaseEnsembleTransition,
+        transition: BaseTransition,
         learned_reward: bool = True,
         reward_mech: Optional[BaseRewardMech] = None,
         learned_termination: bool = False,

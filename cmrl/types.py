@@ -67,26 +67,13 @@ class InteractionBatch:
 
     def add_new_batch_dim(self, batch_size: int):
         if not len(self) % batch_size == 0:
-            raise ValueError(
-                "Current batch of transitions size is not a "
-                "multiple of the new batch size. "
-            )
+            raise ValueError("Current batch of transitions size is not a " "multiple of the new batch size. ")
         return InteractionBatch(
-            self.batch_obs.reshape(
-                self._get_new_shape(self.batch_obs.shape, batch_size)
-            ),
-            self.batch_action.reshape(
-                self._get_new_shape(self.batch_action.shape, batch_size)
-            ),
-            self.batch_next_obs.reshape(
-                self._get_new_shape(self.batch_obs.shape, batch_size)
-            ),
-            self.batch_reward.reshape(
-                self._get_new_shape(self.batch_reward.shape, batch_size)
-            ),
-            self.batch_done.reshape(
-                self._get_new_shape(self.batch_done.shape, batch_size)
-            ),
+            self.batch_obs.reshape(self._get_new_shape(self.batch_obs.shape, batch_size)),
+            self.batch_action.reshape(self._get_new_shape(self.batch_action.shape, batch_size)),
+            self.batch_next_obs.reshape(self._get_new_shape(self.batch_obs.shape, batch_size)),
+            self.batch_reward.reshape(self._get_new_shape(self.batch_reward.shape, batch_size)),
+            self.batch_done.reshape(self._get_new_shape(self.batch_done.shape, batch_size)),
         )
 
 

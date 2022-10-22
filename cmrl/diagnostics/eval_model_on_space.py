@@ -20,9 +20,7 @@ SIN_COS_BINDINGS = {"BoundaryInvertedPendulumSwingUp-v0": [1]}
 
 
 def calculate_penalty(ensemble_mean):
-    avg_ensemble_mean = np.mean(
-        ensemble_mean, axis=0
-    )  # average predictions over models
+    avg_ensemble_mean = np.mean(ensemble_mean, axis=0)  # average predictions over models
     diffs = ensemble_mean - avg_ensemble_mean
     dists = np.linalg.norm(diffs, axis=2)  # distance in obs space
     penalty = np.max(dists, axis=0)  # max distances over models
@@ -140,9 +138,7 @@ class DatasetEvaluator:
                 self.real_obs_meaning[dim] = "normal"
         assert len(obs_labels) == self.compact_obs_dim_num
 
-        in_labels = obs_labels + [
-            f"action:{dim + 1}" for dim in range(self.action_dim_num)
-        ]
+        in_labels = obs_labels + [f"action:{dim + 1}" for dim in range(self.action_dim_num)]
         out_labels = [f"obs:{dim + 1}" for dim in range(self.real_obs_dim_num)]
         return in_labels, out_labels
 
@@ -186,9 +182,7 @@ class DatasetEvaluator:
         for dim in range(self.compact_in_dim_num):
             slider_height = self.SLIDER_ALL_HEIGHT / self.compact_in_dim_num
             current_height -= slider_height
-            ax = plt.axes(
-                [self.WIDGET_LEFT, current_height, self.SLIDER_WIDTH, slider_height]
-            )
+            ax = plt.axes([self.WIDGET_LEFT, current_height, self.SLIDER_WIDTH, slider_height])
             slider = Slider(
                 ax,
                 self.in_labels[dim],
@@ -197,9 +191,7 @@ class DatasetEvaluator:
                 (self.range[dim][0] + self.range[dim][1]) / 2,
             )
             self.dim_value_sliders.append(slider)
-            self.current_fixed_value.append(
-                (self.range[dim][0] + self.range[dim][1]) / 2
-            )
+            self.current_fixed_value.append((self.range[dim][0] + self.range[dim][1]) / 2)
 
             # cause by late binding, see:
             # https://stackoverflow.com/questions/3431676/creating-functions-in-a-loop
@@ -221,63 +213,41 @@ class DatasetEvaluator:
         self.draw_button.on_clicked(self.draw)
 
     def get_range(self, dataset_type="SAC-expert-replay"):
-        universe, basic_env_name, params, origin_dataset_type = self.cfg.task.env.split(
-            "___"
-        )
+        universe, basic_env_name, params, origin_dataset_type = self.cfg.task.env.split("___")
         data_dict = self.env.get_dataset("{}-{}".format(params, dataset_type))
         obs_min = np.percentile(data_dict["observations"], self.range_quantile, axis=0)
-        obs_max = np.percentile(
-            data_dict["observations"], 100 - self.range_quantile, axis=0
-        )
+        obs_max = np.percentile(data_dict["observations"], 100 - self.range_quantile, axis=0)
         action_min = np.percentile(data_dict["actions"], self.range_quantile, axis=0)
-        action_max = np.percentile(
-            data_dict["actions"], 100 - self.range_quantile, axis=0
-        )
-        obs_range, action_range = np.array(list(zip(obs_min, obs_max))), np.array(
-            list(zip(action_min, action_max))
-        )
+        action_max = np.percentile(data_dict["actions"], 100 - self.range_quantile, axis=0)
+        obs_range, action_range = np.array(list(zip(obs_min, obs_max))), np.array(list(zip(action_min, action_max)))
 
         if basic_env_name in SIN_COS_BINDINGS:
             self.bindings = SIN_COS_BINDINGS[basic_env_name]
             for idx, binding_idx in enumerate(self.bindings):
                 theta_idx = binding_idx - idx
                 obs_range = np.delete(obs_range, [binding_idx, binding_idx + 1], axis=0)
-                obs_range = np.insert(
-                    obs_range, theta_idx, np.array([0, 2 * np.pi]), axis=0
-                )
+                obs_range = np.insert(obs_range, theta_idx, np.array([0, 2 * np.pi]), axis=0)
         return obs_range, action_range
 
     def build_model_in(self):
-        x = np.linspace(
-            *self.range[self.current_in_dim], self.plot_dot_num, dtype=np.float32
-        )
-        compact_model_in = np.empty(
-            [self.plot_dot_num, self.compact_in_dim_num], dtype=np.float32
-        )
+        x = np.linspace(*self.range[self.current_in_dim], self.plot_dot_num, dtype=np.float32)
+        compact_model_in = np.empty([self.plot_dot_num, self.compact_in_dim_num], dtype=np.float32)
         for dim in range(self.compact_in_dim_num):
             if dim == self.current_in_dim:
                 compact_model_in[:, dim] = x.copy()
             else:
-                compact_model_in[:, dim] = np.full(
-                    self.plot_dot_num, self.current_fixed_value[dim], dtype=np.float32
-                )
+                compact_model_in[:, dim] = np.full(self.plot_dot_num, self.current_fixed_value[dim], dtype=np.float32)
 
-        real_model_in = np.empty(
-            [self.plot_dot_num, self.real_in_dim_num], dtype=np.float32
-        )
+        real_model_in = np.empty([self.plot_dot_num, self.real_in_dim_num], dtype=np.float32)
         for dim in range(self.real_in_dim_num):
             if dim < self.real_obs_dim_num:  # is an obs
                 compact_dim = self.real_compact_obs_mapping[dim]
                 if self.real_obs_meaning[dim] == "normal":
                     real_model_in[:, dim] = compact_model_in[:, compact_dim].copy()
                 elif self.real_obs_meaning[dim] == "sin":
-                    real_model_in[:, dim] = np.sin(
-                        compact_model_in[:, compact_dim].copy()
-                    )
+                    real_model_in[:, dim] = np.sin(compact_model_in[:, compact_dim].copy())
                 elif self.real_obs_meaning[dim] == "cos":
-                    real_model_in[:, dim] = np.cos(
-                        compact_model_in[:, compact_dim].copy()
-                    )
+                    real_model_in[:, dim] = np.cos(compact_model_in[:, compact_dim].copy())
             else:  # is an action
                 compact_dim = dim - (self.real_obs_dim_num - self.compact_obs_dim_num)
                 real_model_in[:, dim] = np.cos(compact_model_in[:, compact_dim].copy())
@@ -315,19 +285,13 @@ class DatasetEvaluator:
         penalized_reward = np.empty(self.plot_dot_num)
 
         for batch_idx in range(batch_num):
-            batch_input = model_in[
-                self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)
-            ]
+            batch_input = model_in[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)]
             batch_obs, batch_action = (
                 batch_input[:, : self.real_obs_dim_num],
                 batch_input[:, self.real_obs_dim_num :],
             )
-            dynamics_result = self.dynamics.query(
-                batch_obs, batch_action, return_as_np=True
-            )
-            gt_next_obs, gt_reward, gt_terminal, gt_truncated, _ = self.env.query(
-                batch_obs, batch_action
-            )
+            dynamics_result = self.dynamics.query(batch_obs, batch_action, return_as_np=True)
+            gt_next_obs, gt_reward, gt_terminal, gt_truncated, _ = self.env.query(batch_obs, batch_action)
             # predict and ground truth
             batch_predict_obs = dynamics_result["batch_next_obs"]["mean"].mean(0)
             batch_gt_obs = gt_next_obs
@@ -343,18 +307,10 @@ class DatasetEvaluator:
             batch_penalty = calculate_penalty(dynamics_result["batch_next_obs"]["mean"])
             batch_penalized_reward = batch_reward - batch_penalty * self.penalty_coeff
 
-            predict[
-                self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)
-            ] = batch_predict
-            ground_truth[
-                self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)
-            ] = batch_ground_truth
-            reward[
-                self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)
-            ] = batch_reward
-            penalized_reward[
-                self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)
-            ] = batch_penalized_reward
+            predict[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_predict
+            ground_truth[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_ground_truth
+            reward[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_reward
+            penalized_reward[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_penalized_reward
         return predict, ground_truth, reward, penalized_reward
 
     def run(self):
@@ -405,9 +361,7 @@ if __name__ == "__main__":
     parser.add_argument("--draw_diff", action="store_true")
     args = parser.parse_args()
 
-    evaluator = DatasetEvaluator(
-        args.model_dir, penalty_coeff=args.penalty_coeff, draw_diff=args.draw_diff
-    )
+    evaluator = DatasetEvaluator(args.model_dir, penalty_coeff=args.penalty_coeff, draw_diff=args.draw_diff)
 
     mpl.rcParams["figure.facecolor"] = "white"
     mpl.rcParams["font.size"] = 14

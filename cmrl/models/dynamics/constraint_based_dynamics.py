@@ -12,7 +12,7 @@ from cmrl.models.dynamics.base_dynamics import BaseDynamics
 from cmrl.models.nns import EnsembleMLP
 from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
 from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
-from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.transition.base_transition import BaseTransition
 from cmrl.models.causal_discovery.CMI_test import TransitionConditionalMutualInformationTest
 from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator
 from cmrl.models.util import to_tensor
@@ -22,7 +22,7 @@ from cmrl.types import TensorType
 class ConstraintBasedDynamics(BaseDynamics):
     def __init__(
         self,
-        transition: BaseEnsembleTransition,
+        transition: BaseTransition,
         learned_reward: bool = True,
         reward_mech: Optional[BaseRewardMech] = None,
         learned_termination: bool = False,
@@ -106,6 +106,7 @@ class ConstraintBasedDynamics(BaseDynamics):
         )
 
         for mech in self.learn_mech:
+
             if hasattr(self, "{}_oracle_mask".format(mech)):
                 getattr(self, mech).set_input_mask(getattr(self, "{}_oracle_mask".format(mech)))
 

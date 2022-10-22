@@ -22,10 +22,10 @@ from cmrl.models.dynamics import BaseDynamics
 
 class VecFakeEnv(VecEnv):
     def __init__(
-            self,
-            num_envs: int,
-            observation_space: gym.spaces.Space,
-            action_space: gym.spaces.Space,
+        self,
+        num_envs: int,
+        observation_space: gym.spaces.Space,
+        action_space: gym.spaces.Space,
     ):
         super(VecFakeEnv, self).__init__(
             num_envs=num_envs,
@@ -58,16 +58,16 @@ class VecFakeEnv(VecEnv):
         self._envs_length = np.zeros(self.num_envs, dtype=int)
 
     def set_up(
-            self,
-            dynamics: BaseDynamics,
-            reward_fn: Optional[cmrl.types.RewardFnType] = None,
-            termination_fn: Optional[cmrl.types.TermFnType] = None,
-            get_init_obs_fn: Optional[cmrl.types.InitObsFnType] = None,
-            real_replay_buffer: Optional[ReplayBuffer] = None,
-            penalty_coeff: float = 0.0,
-            deterministic=False,
-            max_episode_steps=1000,
-            logger=None,
+        self,
+        dynamics: BaseDynamics,
+        reward_fn: Optional[cmrl.types.RewardFnType] = None,
+        termination_fn: Optional[cmrl.types.TermFnType] = None,
+        get_init_obs_fn: Optional[cmrl.types.InitObsFnType] = None,
+        real_replay_buffer: Optional[ReplayBuffer] = None,
+        penalty_coeff: float = 0.0,
+        deterministic=False,
+        max_episode_steps=1000,
+        logger=None,
     ):
         self.dynamics = dynamics
 
@@ -109,11 +109,9 @@ class VecFakeEnv(VecEnv):
             else:
                 batch_reward = self.reward_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
             if self.learned_termination:
-                batch_terminal = self.get_dynamics_predict(dynamics_pred, "termination_mech",
-                                                           deterministic=self.deterministic)
+                batch_terminal = self.get_dynamics_predict(dynamics_pred, "termination_mech", deterministic=self.deterministic)
             else:
-                batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs,
-                                                     self._current_batch_action)
+                batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
 
             if self.penalty_coeff != 0:
                 penalty = self.get_penalty(dynamics_pred["batch_next_obs"]["mean"]).reshape(batch_reward.shape)
@@ -144,11 +142,11 @@ class VecFakeEnv(VecEnv):
         )
 
     def reset(
-            self,
-            *,
-            seed: Optional[int] = None,
-            return_info: bool = False,
-            options: Optional[dict] = None,
+        self,
+        *,
+        seed: Optional[int] = None,
+        return_info: bool = False,
+        options: Optional[dict] = None,
     ):
         if self.has_set_up:
             if self._reset_by_buffer:
@@ -195,10 +193,10 @@ class VecFakeEnv(VecEnv):
         return penalty
 
     def get_dynamics_predict(
-            self,
-            origin_predict: Dict,
-            mech: str,
-            deterministic: bool = False,
+        self,
+        origin_predict: Dict,
+        mech: str,
+        deterministic: bool = False,
     ):
         variable = self.dynamics.get_variable_by_mech(mech)
         ensemble_mean, ensemble_logvar = (
@@ -217,11 +215,11 @@ class VecFakeEnv(VecEnv):
         return pred
 
     def env_method(
-            self,
-            method_name: str,
-            *method_args,
-            indices: VecEnvIndices = None,
-            **method_kwargs,
+        self,
+        method_name: str,
+        *method_args,
+        indices: VecEnvIndices = None,
+        **method_kwargs,
     ) -> List[Any]:
         pass
 
