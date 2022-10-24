@@ -9,7 +9,7 @@ from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.dynamics.base_dynamics import BaseDynamics
-from cmrl.models.nns import EnsembleMLP
+from cmrl.models.networks.mlp import EnsembleMLP
 from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
 from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseTransition

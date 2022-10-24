@@ -2,7 +2,7 @@ from typing import Union
 
 import torch
 
-from cmrl.models.nns import EnsembleMLP
+from cmrl.models.networks.mlp import EnsembleMLP
 
 
 class BaseRewardMech(EnsembleMLP):

@@ -8,14 +8,18 @@ import torch
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.models.dynamics import BaseDynamics
+from cmrl.models.dynamics.base_dynamics import BaseDynamics
 from cmrl.models.networks.mlp import EnsembleMLP
 from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
 from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseTransition
+from cmrl.models.causal_discovery.CMI_test import TransitionConditionalMutualInformationTest
+from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator
+from cmrl.models.util import to_tensor
+from cmrl.types import TensorType
 
 
-class PlainEnsembleDynamics(BaseDynamics):
+class ConstraintBasedDynamics(BaseDynamics):
     def __init__(
         self,
         transition: BaseTransition,
@@ -29,7 +33,7 @@ class PlainEnsembleDynamics(BaseDynamics):
         optim_eps: float = 1e-8,
         logger: Optional[Logger] = None,
     ):
-        super(PlainEnsembleDynamics, self).__init__(
+        super(ConstraintBasedDynamics, self).__init__(
             transition=transition,
             learned_reward=learned_reward,
             reward_mech=reward_mech,
@@ -40,6 +44,41 @@ class PlainEnsembleDynamics(BaseDynamics):
             optim_eps=optim_eps,
             logger=logger,
         )
+        # self.cmi_test: Optional[EnsembleMLP] = None
+        # self.build_cmi_test()
+        #
+        # self.cmi_test_optimizer = torch.optim.Adam(
+        #     self.cmi_test.parameters(),
+        #     lr=optim_lr,
+        #     weight_decay=weight_decay,
+        #     eps=optim_eps,
+        # )
+        # self.learn_mech.append("cmi_test")
+        # self.total_epoch["cmi_test"] = 0
+        # self._MECH_TO_VARIABLE["cmi_test"] = self._MECH_TO_VARIABLE["transition"]
+
+        for mech in self.learn_mech:
+            if hasattr(getattr(self, mech), "input_mask"):
+                setattr(self, "{}_oracle_mask".format(mech), None)
+                setattr(self, "{}_history_mask".format(mech), torch.ones(getattr(self, mech).input_mask.shape).to(self.device))
+
+    def build_cmi_test(self):
+        self.cmi_test = TransitionConditionalMutualInformationTest(
+            obs_size=self.transition.obs_size,
+            action_size=self.transition.action_size,
+            ensemble_num=1,
+            elite_num=1,
+            residual=self.transition.residual,
+            learn_logvar_bounds=self.transition.learn_logvar_bounds,
+            num_layers=4,
+            hid_size=200,
+            activation_fn_cfg=self.transition.activation_fn_cfg,
+            device=self.transition.device,
+        )
+
+    def set_oracle_mask(self, mech: str, mask: TensorType):
+        assert hasattr(self, "{}_oracle_mask".format(mech))
+        setattr(self, "{}_oracle_mask".format(mech), to_tensor(mask))
 
     def learn(
         self,
@@ -51,7 +90,7 @@ class PlainEnsembleDynamics(BaseDynamics):
         shuffle_each_epoch: bool = True,
         bootstrap_permutes: bool = False,
         # model learning
-        longest_epoch: int = -1,
+        longest_epoch: Optional[int] = None,
         improvement_threshold: float = 0.1,
         patience: int = 5,
         work_dir: Optional[Union[str, pathlib.Path]] = None,
@@ -67,6 +106,9 @@ class PlainEnsembleDynamics(BaseDynamics):
         )
 
         for mech in self.learn_mech:
+            if hasattr(self, "{}_oracle_mask".format(mech)):
+                getattr(self, mech).set_input_mask(getattr(self, "{}_oracle_mask".format(mech)))
+
             best_weights: Optional[Dict] = None
             epoch_iter = range(longest_epoch) if longest_epoch > 0 else itertools.count()
             epochs_since_update = 0
@@ -101,14 +143,12 @@ class PlainEnsembleDynamics(BaseDynamics):
                     self.logger.record("{}/val_loss".format(mech), val_loss.mean().item())
                     self.logger.record("{}/best_val_loss".format(mech), best_val_loss.mean().item())
                     self.logger.dump(self.total_epoch[mech])
-
                 if patience and epochs_since_update >= patience:
                     break
 
             # saving the best models:
             self.maybe_set_best_weights_and_elite(best_weights, best_val_loss, mech=mech)
-        if work_dir is not None:
-            self.save(work_dir)
+        self.save(work_dir)
 
     def maybe_get_best_weights(
         self,
