@@ -11,6 +11,7 @@ import numpy as np
 import cmrl.util.creator
 import cmrl.util.env
 from cmrl.util.config import load_hydra_cfg
+from cmrl.util.transition_iterator import TransitionIterator
 
 
 class DatasetEvaluator:
@@ -62,7 +63,7 @@ class DatasetEvaluator:
 
     def plot_dataset_results(
         self,
-        dataset: cmrl.util.TransitionIterator,
+        dataset: TransitionIterator,
         hist_bins: int = 20,
         hist_log: bool = True,
     ):

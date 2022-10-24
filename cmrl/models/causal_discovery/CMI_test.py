@@ -7,7 +7,8 @@ from torch import nn as nn
 from torch.nn import functional as F
 
 from cmrl.models.util import gaussian_nll
-from cmrl.models.layers import ParallelEnsembleLinearLayer, truncated_normal_init
+
+# from cmrl.models.layers import ParallelEnsembleLinearLayer, truncated_normal_init
 from cmrl.models.networks.mlp import EnsembleMLP
 from cmrl.models.util import to_tensor
 
@@ -78,11 +79,11 @@ class TransitionConditionalMutualInformationTest(EnsembleMLP):
             0.5 * torch.ones(self.parallel_num, 1, 1, self.obs_size), requires_grad=learn_logvar_bounds
         )
 
-        self.apply(truncated_normal_init)
+        # self.apply(truncated_normal_init)
         self.to(self.device)
 
-    def create_linear_layer(self, l_in, l_out):
-        return ParallelEnsembleLinearLayer(l_in, l_out, parallel_num=self.parallel_num, ensemble_num=self.ensemble_num)
+    # def create_linear_layer(self, l_in, l_out):
+    #     return ParallelEnsembleLinearLayer(l_in, l_out, parallel_num=self.parallel_num, ensemble_num=self.ensemble_num)
 
     @property
     def input_mask(self):

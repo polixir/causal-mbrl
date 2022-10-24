@@ -6,7 +6,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from cmrl.models.layers import truncated_normal_init
+# from cmrl.models.layers import truncated_normal_init
 from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
 
 
@@ -69,7 +69,7 @@ class PlainRewardMech(BaseRewardMech):
             self.min_logvar = nn.Parameter(-10 * torch.ones(1), requires_grad=learn_logvar_bounds)
             self.max_logvar = nn.Parameter(0.5 * torch.ones(1), requires_grad=learn_logvar_bounds)
 
-        self.apply(truncated_normal_init)
+        # self.apply(truncated_normal_init)
         self.to(self.device)
 
     def forward(

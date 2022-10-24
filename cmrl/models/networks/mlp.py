@@ -1,13 +1,15 @@
 import pathlib
 from typing import Dict, Optional, Sequence, Union
+from abc import abstractmethod
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import numpy as np
+from omegaconf import DictConfig
 
 from cmrl.models.util import gaussian_nll
-from cmrl.models.layers import EnsembleLinearLayer
+from cmrl.models.layers import ParallelLinear
+from cmrl.models.networks.base_network import BaseNetwork
 
 
 class EnsembleMLP(nn.Module):
@@ -63,7 +65,7 @@ class EnsembleMLP(nn.Module):
                 getattr(self, "set_" + attr)(model_dict[attr])
 
     def create_linear_layer(self, l_in, l_out):
-        return EnsembleLinearLayer(l_in, l_out, ensemble_num=self.ensemble_num)
+        return ParallelLinear(l_in, l_out)
 
     def get_mse_loss(self, model_in: Dict[(str, torch.Tensor)], target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(**model_in)
