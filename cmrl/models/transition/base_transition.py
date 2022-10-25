@@ -1,26 +1,16 @@
 from typing import Union
 
 import torch
+from gym import Space
 
-from cmrl.models.networks.mlp import EnsembleMLP
+from cmrl.models.base_cuasal_mech import BaseCausalMechanism
 
 
-class BaseTransition(EnsembleMLP):
-    _MODEL_FILENAME = "base_ensemble_transition.pth"
-
+class BaseTransition(BaseCausalMechanism):
     def __init__(
         self,
-        obs_size: int,
-        action_size: int,
+        obs_space: Space,
+        action_space: Space,
         deterministic: bool,
-        ensemble_num: int = 7,
-        elite_num: int = 5,
-        device: Union[str, torch.device] = "cpu",
     ):
-        super(BaseTransition, self).__init__(ensemble_num=ensemble_num, elite_num=elite_num, device=device)
-        self.obs_size = obs_size
-        self.action_size = action_size
-        self.deterministic = deterministic
-
-    def forward(self, state: torch.Tensor, action: torch.Tensor):
-        pass
+        super(BaseTransition, self).__init__(obs_space, action_space, deterministic)
