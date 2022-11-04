@@ -105,20 +105,23 @@ def setup_fake_env(
     return fake_eval_env
 
 
-def load_offline_data(cfg: DictConfig, env, replay_buffer: ReplayBuffer):
+def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):
     assert hasattr(env, "get_dataset"), "env must have `get_dataset` method"
 
-    params, dataset_type = cfg.task.env.split("___")[-2:]
-    data_dict = env.get_dataset("{}-{}".format(params, dataset_type))
+    data_dict = env.get_dataset(dataset_name)
     all_data_num = len(data_dict["observations"])
-    sample_data_num = int(cfg.task.use_ratio * all_data_num)
+    sample_data_num = int(use_ratio * all_data_num)
     sample_idx = np.random.permutation(all_data_num)[:sample_data_num]
 
-    replay_buffer.extend(
-        data_dict["observations"][sample_idx],
-        data_dict["next_observations"][sample_idx],
-        data_dict["actions"][sample_idx],
-        data_dict["rewards"][sample_idx],
-        data_dict["terminals"][sample_idx].astype(bool) | data_dict["timeouts"][sample_idx].astype(bool),
-        [{}] * sample_data_num,
-    )
+    assert replay_buffer.n_envs == 1
+    assert replay_buffer.buffer_size >= sample_data_num
+
+    if sample_data_num == replay_buffer.buffer_size:
+        replay_buffer.full = True
+        replay_buffer.pos = 0
+    else:
+        replay_buffer.pos = sample_data_num
+
+    # set all data
+    for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
+        getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]

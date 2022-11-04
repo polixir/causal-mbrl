@@ -18,15 +18,16 @@ class ParallelLinear(nn.Module):
         use_bias: bool = True,
         init_type: str = "truncated_normal",
     ):
-        """Linear layer with the same properties as Parallel MLP. It effectively applies N independent
-        linear layers in parallel.
+        """Linear layer with the same properties as Parallel MLP. It effectively applies N independent linear layers
+        in parallel.
 
         Args:
-            input_dim: Number of input dimensions per network.
-            output_dim: s
-            extra_dims: s
-            use_bias: s
-            init_type: s
+            input_dim: Number of input dimensions per layer.
+            output_dim: Number of output dimensions per layer.
+            extra_dims: Number of neural networks to have in parallel (e.g. number of variables). Can have multiple
+                dimensions if needed.
+            use_bias: Weather using bias in this layer.
+            init_type: How to initialize weights and biases.
         """
         super().__init__()
         self.input_dim = input_dim
@@ -41,9 +42,14 @@ class ParallelLinear(nn.Module):
         else:
             self.use_bias = False
 
-        self.init()
+        self.init_params()
 
-    def init(self):
+    def init_params(self):
+        """Initialize weights and biases. Currently, only `kaiming_uniform` and `truncated_normal` are supported.
+
+        Returns: None
+
+        """
         if self.init_type == "kaiming_uniform":
             nn.init.kaiming_uniform_(self.weight, nonlinearity="relu")
         elif self.init_type == "truncated_normal":
@@ -54,7 +60,6 @@ class ParallelLinear(nn.Module):
             raise NotImplementedError
 
     def forward(self, x):
-        # Shape preparation
         x_extra_dims = x.shape[:-2]
         if len(x_extra_dims) > 0:
             for i in range(len(x_extra_dims)):
@@ -74,7 +79,6 @@ class ParallelLinear(nn.Module):
         return next(iter(self.parameters())).device
 
     def __repr__(self):
-        # For printing
         return 'ParallelLinear(input_dims={}, output_dims={}, extra_dims={}, use_bias={}, init_type="{}")'.format(
             self.input_dim, self.output_dim, str(self.extra_dims), self.use_bias, self.init_type
         )

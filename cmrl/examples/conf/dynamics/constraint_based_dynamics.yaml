@@ -3,7 +3,7 @@ name: constraint_based_dynamics
 multi_step: ${task.multi_step}
 
 transition:
-  _target_: cmrl.models.transition.ExternalMaskEnsembleGaussianTransition
+  _target_: cmrl.models.transition.ExternalMaskTransition
   # transition info
   obs_size: ???
   action_size: ???

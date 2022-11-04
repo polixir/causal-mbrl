@@ -78,3 +78,19 @@ class InteractionBatch:
 
 
 ModelInput = Union[torch.Tensor, InteractionBatch]
+
+
+@dataclass
+class Variable:
+    name: str
+    pass
+
+
+@dataclass
+class ContinuousVariable(Variable):
+    dim: int
+
+
+@dataclass
+class DiscreteVariable(Variable):
+    n: int

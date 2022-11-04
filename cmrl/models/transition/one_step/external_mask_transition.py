@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 import cmrl.types
 
-# from cmrl.models.layers import ParallelEnsembleLinearLayer, truncated_normal_init
+from cmrl.models.layers import ParallelLinear
 from cmrl.models.transition.base_transition import BaseTransition
 from cmrl.models.util import to_tensor
 
@@ -104,8 +104,8 @@ class ExternalMaskTransition(BaseTransition):
         # self.apply(truncated_normal_init)
         self.to(self.device)
 
-    # def create_linear_layer(self, l_in, l_out):
-    #     return ParallelEnsembleLinearLayer(l_in, l_out, parallel_num=self.obs_size, ensemble_num=self.ensemble_num)
+    def create_linear_layer(self, l_in, l_out):
+        return ParallelLinear(l_in, l_out, extra_dims=[self.obs_size, self.ensemble_num])
 
     def set_input_mask(self, mask: cmrl.types.TensorType):
         self._input_mask = to_tensor(mask).to(self.device)

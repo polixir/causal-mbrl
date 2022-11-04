@@ -9,36 +9,47 @@ from omegaconf import DictConfig
 
 from cmrl.models.util import gaussian_nll
 from cmrl.models.layers import ParallelLinear
-from cmrl.models.networks.base_network import BaseNetwork
+from cmrl.models.networks.base_network import BaseNetwork, create_activation
 
 
 # partial from https://github.com/phlippe/ENCO/blob/main/causal_discovery/multivariable_mlp.py
 class ParallelMLP(BaseNetwork):
-    _MODEL_FILENAME = "parallel_mlp.pth"
+    def __init__(
+        self,
+        input_dim: int,
+        output_dim: int,
+        extra_dims: Optional[List[int]] = None,
+        hidden_dims: Optional[List[int]] = None,
+        use_bias: bool = True,
+        init_type: str = "truncated_normal",
+        activation_fn_cfg: Optional[DictConfig] = None,
+        **kwargs
+    ):
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.extra_dims = extra_dims
+        self.hidden_dims = hidden_dims
+        self.use_bias = use_bias
+        self.init_type = init_type
+        self.activation_fn_cfg = activation_fn_cfg
 
-    def __init__(self, network_cfg: DictConfig):
-        super().__init__(network_cfg)
+        super().__init__(**kwargs)
+        self._model_filename = "parallel_mlp.pth"
 
-    def build_network(self):
-        activation_fn_cfg = self.network_cfg.get("activation_fn_cfg", None)
-        extra_dims = self.network_cfg.get("extra_dims", None)
-
-        def create_activation():
-            if activation_fn_cfg is None:
-                return nn.ReLU()
-            else:
-                return hydra.utils.instantiate(activation_fn_cfg)
-
+    def build(self):
         layers = []
-        hidden_dims = [self.network_cfg.input_dim] + self.network_cfg.hidden_dims
+        hidden_dims = [self.input_dim] + self.hidden_dims
         for i in range(len(hidden_dims) - 1):
-            layers += [ParallelLinear(input_dim=hidden_dims[i], output_dim=hidden_dims[i + 1], extra_dims=extra_dims)]
-            layers += [create_activation()]
-        layers += [ParallelLinear(input_dim=hidden_dims[-1], output_dim=self.network_cfg.output_dim, extra_dims=extra_dims)]
+            layers += [
+                ParallelLinear(
+                    input_dim=hidden_dims[i], output_dim=hidden_dims[i + 1], extra_dims=self.extra_dims, use_bias=self.use_bias
+                )
+            ]
+            layers += [create_activation(self.activation_fn_cfg)]
+        layers += [
+            ParallelLinear(
+                input_dim=hidden_dims[-1], output_dim=self.output_dim, extra_dims=self.extra_dims, use_bias=self.use_bias
+            )
+        ]
 
         self._layers = nn.ModuleList(layers)
-
-    def forward(self, x):
-        for layer in self._layers:
-            x = layer(x)
-        return x

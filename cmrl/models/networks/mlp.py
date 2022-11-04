@@ -4,6 +4,7 @@ from abc import abstractmethod
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from omegaconf import DictConfig
 
@@ -65,7 +66,7 @@ class EnsembleMLP(nn.Module):
                 getattr(self, "set_" + attr)(model_dict[attr])
 
     def create_linear_layer(self, l_in, l_out):
-        return ParallelLinear(l_in, l_out)
+        return ParallelLinear(l_in, l_out, extra_dims=[self.ensemble_num])
 
     def get_mse_loss(self, model_in: Dict[(str, torch.Tensor)], target: torch.Tensor) -> torch.Tensor:
         pred_mean, pred_logvar = self.forward(**model_in)

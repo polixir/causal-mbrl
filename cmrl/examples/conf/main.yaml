@@ -7,7 +7,7 @@ defaults:
 seed: 0
 device: "cuda:0"
 
-exp_name: default
+exp_name: causal_mstep
 wandb: false
 
 root_dir: "./exp"

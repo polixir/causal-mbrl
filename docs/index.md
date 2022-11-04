@@ -16,6 +16,4 @@ For full documentation visit [mkdocs.org](https://www.mkdocs.org).
         index.md  # The documentation homepage.
         ...       # Other markdown pages, images and other files.
 
-[//]: # (![mkapi]&#40;cmrl.models.layers&#41;)
-
 ::: cmrl.models.layers.ParallelLinear
