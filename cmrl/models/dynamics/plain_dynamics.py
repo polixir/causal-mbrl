@@ -27,6 +27,7 @@ class PlainEnsembleDynamics(BaseDynamics):
         optim_lr: float = 1e-4,
         weight_decay: float = 1e-5,
         optim_eps: float = 1e-8,
+        # logger
         logger: Optional[Logger] = None,
     ):
         super(PlainEnsembleDynamics, self).__init__(

@@ -7,9 +7,6 @@ import torch.nn as nn
 import hydra
 from omegaconf import DictConfig
 
-from cmrl.models.util import gaussian_nll
-from cmrl.models.layers import ParallelLinear
-
 
 class BaseNetwork(nn.Module):
     def __init__(self, **kwargs):
@@ -45,7 +42,7 @@ class BaseNetwork(nn.Module):
             else:
                 getattr(self, attr)(model_dict[attr])
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         for layer in self._layers:
             x = layer(x)
         return x

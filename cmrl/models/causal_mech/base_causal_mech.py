@@ -2,6 +2,8 @@ from typing import Optional, List, Dict, Union, TypeVar, Type
 from abc import abstractmethod
 
 import torch
+from torch.utils.data import DataLoader
+from stable_baselines3.common.logger import Logger
 
 from cmrl.types import Variable, ContinuousVariable, DiscreteVariable
 from cmrl.models.networks.base_network import BaseNetwork
@@ -19,6 +21,13 @@ class BaseCausalMech:
         variable_decoders: Dict[str, VariableDecoder],
         # forward method
         residual: bool = True,
+        # trainer
+        optim_lr: float = 1e-4,
+        optim_weight_decay: float = 1e-5,
+        optim_eps: float = 1e-8,
+        optim_coder: bool = True,
+        # logger
+        logger: Optional[Logger] = None,
         # others
         device: Union[str, torch.device] = "cpu",
         **kwargs
@@ -28,7 +37,16 @@ class BaseCausalMech:
         self.node_dim = node_dim
         self.variable_encoders = variable_encoders
         self.variable_decoders = variable_decoders
+        # forward method
         self.residual = residual
+        # trainer
+        self.optim_lr = optim_lr
+        self.optim_weight_decay = optim_weight_decay
+        self.optim_eps = optim_eps
+        self.optim_coder = optim_coder
+        # logger
+        self.logger = logger
+        # others
         self.device = device
 
         self.input_var_num = len(self.input_variables)
@@ -57,7 +75,13 @@ class BaseCausalMech:
             assert decoder.node_dim == self.node_dim
 
     @abstractmethod
-    def learn(self):
+    def learn(
+        self,
+        # loader
+        train_loader: DataLoader,
+        valid_loader: DataLoader,
+        **kwargs
+    ):
         raise NotImplementedError
 
     @abstractmethod

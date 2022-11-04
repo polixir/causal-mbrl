@@ -22,7 +22,7 @@ def test_offline_dataset():
 
     for inputs, outputs in loader:
         assert list(inputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4", "act_0"]
-        assert list(outputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4"]
+        assert list(outputs.keys()) == ["next_obs_0", "next_obs_1", "next_obs_2", "next_obs_3", "next_obs_4"]
         for key in inputs:
             assert inputs[key].shape == (128, 1)
         for key in outputs:
@@ -33,7 +33,19 @@ def test_offline_dataset():
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
-        assert list(inputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4", "act_0"]
+        assert list(inputs.keys()) == [
+            "obs_0",
+            "obs_1",
+            "obs_2",
+            "obs_3",
+            "obs_4",
+            "act_0",
+            "next_obs_0",
+            "next_obs_1",
+            "next_obs_2",
+            "next_obs_3",
+            "next_obs_4",
+        ]
         assert list(outputs.keys()) == ["reward"]
         for key in inputs:
             assert inputs[key].shape == (128, 1)
@@ -45,7 +57,19 @@ def test_offline_dataset():
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
-        assert list(inputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4", "act_0"]
+        assert list(inputs.keys()) == [
+            "obs_0",
+            "obs_1",
+            "obs_2",
+            "obs_3",
+            "obs_4",
+            "act_0",
+            "next_obs_0",
+            "next_obs_1",
+            "next_obs_2",
+            "next_obs_3",
+            "next_obs_4",
+        ]
         assert list(outputs.keys()) == ["terminal"]
         for key in inputs:
             assert inputs[key].shape == (128, 1)
@@ -68,7 +92,7 @@ def test_ensemble_offline_dataset():
 
     for inputs, outputs in loader:
         assert list(inputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4", "act_0"]
-        assert list(outputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4"]
+        assert list(outputs.keys()) == ["next_obs_0", "next_obs_1", "next_obs_2", "next_obs_3", "next_obs_4"]
         for key in inputs:
             assert inputs[key].shape == (128, 7, 1)
         for key in outputs:
@@ -79,7 +103,19 @@ def test_ensemble_offline_dataset():
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
-        assert list(inputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4", "act_0"]
+        assert list(inputs.keys()) == [
+            "obs_0",
+            "obs_1",
+            "obs_2",
+            "obs_3",
+            "obs_4",
+            "act_0",
+            "next_obs_0",
+            "next_obs_1",
+            "next_obs_2",
+            "next_obs_3",
+            "next_obs_4",
+        ]
         assert list(outputs.keys()) == ["reward"]
         for key in inputs:
             assert inputs[key].shape == (128, 7, 1)
@@ -91,7 +127,19 @@ def test_ensemble_offline_dataset():
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
-        assert list(inputs.keys()) == ["obs_0", "obs_1", "obs_2", "obs_3", "obs_4", "act_0"]
+        assert list(inputs.keys()) == [
+            "obs_0",
+            "obs_1",
+            "obs_2",
+            "obs_3",
+            "obs_4",
+            "act_0",
+            "next_obs_0",
+            "next_obs_1",
+            "next_obs_2",
+            "next_obs_3",
+            "next_obs_4",
+        ]
         assert list(outputs.keys()) == ["terminal"]
         for key in inputs:
             assert inputs[key].shape == (128, 7, 1)

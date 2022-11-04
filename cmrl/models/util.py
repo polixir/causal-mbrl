@@ -2,15 +2,17 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-from typing import List, Sequence, Tuple
+from typing import List, Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from gym import spaces
+from omegaconf import DictConfig
 
 import cmrl.types
-from cmrl.types import Variable, ContinuousVariable, DiscreteVariable
+from cmrl.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
+from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 
 
 def gaussian_nll(
@@ -71,5 +73,59 @@ def to_tensor(x: cmrl.types.TensorType):
     raise ValueError("Input must be torch.Tensor or np.ndarray.")
 
 
-# def parse_space(space: spaces.Space):
-#     if isinstance(space, )
+def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
+    variables = []
+    if isinstance(space, spaces.Box):
+        for i, (low, high) in enumerate(zip(space.low, space.high)):
+            variables.append(ContinuousVariable(dim=1, low=low, high=high, name="{}_{}".format(prefix, i)))
+    elif isinstance(space, spaces.Discrete):
+        variables.append(DiscreteVariable(n=space.n, name="{}_0".format(prefix)))
+    elif isinstance(space, spaces.MultiDiscrete):
+        for i, n in enumerate(space.nvec):
+            variables.append(DiscreteVariable(n=n, name="{}_{}".format(prefix, i)))
+    elif isinstance(space, spaces.MultiBinary):
+        for i in range(space.n):
+            variables.append(BinaryVariable(name="{}_{}".format(prefix, i)))
+    elif isinstance(space, spaces.Dict):
+        # TODO
+        raise NotImplementedError
+
+    return variables
+
+
+def create_encoders(
+    input_variables: List[Variable],
+    node_dim: int,
+    hidden_dims: Optional[List[int]] = None,
+    bias: bool = True,
+    activation_fn_cfg: Optional[DictConfig] = None,
+):
+    encoders = {}
+    for var in input_variables:
+        assert var.name not in encoders, "Duplicate name in decoders: {}".format(var.name)
+        encoders[var.name] = VariableEncoder(
+            variable=var, node_dim=node_dim, hidden_dims=hidden_dims, bias=bias, activation_fn_cfg=activation_fn_cfg
+        )
+    return encoders
+
+
+def create_decoders(
+    input_variables: List[Variable],
+    node_dim: int,
+    hidden_dims: Optional[List[int]] = None,
+    bias: bool = True,
+    activation_fn_cfg: Optional[DictConfig] = None,
+    normal_distribution: bool = False,
+):
+    decoders = {}
+    for var in input_variables:
+        assert var.name not in decoders, "Duplicate name in decoders: {}".format(var.name)
+        decoders[var.name] = VariableDecoder(
+            variable=var,
+            node_dim=node_dim,
+            hidden_dims=hidden_dims,
+            bias=bias,
+            activation_fn_cfg=activation_fn_cfg,
+            normal_distribution=normal_distribution,
+        )
+    return decoders

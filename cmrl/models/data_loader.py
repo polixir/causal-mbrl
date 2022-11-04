@@ -1,7 +1,7 @@
 import gym
 from gym import spaces
 import torch
-from torch.utils.data import Dataset, DataLoader, Sampler
+from torch.utils.data import Dataset, default_collate
 import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer, DictReplayBuffer
 
@@ -130,3 +130,10 @@ class EnsembleBufferDataset(BufferDataset):
             self.indexes = np.array(
                 [np.random.permutation(self.size)[: int(self.size * self.train_ratio)] for _ in range(self.ensemble_num)]
             ).T
+
+
+def collate_fn(data):
+    inputs, outputs = default_collate(data)
+    inputs = dict([(key, value.transpose(0, 1)) for key, value in inputs.items()])
+    outputs = dict([(key, value.transpose(0, 1)) for key, value in outputs.items()])
+    return [inputs, outputs]
