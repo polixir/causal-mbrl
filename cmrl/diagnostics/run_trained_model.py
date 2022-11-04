@@ -44,9 +44,7 @@ class Runner:
 
         eval_env_cfg = deepcopy(self.cfg.algorithm.agent.env)
         eval_env_cfg.num_envs = 1
-        fake_eval_env = cast(
-            cmrl.models.VecFakeEnv, hydra.utils.instantiate(eval_env_cfg)
-        )
+        fake_eval_env = cast(cmrl.models.VecFakeEnv, hydra.utils.instantiate(eval_env_cfg))
         fake_eval_env.set_up(
             self.dynamics,
             self.reward_fn,

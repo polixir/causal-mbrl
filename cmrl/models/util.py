@@ -39,9 +39,7 @@ def gaussian_nll(
 
 # inplace truncated normal function for pytorch.
 # credit to https://github.com/Xingyu-Lin/mbpo_pytorch/blob/main/model.py#L64
-def truncated_normal_(
-    tensor: torch.Tensor, mean: float = 0, std: float = 1
-) -> torch.Tensor:
+def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1) -> torch.Tensor:
     """Samples from a truncated normal distribution in-place.
 
     Args:
@@ -59,9 +57,7 @@ def truncated_normal_(
         bound_violations = torch.sum(cond).item()
         if bound_violations == 0:
             break
-        tensor[cond] = torch.normal(
-            mean, std, size=(bound_violations,), device=tensor.device
-        )
+        tensor[cond] = torch.normal(mean, std, size=(bound_violations,), device=tensor.device)
     return tensor
 
 

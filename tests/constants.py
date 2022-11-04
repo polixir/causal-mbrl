@@ -48,11 +48,13 @@ cfg = DictConfig(
                 "device": "${device}",
             },
             "learned_reward": "${task.learning_reward}",
-            "reward_mech": {"_target_": "cmrl.models.reward_mech.BaseRewardMech", "obs_size": "???",
-                            "action_size": "???"},
+            "reward_mech": {"_target_": "cmrl.models.reward_mech.BaseRewardMech", "obs_size": "???", "action_size": "???"},
             "learned_termination": "${task.learning_terminal}",
-            "termination_mech": {"_target_": "cmrl.models.termination_mech.BaseTerminationMech", "obs_size": "???",
-                                 "action_size": "???"},
+            "termination_mech": {
+                "_target_": "cmrl.models.termination_mech.BaseTerminationMech",
+                "obs_size": "???",
+                "action_size": "???",
+            },
             "optim_lr": "${task.optim_lr}",
             "weight_decay": "${task.weight_decay}",
             "patience": "${task.patience}",
@@ -68,7 +70,7 @@ cfg = DictConfig(
         },
         "task": {
             "env": "emei___BoundaryInvertedPendulumSwingUp-v0___"
-                   "freq_rate=${task.freq_rate}&time_step=${task.time_step}___${task.dataset}",
+            "freq_rate=${task.freq_rate}&time_step=${task.time_step}___${task.dataset}",
             "dataset": "SAC-expert-replay",
             "freq_rate": 1,
             "time_step": 0.02,

@@ -14,9 +14,7 @@ from cmrl.util.config import load_hydra_cfg
 
 
 class DatasetEvaluator:
-    def __init__(
-        self, model_dir: str, dataset: str, batch_size: int = 4096, device="cuda:0"
-    ):
+    def __init__(self, model_dir: str, dataset: str, batch_size: int = 4096, device="cuda:0"):
         self.model_path = pathlib.Path(model_dir)
         self.batch_size = batch_size
 
@@ -48,9 +46,7 @@ class DatasetEvaluator:
             if dataset is None:
                 dataset = origin_dataset_type
 
-            self.output_path = (
-                self.model_path / "diagnostics" / "eval_on_{}".format(dataset)
-            )
+            self.output_path = self.model_path / "diagnostics" / "eval_on_{}".format(dataset)
             pathlib.Path.mkdir(self.output_path, parents=True, exist_ok=True)
 
             data_dict = self.env.get_dataset("{}-{}".format(params, dataset))
@@ -59,8 +55,7 @@ class DatasetEvaluator:
                 data_dict["actions"],
                 data_dict["next_observations"],
                 data_dict["rewards"],
-                data_dict["terminals"].astype(bool)
-                | data_dict["timeouts"].astype(bool),
+                data_dict["terminals"].astype(bool) | data_dict["timeouts"].astype(bool),
             )
         else:
             raise NotImplementedError
@@ -76,19 +71,13 @@ class DatasetEvaluator:
 
         # collect predict and target
         for batch in dataset:
-            dynamics_result = self.dynamics.query(
-                batch.batch_obs, batch.batch_action, return_as_np=True
-            )
+            dynamics_result = self.dynamics.query(batch.batch_obs, batch.batch_action, return_as_np=True)
             for variable in dynamics_result:
                 target_list[variable].extend(getattr(batch, variable))
-                predict_list[variable].extend(
-                    dynamics_result[variable]["mean"].mean(axis=0)
-                )
+                predict_list[variable].extend(dynamics_result[variable]["mean"].mean(axis=0))
             # add the difference between next-obs and obs
             diff_target = getattr(batch, "batch_next_obs") - getattr(batch, "batch_obs")
-            diff_predict = dynamics_result["batch_next_obs"]["mean"].mean(
-                axis=0
-            ) - getattr(batch, "batch_obs")
+            diff_predict = dynamics_result["batch_next_obs"]["mean"].mean(axis=0) - getattr(batch, "batch_obs")
             target_list["batch_diff_next_obs"].extend(diff_target)
             predict_list["batch_diff_next_obs"].extend(diff_predict)
 
@@ -111,9 +100,7 @@ class DatasetEvaluator:
             # draw predict-and-target plot
             dim_num = target_np[variable].shape[1]
             row_num = math.ceil(math.sqrt(dim_num))
-            fig, axs = plt.subplots(
-                row_num, row_num, figsize=(row_num * 8, row_num * 8)
-            )
+            fig, axs = plt.subplots(row_num, row_num, figsize=(row_num * 8, row_num * 8))
             if isinstance(axs, np.ndarray):
                 axis_list = [e for row in axs for e in row]
             else:
@@ -136,9 +123,7 @@ class DatasetEvaluator:
             plt.close()
 
             # draw target distribution plot
-            fig, axs = plt.subplots(
-                row_num, row_num, figsize=(row_num * 8, row_num * 8)
-            )
+            fig, axs = plt.subplots(row_num, row_num, figsize=(row_num * 8, row_num * 8))
             if isinstance(axs, np.ndarray):
                 axis_list = [e for row in axs for e in row]
             else:
@@ -152,9 +137,7 @@ class DatasetEvaluator:
             plt.close()
 
     def run(self):
-        _, dataset = self.dynamics.dataset_split(
-            self.replay_buffer, validation_ratio=1.0, batch_size=self.batch_size
-        )
+        _, dataset = self.dynamics.dataset_split(self.replay_buffer, validation_ratio=1.0, batch_size=self.batch_size)
 
         self.plot_dataset_results(dataset)
 

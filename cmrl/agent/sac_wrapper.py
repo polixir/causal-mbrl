@@ -10,9 +10,7 @@ class SACAgent(Agent):
     def __init__(self, sac_agent: pytorch_sac.SAC):
         self.sac_agent = sac_agent
 
-    def act(
-        self, obs: np.ndarray, sample: bool = False, batched: bool = False, **kwargs
-    ) -> np.ndarray:
+    def act(self, obs: np.ndarray, sample: bool = False, batched: bool = False, **kwargs) -> np.ndarray:
         """Issues an action given an observation.
 
         Args:
@@ -27,6 +25,4 @@ class SACAgent(Agent):
             (np.ndarray): the action.
         """
         with torch.no_grad():
-            return self.sac_agent.select_action(
-                obs, batched=batched, evaluate=not sample
-            )
+            return self.sac_agent.select_action(obs, batched=batched, evaluate=not sample)

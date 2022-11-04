@@ -14,21 +14,21 @@ class PlainTerminationMech(BaseTerminationMech):
     _MODEL_FILENAME = "plain_termination_mech.pth"
 
     def __init__(
-            self,
-            # transition info
-            obs_size: int,
-            action_size: int,
-            deterministic: bool = False,
-            # algorithm parameters
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            learn_logvar_bounds: bool = False,
-            # network parameters
-            num_layers: int = 4,
-            hid_size: int = 200,
-            activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
-            # others
-            device: Union[str, torch.device] = "cpu",
+        self,
+        # transition info
+        obs_size: int,
+        action_size: int,
+        deterministic: bool = False,
+        # algorithm parameters
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        learn_logvar_bounds: bool = False,
+        # network parameters
+        num_layers: int = 4,
+        hid_size: int = 200,
+        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
+        # others
+        device: Union[str, torch.device] = "cpu",
     ):
         super(PlainTerminationMech, self).__init__(
             obs_size=obs_size,
@@ -36,7 +36,8 @@ class PlainTerminationMech(BaseTerminationMech):
             deterministic=deterministic,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
-            device=device)
+            device=device,
+        )
         self.num_layers = num_layers
         self.hid_size = hid_size
 
@@ -72,9 +73,9 @@ class PlainTerminationMech(BaseTerminationMech):
         self.to(self.device)
 
     def forward(
-            self,
-            batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, state_size
-            batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
+        self,
+        batch_obs: torch.Tensor,  # shape: ensemble_num, batch_size, state_size
+        batch_action: torch.Tensor,  # shape: ensemble_num, batch_size, action_size
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         assert len(batch_obs.shape) == 3 and batch_obs.shape[-1] == self.obs_size
         assert len(batch_action.shape) == 3 and batch_action.shape[-1] == self.action_size

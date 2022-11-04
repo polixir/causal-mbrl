@@ -42,13 +42,9 @@ class MultiCSVOutputFormat(KVWriter):
         for prefix_key in key_values_dict:
             if prefix_key not in self.prefix_keys:
                 self.prefix_keys.append(prefix_key)
-                self.csv_output_formats[prefix_key] = CSVOutputFormat(
-                    os.path.join(self.log_dir, f"{prefix_key}.csv")
-                )
+                self.csv_output_formats[prefix_key] = CSVOutputFormat(os.path.join(self.log_dir, f"{prefix_key}.csv"))
 
-            self.csv_output_formats[prefix_key].write(
-                key_values_dict[prefix_key], key_excluded_dict[prefix_key]
-            )
+            self.csv_output_formats[prefix_key].write(key_values_dict[prefix_key], key_excluded_dict[prefix_key])
 
     def close(self) -> None:
         """

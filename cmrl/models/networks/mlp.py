@@ -14,10 +14,10 @@ class EnsembleMLP(nn.Module):
     _MODEL_FILENAME = "ensemble_mlp.pth"
 
     def __init__(
-            self,
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            device: Union[str, torch.device] = "cpu",
+        self,
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        device: Union[str, torch.device] = "cpu",
     ):
         super(EnsembleMLP, self).__init__()
         self.ensemble_num = ensemble_num
@@ -87,3 +87,14 @@ class EnsembleMLP(nn.Module):
     @property
     def model_file_name(self):
         return self._MODEL_FILENAME
+
+
+class ExternalMaskEnsembleMLP(EnsembleMLP):
+    """Ensemble of multi-layer perceptrons with input mask inside
+
+    Args:
+        TODO
+    """
+
+    def __init__(self, ensemble_num: int = 7, elite_num: int = 5, device: Union[str, torch.device] = "cpu"):
+        super().__init__(ensemble_num, elite_num, device)

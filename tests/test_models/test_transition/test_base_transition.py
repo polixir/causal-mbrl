@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import torch
 
-from cmrl.models.transition.base_transition import BaseEnsembleTransition
+from cmrl.models.transition.base_transition import BaseTransition
 
 
 class TestBasicEnsembleGaussianMLP(TestCase):
@@ -13,7 +13,7 @@ class TestBasicEnsembleGaussianMLP(TestCase):
         self.action_size = 3
         self.ensemble_num = 7
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.deterministic_transition = BaseEnsembleTransition(
+        self.deterministic_transition = BaseTransition(
             obs_size=self.obs_size,
             action_size=self.action_size,
             device=self.device,
