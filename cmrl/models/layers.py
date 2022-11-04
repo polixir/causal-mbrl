@@ -75,8 +75,15 @@ class ParallelLinear(nn.Module):
             return xw
 
     @property
-    def device(self):
-        return next(iter(self.parameters())).device
+    def device(self) -> torch.device:
+        """Infer which device this policy lives on by inspecting its parameters.
+        If it has no parameters, the 'cpu' device is used as a fallback.
+
+        Returns: device
+        """
+        for param in self.parameters():
+            return param.device
+        return torch.device("cpu")
 
     def __repr__(self):
         return 'ParallelLinear(input_dims={}, output_dims={}, extra_dims={}, use_bias={}, init_type="{}")'.format(
