@@ -1,0 +1,24 @@
+name: "plain_transition"
+#multi_step: "forward_euler_5"
+multi_step: "none"
+enable_coder: false
+
+transition:
+  _target_: cmrl.models.causal_mech.PlainMech
+  # base causal-mech params
+  input_variables: ???
+  output_variables: ???
+  node_dim: 1
+  variable_encoders: ???
+  variable_decoders: ???
+  # network params
+  deterministic: false
+  hidden_dims: [200, 200, 200, 200]
+  ensemble_num: 7
+  use_bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+  # forward method
+  residual: true
+  # others
+  device: ${device}
