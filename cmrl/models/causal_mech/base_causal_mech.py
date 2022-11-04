@@ -75,35 +75,35 @@ class BaseCausalMech:
         pass
 
 
-Causal = TypeVar("Causal", bound=BaseCausalMech)
-
-
-class BaseMultiStepCausalMech(BaseCausalMech):
-    def __init__(
-        self,
-        single_step_mech_class: Type[Causal],
-        input_variables: List[Variable],
-        output_variables: List[Variable],
-        node_dim: int,
-        variable_encoders: Dict[str, VariableEncoder],
-        variable_decoders: Dict[str, VariableDecoder],
-        **kwargs
-    ):
-        super(BaseMultiStepCausalMech, self).__init__(
-            input_variables=input_variables,
-            output_variables=output_variables,
-            node_dim=node_dim,
-            variable_encoders=variable_encoders,
-            variable_decoders=variable_decoders,
-        )
-
-        self.single_step_mech = single_step_mech_class(**kwargs)
-        pass
-
-    @abstractmethod
-    def build_network(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def build_graph(self):
-        raise NotImplementedError
+# Causal = TypeVar("Causal", bound=BaseCausalMech)
+#
+#
+# class BaseMultiStepCausalMech(BaseCausalMech):
+#     def __init__(
+#         self,
+#         single_step_mech_class: Type[Causal],
+#         input_variables: List[Variable],
+#         output_variables: List[Variable],
+#         node_dim: int,
+#         variable_encoders: Dict[str, VariableEncoder],
+#         variable_decoders: Dict[str, VariableDecoder],
+#         **kwargs
+#     ):
+#         super(BaseMultiStepCausalMech, self).__init__(
+#             input_variables=input_variables,
+#             output_variables=output_variables,
+#             node_dim=node_dim,
+#             variable_encoders=variable_encoders,
+#             variable_decoders=variable_decoders,
+#         )
+#
+#         self.single_step_mech = single_step_mech_class(**kwargs)
+#         pass
+#
+#     @abstractmethod
+#     def build_network(self):
+#         raise NotImplementedError
+#
+#     @abstractmethod
+#     def build_graph(self):
+#         raise NotImplementedError

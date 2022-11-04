@@ -27,8 +27,8 @@ class ParallelMLP(BaseNetwork):
     ):
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.extra_dims = extra_dims
-        self.hidden_dims = hidden_dims
+        self.extra_dims = extra_dims if extra_dims is not None else []
+        self.hidden_dims = hidden_dims if hidden_dims is not None else [200, 200, 200, 200]
         self.use_bias = use_bias
         self.init_type = init_type
         self.activation_fn_cfg = activation_fn_cfg

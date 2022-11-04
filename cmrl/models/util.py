@@ -7,8 +7,10 @@ from typing import List, Sequence, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
+from gym import spaces
 
 import cmrl.types
+from cmrl.types import Variable, ContinuousVariable, DiscreteVariable
 
 
 def gaussian_nll(
@@ -67,3 +69,7 @@ def to_tensor(x: cmrl.types.TensorType):
     if isinstance(x, np.ndarray):
         return torch.from_numpy(x)
     raise ValueError("Input must be torch.Tensor or np.ndarray.")
+
+
+# def parse_space(space: spaces.Space):
+#     if isinstance(space, )

@@ -60,5 +60,5 @@ class PlainMech(BaseCausalMech):
     def build_graph(self):
         self.graph = None
 
-    def learn(self):
+    def learn(self, train_loader, valid_loader):
         pass

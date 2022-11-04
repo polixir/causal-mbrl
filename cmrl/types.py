@@ -92,5 +92,10 @@ class ContinuousVariable(Variable):
 
 
 @dataclass
+class BinaryVariable(Variable):
+    pass
+
+
+@dataclass
 class DiscreteVariable(Variable):
     n: int

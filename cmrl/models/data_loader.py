@@ -6,7 +6,7 @@ import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer, DictReplayBuffer
 
 
-class OfflineDataset(Dataset):
+class BufferDataset(Dataset):
     def __init__(
         self,
         replay_buffer: ReplayBuffer,
@@ -56,20 +56,16 @@ class OfflineDataset(Dataset):
             next_observations = self.replay_buffer.next_observations[: self.size, 0].astype(np.float32)
 
             observations_dict = dict([("obs_{}".format(i), obs[:, None]) for i, obs in enumerate(observations.T)])
-            next_observations_dict = dict([("obs_{}".format(i), obs[:, None]) for i, obs in enumerate(next_observations.T)])
+            next_observations_dict = dict(
+                [("next_obs_{}".format(i), obs[:, None]) for i, obs in enumerate(next_observations.T)]
+            )
 
         assert isinstance(self.observation_space, spaces.Box)
         # TODO: other spaces for observation and action(e.g. one-hot for spaces.Discrete)
         # see: https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/preprocessing.py#L85
 
         actions = self.replay_buffer.actions[: self.size, 0]
-        rewards = self.replay_buffer.rewards[: self.size, 0]
-        dones = self.replay_buffer.dones[: self.size, 0]
-        timeouts = self.replay_buffer.timeouts[: self.size, 0]
-
         actions_dict = dict([("act_{}".format(i), obs[:, None]) for i, obs in enumerate(actions.T)])
-        rewards_dict = {"reward": rewards[:, None]}
-        terminals_dict = {"terminal": (dones * (1 - timeouts))[:, None]}
 
         self.inputs = {}
         self.inputs.update(observations_dict)
@@ -78,8 +74,15 @@ class OfflineDataset(Dataset):
         if self.mech == "transition":
             self.outputs = next_observations_dict
         elif self.mech == "reward_mech":
+            rewards = self.replay_buffer.rewards[: self.size, 0]
+            rewards_dict = {"reward": rewards[:, None]}
+            self.inputs.update(next_observations_dict)
             self.outputs = rewards_dict
         else:
+            dones = self.replay_buffer.dones[: self.size, 0]
+            timeouts = self.replay_buffer.timeouts[: self.size, 0]
+            terminals_dict = {"terminal": (dones * (1 - timeouts))[:, None]}
+            self.inputs.update(next_observations_dict)
             self.outputs = terminals_dict
 
     def __getitem__(self, item):
@@ -93,7 +96,7 @@ class OfflineDataset(Dataset):
         return len(self.indexes)
 
 
-class EnsembleOfflineDataset(OfflineDataset):
+class EnsembleBufferDataset(BufferDataset):
     def __init__(
         self,
         replay_buffer: ReplayBuffer,
@@ -107,7 +110,7 @@ class EnsembleOfflineDataset(OfflineDataset):
     ):
         self.ensemble_num = ensemble_num
 
-        super(EnsembleOfflineDataset, self).__init__(
+        super(EnsembleBufferDataset, self).__init__(
             replay_buffer=replay_buffer,
             observation_space=observation_space,
             action_space=action_space,
