@@ -17,7 +17,7 @@ from stable_baselines3.common.vec_env.base_vec_env import (
 from stable_baselines3.common.buffers import ReplayBuffer
 
 import cmrl.types
-from cmrl.models.dynamics import BaseDynamics
+from cmrl.models.dynamics import Dynamics
 
 
 class VecFakeEnv(VecEnv):
@@ -42,8 +42,8 @@ class VecFakeEnv(VecEnv):
         self.dynamics = None
         self.reward_fn = None
         self.termination_fn = None
-        self.learned_reward = None
-        self.learned_termination = None
+        self.learn_reward = None
+        self.learn_termination = None
         self.get_init_obs_fn = None
         self.replay_buffer = None
         self.generator = np.random.default_rng()
@@ -59,7 +59,7 @@ class VecFakeEnv(VecEnv):
 
     def set_up(
         self,
-        dynamics: BaseDynamics,
+        dynamics: Dynamics,
         reward_fn: Optional[cmrl.types.RewardFnType] = None,
         termination_fn: Optional[cmrl.types.TermFnType] = None,
         get_init_obs_fn: Optional[cmrl.types.InitObsFnType] = None,
@@ -77,10 +77,10 @@ class VecFakeEnv(VecEnv):
 
         self.reward_fn = reward_fn
         self.termination_fn = termination_fn
-        assert self.dynamics.learned_reward or reward_fn
-        assert self.dynamics.learned_termination or termination_fn
-        self.learned_reward = self.dynamics.learned_reward
-        self.learned_termination = self.dynamics.learned_termination
+        assert self.dynamics.learn_reward or reward_fn
+        assert self.dynamics.learn_termination or termination_fn
+        self.learn_reward = self.dynamics.learn_reward
+        self.learn_termination = self.dynamics.learn_termination
         self.get_init_obs_fn = get_init_obs_fn
         self.replay_buffer = real_replay_buffer
         self.logger = logger
@@ -104,11 +104,11 @@ class VecFakeEnv(VecEnv):
 
             # transition
             batch_next_obs = self.get_dynamics_predict(dynamics_pred, "transition", deterministic=self.deterministic)
-            if self.learned_reward:
+            if self.learn_reward:
                 batch_reward = self.get_dynamics_predict(dynamics_pred, "reward_mech", deterministic=self.deterministic)
             else:
                 batch_reward = self.reward_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
-            if self.learned_termination:
+            if self.learn_termination:
                 batch_terminal = self.get_dynamics_predict(dynamics_pred, "termination_mech", deterministic=self.deterministic)
             else:
                 batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)

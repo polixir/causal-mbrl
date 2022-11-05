@@ -15,14 +15,14 @@ from stable_baselines3.common.vec_env import (
 )
 
 from cmrl.models.fake_env import VecFakeEnv
-from cmrl.models.dynamics.base_dynamics import BaseDynamics
+from cmrl.models.dynamics import Dynamics
 
 
 class OnlineModelBasedCallback(BaseCallback):
     def __init__(
         self,
         env: gym.Env,
-        dynamics: BaseDynamics,
+        dynamics: Dynamics,
         real_replay_buffer: ReplayBuffer,
         total_num_steps: int = int(1e5),
         initial_exploration_steps: int = 1000,

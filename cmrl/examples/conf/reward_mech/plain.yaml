@@ -1,5 +1,5 @@
-name: "plain_transition"
-learn: true
+name: "plain_reward"
+learn: false
 
 mech:
   _partial_: true

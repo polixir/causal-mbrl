@@ -2,12 +2,16 @@ defaults:
   - algorithm: off_dyna
   - dynamics: constraint_based_dynamics
   - task: BIPS
+
+  - transition: plain
+  - reward_mech: plain
+  - termination_mech: plain
   - _self_
 
 seed: 0
 device: "cuda:0"
 
-exp_name: causal_mstep
+exp_name: refactor
 wandb: false
 
 root_dir: "./exp"

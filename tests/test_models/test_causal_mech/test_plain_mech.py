@@ -21,7 +21,7 @@ def prepare(freq_rate):
 
     ensemble_num = 7
     # test for transition
-    tran_dataset = EnsembleBufferDataset(
+    train_dataset = EnsembleBufferDataset(
         real_replay_buffer,
         env.observation_space,
         env.action_space,
@@ -30,7 +30,7 @@ def prepare(freq_rate):
         train_ensemble=True,
         ensemble_num=ensemble_num,
     )
-    train_loader = DataLoader(tran_dataset, batch_size=8, collate_fn=collate_fn)
+    train_loader = DataLoader(train_dataset, batch_size=8, collate_fn=collate_fn)
     valid_dataset = BufferDataset(
         real_replay_buffer, env.observation_space, env.action_space, is_valid=True, mech="transition", repeat=ensemble_num
     )
@@ -56,9 +56,12 @@ def test_inv_pendulum_single_step():
         input_variables=input_variables,
         output_variables=output_variables,
         node_dim=node_dim,
-        variable_encoders=variable_encoders,
-        variable_decoders=variable_decoders,
+        # variable_encoders=variable_encoders,
+        # variable_decoders=variable_decoders,
+        variable_encoders=None,
+        variable_decoders=None,
         multi_step="none",
+        # device="cuda"
     )
 
     mech.learn(train_loader, valid_loader, longest_epoch=1)
@@ -74,8 +77,10 @@ def test_inv_pendulum_multi_step():
         input_variables=input_variables,
         output_variables=output_variables,
         node_dim=node_dim,
-        variable_encoders=variable_encoders,
-        variable_decoders=variable_decoders,
+        # variable_encoders=variable_encoders,
+        # variable_decoders=variable_decoders,
+        variable_encoders=None,
+        variable_decoders=None,
         multi_step="forward-euler 2",
     )
 

@@ -2,7 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -73,13 +73,14 @@ def create_encoders(
     hidden_dims: Optional[List[int]] = None,
     bias: bool = True,
     activation_fn_cfg: Optional[DictConfig] = None,
+    device: Union[str, torch.device] = "cpu",
 ):
     encoders = {}
     for var in input_variables:
         assert var.name not in encoders, "Duplicate name in decoders: {}".format(var.name)
         encoders[var.name] = VariableEncoder(
             variable=var, node_dim=node_dim, hidden_dims=hidden_dims, bias=bias, activation_fn_cfg=activation_fn_cfg
-        )
+        ).to(device)
     return encoders
 
 
@@ -90,6 +91,7 @@ def create_decoders(
     bias: bool = True,
     activation_fn_cfg: Optional[DictConfig] = None,
     normal_distribution: bool = True,
+    device: Union[str, torch.device] = "cpu",
 ):
     decoders = {}
     for var in input_variables:
@@ -101,5 +103,5 @@ def create_decoders(
             bias=bias,
             activation_fn_cfg=activation_fn_cfg,
             normal_distribution=normal_distribution,
-        )
+        ).to(device)
     return decoders

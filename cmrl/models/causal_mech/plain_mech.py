@@ -26,13 +26,13 @@ class PlainMech(BaseCausalMech):
         input_variables: List[Variable],
         output_variables: List[Variable],
         node_dim: int,
-        variable_encoders: Dict[str, VariableEncoder],
-        variable_decoders: Dict[str, VariableDecoder],
+        variable_encoders: Optional[Dict[str, VariableEncoder]],
+        variable_decoders: Optional[Dict[str, VariableDecoder]],
+        ensemble_num: int = 7,
+        elite_num: int = 5,
         # network params
         deterministic: bool = False,
         hidden_dims: Optional[List[int]] = None,
-        ensemble_num: int = 7,
-        elite_num: int = 5,
         use_bias: bool = True,
         activation_fn_cfg: Optional[DictConfig] = None,
         # forward method
@@ -51,15 +51,11 @@ class PlainMech(BaseCausalMech):
     ):
         self.deterministic = deterministic
         self.hidden_dims = hidden_dims if hidden_dims is not None else [200] * 4
-        self.ensemble_num = ensemble_num
-        self.elite_num = elite_num
         self.use_bias = use_bias
         self.activation_fn_cfg = activation_fn_cfg
 
         if multi_step == "none":
             multi_step = "forward-euler 1"
-
-        self.elite_indices: List[int] = []
 
         super(PlainMech, self).__init__(
             name=name,
@@ -87,7 +83,7 @@ class PlainMech(BaseCausalMech):
             use_bias=self.use_bias,
             extra_dims=[self.ensemble_num],
             activation_fn_cfg=self.activation_fn_cfg,
-        )
+        ).to(self.device)
 
         parmas = [self.network.parameters()] + [decoder.parameters() for decoder in self.variable_decoders.values()]
         if self.optim_encoder:
@@ -105,9 +101,9 @@ class PlainMech(BaseCausalMech):
         ensemble, batch_size, specific_dim = data_shape
         assert ensemble == self.ensemble_num
 
-        inputs_tensor = torch.zeros(ensemble, batch_size, self.input_var_num * self.node_dim)
+        inputs_tensor = torch.zeros(ensemble, batch_size, self.input_var_num * self.node_dim).to(self.device)
         for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name])  # ensemble-num, batch-size, node-dim
+            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))  # ensemble-num, batch-size, node-dim
             inputs_tensor[:, :, i * self.node_dim : (i + 1) * self.node_dim] = out
 
         if self.multi_step.startswith("forward-euler"):

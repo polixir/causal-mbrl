@@ -10,6 +10,7 @@ from cmrl.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVar
 from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
+from cmrl.models.util import parse_space, create_decoders, create_encoders
 
 
 class BaseCausalMech:
@@ -19,8 +20,10 @@ class BaseCausalMech:
         input_variables: List[Variable],
         output_variables: List[Variable],
         node_dim: int,
-        variable_encoders: Dict[str, VariableEncoder],
-        variable_decoders: Dict[str, VariableDecoder],
+        variable_encoders: Optional[Dict[str, VariableEncoder]],
+        variable_decoders: Optional[Dict[str, VariableDecoder]],
+        ensemble_num: int = 7,
+        elite_num: int = 5,
         # forward method
         residual: bool = True,
         multi_step: str = "none",
@@ -41,6 +44,8 @@ class BaseCausalMech:
         self.node_dim = node_dim
         self.variable_encoders = variable_encoders
         self.variable_decoders = variable_decoders
+        self.ensemble_num = ensemble_num
+        self.elite_num = elite_num
         # forward method
         self.residual = residual
         self.multi_step = multi_step
@@ -57,6 +62,11 @@ class BaseCausalMech:
         self.input_var_num = len(self.input_variables)
         self.output_var_num = len(self.output_variables)
 
+        if self.variable_encoders is None:
+            assert self.optim_encoder
+            self.variable_encoders = create_encoders(input_variables, node_dim=self.node_dim, device=self.device)
+        if self.variable_decoders is None:
+            self.variable_decoders = create_decoders(output_variables, node_dim=self.node_dim, device=self.device)
         self.check_coder()
 
         self.network: Optional[BaseNetwork] = None
@@ -66,6 +76,7 @@ class BaseCausalMech:
         self.build_graph()
 
         self.total_epoch = 0
+        self.elite_indices: List[int] = []
 
     def check_coder(self):
         assert len(self.input_variables) == len(self.variable_encoders)
@@ -104,7 +115,7 @@ class BaseCausalMech:
         total_loss = torch.zeros(ensemble_num, batch_size, self.output_var_num)
         for i, var in enumerate(self.output_variables):
             output = outputs[var.name]
-            target = targets[var.name]
+            target = targets[var.name].to(self.device)
             if isinstance(var, ContinuousVariable):
                 dim = target.shape[-1]  # ensemble-num, batch-size, dim
                 assert output.shape[-1] == 2 * dim

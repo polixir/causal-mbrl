@@ -41,7 +41,7 @@ class VariableEncoder(BaseNetwork):
         elif isinstance(self.variable, BinaryVariable):
             layers.append(nn.Linear(1, hidden_dim))
         else:
-            raise NotImplementedError
+            raise NotImplementedError("Type {} is not supported by VariableEncoder".format(type(self.variable)))
 
         hidden_dims = self.hidden_dims + [self.node_dim]
         for i in range(len(hidden_dims) - 1):
@@ -98,6 +98,6 @@ class VariableDecoder(BaseNetwork):
             layers.append(nn.Linear(hidden_dim, 1))
             layers.append(nn.Sigmoid())
         else:
-            raise NotImplementedError
+            raise NotImplementedError("Type {} is not supported by VariableDecoder".format(type(self.variable)))
 
         self._layers = nn.ModuleList(layers)
