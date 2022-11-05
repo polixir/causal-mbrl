@@ -59,7 +59,7 @@ class VariableDecoder(BaseNetwork):
         hidden_dims: Optional[List[int]] = None,
         bias: bool = True,
         activation_fn_cfg: Optional[DictConfig] = None,
-        normal_distribution: bool = False,
+        normal_distribution: bool = True,
     ):
         self.variable = variable
         self.node_dim = node_dim

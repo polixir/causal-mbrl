@@ -100,6 +100,7 @@ def test_ensemble_buffer_dataset():
 
     # test for reward
     dataset = EnsembleBufferDataset(real_replay_buffer, env.observation_space, env.action_space, mech="reward_mech")
+    print(dataset[0])
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
@@ -183,7 +184,7 @@ def test_ensemble_train_valid():
         mech="transition",
         is_valid=False,
         ensemble_num=ensemble_num,
-        only_for_training=False,
+        train_ensemble=False,
     )
     valid_dataset = EnsembleBufferDataset(
         real_replay_buffer,
@@ -192,7 +193,7 @@ def test_ensemble_train_valid():
         mech="transition",
         is_valid=True,
         ensemble_num=ensemble_num,
-        only_for_training=False,
+        train_ensemble=False,
     )
 
     buffer_size = real_replay_buffer.buffer_size if real_replay_buffer.full else real_replay_buffer.pos
@@ -201,7 +202,7 @@ def test_ensemble_train_valid():
         assert len(train_dataset.indexes[:, i]) + len(valid_dataset.indexes[:, i]) == buffer_size
 
 
-def test_only_for_training():
+def test_mixed():
     env = gym.make("BoundaryInvertedPendulumSwingUp-v0", freq_rate=1, time_step=0.02)
     # assert isinstance(env, emei.EmeiEnv)
 
@@ -218,7 +219,7 @@ def test_only_for_training():
         mech="transition",
         is_valid=False,
         ensemble_num=ensemble_num,
-        only_for_training=True,
+        train_ensemble=True,
     )
     valid_dataset = BufferDataset(
         real_replay_buffer, env.observation_space, env.action_space, mech="transition", is_valid=True

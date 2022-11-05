@@ -6,8 +6,6 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-from cmrl.models.util import gaussian_nll
-
 # from cmrl.models.layers import ParallelEnsembleLinearLayer, truncated_normal_init
 from cmrl.models.networks.mlp import EnsembleMLP
 from cmrl.models.util import to_tensor

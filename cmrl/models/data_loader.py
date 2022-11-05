@@ -1,3 +1,5 @@
+from typing import Optional
+
 import gym
 from gym import spaces
 import torch
@@ -16,6 +18,7 @@ class BufferDataset(Dataset):
         is_valid: bool = False,
         train_ratio: float = 0.8,
         seed: int = 10086,
+        repeat: Optional[int] = None,
     ):
         assert mech in ["transition", "reward_mech", "termination_mech"]
         # dict action is not supported by SB3(so not done by cmrl)
@@ -28,6 +31,7 @@ class BufferDataset(Dataset):
         self.is_valid = is_valid
         self.train_ratio = train_ratio
         self.seed = seed
+        self.repeat = repeat
 
         self.size = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
 
@@ -87,6 +91,9 @@ class BufferDataset(Dataset):
 
     def __getitem__(self, item):
         index = self.indexes[item]
+        if self.repeat:
+            assert len(self.indexes.shape) == 1
+            index = np.tile(index, self.repeat)
 
         inputs = dict([(key, self.inputs[key][index]) for key in self.inputs])
         outputs = dict([(key, self.outputs[key][index]) for key in self.outputs])
@@ -106,11 +113,11 @@ class EnsembleBufferDataset(BufferDataset):
         is_valid: bool = False,
         train_ratio: float = 0.8,
         ensemble_num: int = 7,
-        only_for_training: bool = True,
+        train_ensemble: bool = True,
         seed: int = 10086,
     ):
         self.ensemble_num = ensemble_num
-        self.only_for_training = only_for_training
+        self.train_ensemble = train_ensemble
 
         super(EnsembleBufferDataset, self).__init__(
             replay_buffer=replay_buffer,
@@ -126,7 +133,7 @@ class EnsembleBufferDataset(BufferDataset):
         indexes = []
         np.random.seed(self.seed)
 
-        if self.only_for_training:  # call ``np.random`` ensemble-num + 1 times
+        if self.train_ensemble:  # call ``np.random`` ensemble-num + 1 times
             assert not self.is_valid
             train_indexes = np.random.permutation(self.size)[: int(self.size * self.train_ratio)]
             indexes = [np.random.permutation(train_indexes) for _ in range(self.ensemble_num)]

@@ -3,9 +3,10 @@ from abc import abstractmethod
 
 import torch
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 from stable_baselines3.common.logger import Logger
 
-from cmrl.types import Variable, ContinuousVariable, DiscreteVariable
+from cmrl.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
 from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
@@ -14,6 +15,7 @@ from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 class BaseCausalMech:
     def __init__(
         self,
+        name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
         node_dim: int,
@@ -21,17 +23,19 @@ class BaseCausalMech:
         variable_decoders: Dict[str, VariableDecoder],
         # forward method
         residual: bool = True,
+        multi_step: str = "none",
         # trainer
         optim_lr: float = 1e-4,
         optim_weight_decay: float = 1e-5,
         optim_eps: float = 1e-8,
-        optim_coder: bool = True,
+        optim_encoder: bool = True,
         # logger
         logger: Optional[Logger] = None,
         # others
         device: Union[str, torch.device] = "cpu",
         **kwargs
     ):
+        self.name = name
         self.input_variables = input_variables
         self.output_variables = output_variables
         self.node_dim = node_dim
@@ -39,11 +43,12 @@ class BaseCausalMech:
         self.variable_decoders = variable_decoders
         # forward method
         self.residual = residual
+        self.multi_step = multi_step
         # trainer
         self.optim_lr = optim_lr
         self.optim_weight_decay = optim_weight_decay
         self.optim_eps = optim_eps
-        self.optim_coder = optim_coder
+        self.optim_encoder = optim_encoder
         # logger
         self.logger = logger
         # others
@@ -59,6 +64,8 @@ class BaseCausalMech:
 
         self.build_network()
         self.build_graph()
+
+        self.total_epoch = 0
 
     def check_coder(self):
         assert len(self.input_variables) == len(self.variable_encoders)
@@ -92,11 +99,27 @@ class BaseCausalMech:
     def build_graph(self):
         raise NotImplementedError
 
-    def encode(self, inputs):
-        pass
-
-    def decode(self, hidden):
-        pass
+    def loss(self, outputs, targets):
+        ensemble_num, batch_size = list(targets.values())[0].shape[:2]
+        total_loss = torch.zeros(ensemble_num, batch_size, self.output_var_num)
+        for i, var in enumerate(self.output_variables):
+            output = outputs[var.name]
+            target = targets[var.name]
+            if isinstance(var, ContinuousVariable):
+                dim = target.shape[-1]  # ensemble-num, batch-size, dim
+                assert output.shape[-1] == 2 * dim
+                mean, log_var = output[:, :, :dim], output[:, :, dim:]
+                loss = F.gaussian_nll_loss(mean, target, log_var.exp(), reduction="none").mean(dim=-1)
+                total_loss[..., i] = loss
+            elif isinstance(var, DiscreteVariable):
+                # TODO: onehot to int?
+                raise NotImplementedError
+                total_loss[..., i] = F.cross_entropy(output, target, reduction="none")
+            elif isinstance(var, BinaryVariable):
+                total_loss[..., i] = F.binary_cross_entropy(output, target, reduction="none")
+            else:
+                raise NotImplementedError
+        return total_loss
 
 
 # Causal = TypeVar("Causal", bound=BaseCausalMech)

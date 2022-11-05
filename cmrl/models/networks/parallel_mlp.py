@@ -7,7 +7,6 @@ import torch.nn as nn
 import hydra
 from omegaconf import DictConfig
 
-from cmrl.models.util import gaussian_nll
 from cmrl.models.layers import ParallelLinear
 from cmrl.models.networks.base_network import BaseNetwork, create_activation
 
