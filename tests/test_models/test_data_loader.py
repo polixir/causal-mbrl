@@ -1,5 +1,6 @@
 import gym
 import emei
+import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.data import DataLoader
 
@@ -7,9 +8,8 @@ from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset
 from cmrl.algorithms.util import load_offline_data
 
 
-def test_offline_dataset():
+def test_buffer_dataset():
     env = gym.make("BoundaryInvertedPendulumSwingUp-v0", freq_rate=1, time_step=0.02)
-    # assert isinstance(env, emei.EmeiEnv)
 
     real_replay_buffer = ReplayBuffer(
         int(1e5), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
@@ -77,7 +77,7 @@ def test_offline_dataset():
             assert outputs[key].shape == (128, 1)
 
 
-def test_ensemble_offline_dataset():
+def test_ensemble_buffer_dataset():
     env = gym.make("BoundaryInvertedPendulumSwingUp-v0", freq_rate=1, time_step=0.02)
     # assert isinstance(env, emei.EmeiEnv)
 
@@ -145,3 +145,86 @@ def test_ensemble_offline_dataset():
             assert inputs[key].shape == (128, 7, 1)
         for key in outputs:
             assert outputs[key].shape == (128, 7, 1)
+
+
+def test_train_valid():
+    env = gym.make("BoundaryInvertedPendulumSwingUp-v0", freq_rate=1, time_step=0.02)
+
+    real_replay_buffer = ReplayBuffer(
+        int(1e5), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
+    )
+    load_offline_data(env, real_replay_buffer, "SAC-expert-replay", use_ratio=0.1)
+
+    train_dataset = BufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, mech="transition", is_valid=False
+    )
+    valid_dataset = BufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, mech="transition", is_valid=True
+    )
+
+    buffer_size = real_replay_buffer.buffer_size if real_replay_buffer.full else real_replay_buffer.pos
+    assert len(set(train_dataset.indexes).intersection(set(valid_dataset.indexes))) == 0
+    assert len(train_dataset.indexes) + len(valid_dataset.indexes) == buffer_size
+
+
+def test_ensemble_train_valid():
+    env = gym.make("BoundaryInvertedPendulumSwingUp-v0", freq_rate=1, time_step=0.02)
+
+    real_replay_buffer = ReplayBuffer(
+        int(1e5), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
+    )
+    load_offline_data(env, real_replay_buffer, "SAC-expert-replay", use_ratio=0.1)
+
+    ensemble_num = 7
+    train_dataset = EnsembleBufferDataset(
+        real_replay_buffer,
+        env.observation_space,
+        env.action_space,
+        mech="transition",
+        is_valid=False,
+        ensemble_num=ensemble_num,
+        only_for_training=False,
+    )
+    valid_dataset = EnsembleBufferDataset(
+        real_replay_buffer,
+        env.observation_space,
+        env.action_space,
+        mech="transition",
+        is_valid=True,
+        ensemble_num=ensemble_num,
+        only_for_training=False,
+    )
+
+    buffer_size = real_replay_buffer.buffer_size if real_replay_buffer.full else real_replay_buffer.pos
+    for i in range(ensemble_num):
+        assert len(set(train_dataset.indexes[:, i]).intersection(set(valid_dataset.indexes[:, i]))) == 0
+        assert len(train_dataset.indexes[:, i]) + len(valid_dataset.indexes[:, i]) == buffer_size
+
+
+def test_only_for_training():
+    env = gym.make("BoundaryInvertedPendulumSwingUp-v0", freq_rate=1, time_step=0.02)
+    # assert isinstance(env, emei.EmeiEnv)
+
+    real_replay_buffer = ReplayBuffer(
+        int(1e5), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
+    )
+    load_offline_data(env, real_replay_buffer, "SAC-expert-replay", use_ratio=0.1)
+
+    ensemble_num = 7
+    train_dataset = EnsembleBufferDataset(
+        real_replay_buffer,
+        env.observation_space,
+        env.action_space,
+        mech="transition",
+        is_valid=False,
+        ensemble_num=ensemble_num,
+        only_for_training=True,
+    )
+    valid_dataset = BufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, mech="transition", is_valid=True
+    )
+
+    buffer_size = real_replay_buffer.buffer_size if real_replay_buffer.full else real_replay_buffer.pos
+    for i in range(ensemble_num):
+        assert len(set(train_dataset.indexes[:, i]).intersection(set(valid_dataset.indexes))) == 0
+        assert len(train_dataset.indexes[:, i]) + len(valid_dataset.indexes) == buffer_size

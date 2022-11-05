@@ -106,9 +106,11 @@ class EnsembleBufferDataset(BufferDataset):
         is_valid: bool = False,
         train_ratio: float = 0.8,
         ensemble_num: int = 7,
+        only_for_training: bool = True,
         seed: int = 10086,
     ):
         self.ensemble_num = ensemble_num
+        self.only_for_training = only_for_training
 
         super(EnsembleBufferDataset, self).__init__(
             replay_buffer=replay_buffer,
@@ -121,15 +123,21 @@ class EnsembleBufferDataset(BufferDataset):
         )
 
     def build_indexes(self):
+        indexes = []
         np.random.seed(self.seed)
-        if self.is_valid:  # for valid set
-            self.indexes = np.array(
-                [np.random.permutation(self.size)[int(self.size * self.train_ratio) :] for _ in range(self.ensemble_num)]
-            ).T
-        else:  # for train set
-            self.indexes = np.array(
-                [np.random.permutation(self.size)[: int(self.size * self.train_ratio)] for _ in range(self.ensemble_num)]
-            ).T
+
+        if self.only_for_training:  # call ``np.random`` ensemble-num + 1 times
+            assert not self.is_valid
+            train_indexes = np.random.permutation(self.size)[: int(self.size * self.train_ratio)]
+            indexes = [np.random.permutation(train_indexes) for _ in range(self.ensemble_num)]
+        else:
+            for i in range(self.ensemble_num):
+                permutation = np.random.permutation(self.size)
+                if self.is_valid:
+                    indexes.append(permutation[int(self.size * self.train_ratio) :])
+                else:
+                    indexes.append(permutation[: int(self.size * self.train_ratio)])
+        self.indexes = np.array(indexes).T
 
 
 def collate_fn(data):
