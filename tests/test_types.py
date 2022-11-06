@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import torch
 
-from cmrl.types import InteractionBatch
+from cmrl.utils.types import InteractionBatch
 
 
 class TestTransitionBatch(TestCase):

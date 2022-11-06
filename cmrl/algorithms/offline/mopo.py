@@ -10,12 +10,12 @@ from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.agent import complete_agent_cfg
 
-# from cmrl.algorithms.util import maybe_load_trained_offline_model, setup_fake_env, load_offline_data
+# from cmrl.algorithms.utils import maybe_load_trained_offline_model, setup_fake_env, load_offline_data
 # from cmrl.models.dynamics import ConstraintBasedDynamics
 from cmrl.sb3_extension.eval_callback import EvalCallback
 from cmrl.sb3_extension.logger import configure as logger_configure
-from cmrl.types import InitObsFnType, RewardFnType, TermFnType
-from cmrl.util.creator import create_dynamics
+from cmrl.utils.types import InitObsFnType, RewardFnType, TermFnType
+from cmrl.utils.creator import create_dynamics
 
 
 def train(

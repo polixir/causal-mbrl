@@ -1,5 +1,5 @@
 import abc
-import collections
+from collections import ChainMap
 import pathlib
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -10,11 +10,7 @@ from torch.utils.data import DataLoader
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
-from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
-from cmrl.models.transition.base_transition import BaseTransition
-from cmrl.types import InteractionBatch
-from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator
+from cmrl.models.util import space2dict
 from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
 from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
 
@@ -106,35 +102,10 @@ class Dynamics:
 
     def step(self, batch_obs, batch_action):
         with torch.no_grad():
-            if isinstance(self.observation_space, spaces.Box):
-                observations_dict = dict(
-                    [
-                        (
-                            "obs_{}".format(i),
-                            torch.from_numpy(np.tile(batch_obs.T[0][None, :, None], [7, 1, 1])).to(torch.float32),
-                        )
-                        for i, obs in enumerate(batch_obs.T)
-                    ]
-                )
-            else:
-                raise NotImplementedError
+            obs_dict = space2dict(batch_obs, self.observation_space, "obs", repeat=7, to_tensor=True)
+            act_dict = space2dict(batch_action, self.action_space, "act", repeat=7, to_tensor=True)
 
-            if isinstance(self.action_space, spaces.Box):
-                actions_dict = dict(
-                    [
-                        (
-                            "act_{}".format(i),
-                            torch.from_numpy(np.tile(batch_obs.T[0][None, :, None], [7, 1, 1])).to(torch.float32),
-                        )
-                        for i, obs in enumerate(batch_action.T)
-                    ]
-                )
-            else:
-                raise NotImplementedError
-
-            inputs = {}
-            inputs.update(observations_dict)
-            inputs.update(actions_dict)
+            inputs = ChainMap(obs_dict, act_dict)
             outputs = self.transition.forward(inputs)
 
         info = {"origin-next_obs": torch.concat([tensor[:, :, :1] for tensor in outputs.values()], dim=-1).cpu().numpy()}

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from cmrl.algorithms.offline.off_dyna import train
-from cmrl.util.env import make_env
+from cmrl.utils.env import make_env
 
 from tests.constants import cfg
 

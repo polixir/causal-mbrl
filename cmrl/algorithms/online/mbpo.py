@@ -16,8 +16,8 @@ from cmrl.algorithms.util import setup_fake_env
 from cmrl.sb3_extension.eval_callback import EvalCallback
 from cmrl.sb3_extension.online_mb_callback import OnlineModelBasedCallback
 from cmrl.sb3_extension.logger import configure as logger_configure
-from cmrl.types import InitObsFnType, RewardFnType, TermFnType
-from cmrl.util.creator import create_dynamics
+from cmrl.utils.types import InitObsFnType, RewardFnType, TermFnType
+from cmrl.utils.creator import create_dynamics
 
 
 def train(

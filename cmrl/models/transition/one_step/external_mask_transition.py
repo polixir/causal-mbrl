@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import hydra
 import omegaconf
@@ -6,7 +6,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
-import cmrl.types
+import cmrl.utils.types
 
 from cmrl.models.layers import ParallelLinear
 from cmrl.models.transition.base_transition import BaseTransition
@@ -107,7 +107,7 @@ class ExternalMaskTransition(BaseTransition):
     def create_linear_layer(self, l_in, l_out):
         return ParallelLinear(l_in, l_out, extra_dims=[self.obs_size, self.ensemble_num])
 
-    def set_input_mask(self, mask: cmrl.types.TensorType):
+    def set_input_mask(self, mask: cmrl.utils.types.TensorType):
         self._input_mask = to_tensor(mask).to(self.device)
 
     @property

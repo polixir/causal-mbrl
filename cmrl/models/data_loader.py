@@ -7,6 +7,8 @@ from torch.utils.data import Dataset, default_collate
 import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer, DictReplayBuffer
 
+from cmrl.models.util import space2dict
+
 
 class BufferDataset(Dataset):
     def __init__(
@@ -33,6 +35,9 @@ class BufferDataset(Dataset):
         self.seed = seed
         self.repeat = repeat
 
+        if self.repeat:
+            assert self.repeat > 1, "repeat must be a int greater than 1"
+
         self.size = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
 
         self.inputs = None
@@ -51,48 +56,52 @@ class BufferDataset(Dataset):
             self.indexes = permutation[: int(self.size * self.train_ratio)]
 
     def load_from_buffer(self):
-        if isinstance(self.replay_buffer, DictReplayBuffer):
-            # TODO: DictReplayBuffer case
-            raise NotImplementedError
-        else:
-            observations = self.replay_buffer.observations[: self.size, 0].astype(np.float32)
-            assert len(observations.shape) == 2
-            next_observations = self.replay_buffer.next_observations[: self.size, 0].astype(np.float32)
+        # if isinstance(self.replay_buffer, DictReplayBuffer):
+        #     # TODO: DictReplayBuffer case
+        #     raise NotImplementedError
+        # else:
+        #     observations = self.replay_buffer.observations[: self.size, 0].astype(np.float32)
+        #     assert len(observations.shape) == 2
+        #     next_observations = self.replay_buffer.next_observations[: self.size, 0].astype(np.float32)
+        #
+        #     observations_dict = dict([("obs_{}".format(i), obs[:, None]) for i, obs in enumerate(observations.T)])
+        #     next_observations_dict = dict(
+        #         [("next_obs_{}".format(i), obs[:, None]) for i, obs in enumerate(next_observations.T)]
+        #     )
 
-            observations_dict = dict([("obs_{}".format(i), obs[:, None]) for i, obs in enumerate(observations.T)])
-            next_observations_dict = dict(
-                [("next_obs_{}".format(i), obs[:, None]) for i, obs in enumerate(next_observations.T)]
-            )
+        # assert isinstance(self.observation_space, spaces.Box)
+        # # TODO: other spaces for observation and action(e.g. one-hot for spaces.Discrete)
+        # # see: https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/preprocessing.py#L85
+        #
+        # actions = self.replay_buffer.actions[: self.size, 0]
+        # actions_dict = dict([("act_{}".format(i), obs[:, None]) for i, obs in enumerate(actions.T)])
 
-        assert isinstance(self.observation_space, spaces.Box)
-        # TODO: other spaces for observation and action(e.g. one-hot for spaces.Discrete)
-        # see: https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/preprocessing.py#L85
-
-        actions = self.replay_buffer.actions[: self.size, 0]
-        actions_dict = dict([("act_{}".format(i), obs[:, None]) for i, obs in enumerate(actions.T)])
+        obs_dict = space2dict(self.replay_buffer.observations[: self.size, 0], self.observation_space, "obs")
+        act_dict = space2dict(self.replay_buffer.actions[: self.size, 0], self.action_space, "act")
+        next_obs_dict = space2dict(self.replay_buffer.next_observations[: self.size, 0], self.observation_space, "next_obs")
 
         self.inputs = {}
-        self.inputs.update(observations_dict)
-        self.inputs.update(actions_dict)
+        self.inputs.update(obs_dict)
+        self.inputs.update(act_dict)
 
         if self.mech == "transition":
-            self.outputs = next_observations_dict
+            self.outputs = next_obs_dict
         elif self.mech == "reward_mech":
             rewards = self.replay_buffer.rewards[: self.size, 0]
             rewards_dict = {"reward": rewards[:, None]}
-            self.inputs.update(next_observations_dict)
+            self.inputs.update(next_obs_dict)
             self.outputs = rewards_dict
         else:
             dones = self.replay_buffer.dones[: self.size, 0]
             timeouts = self.replay_buffer.timeouts[: self.size, 0]
             terminals_dict = {"terminal": (dones * (1 - timeouts))[:, None]}
-            self.inputs.update(next_observations_dict)
+            self.inputs.update(next_obs_dict)
             self.outputs = terminals_dict
 
     def __getitem__(self, item):
         index = self.indexes[item]
         if self.repeat:
-            assert len(self.indexes.shape) == 1
+            assert len(self.indexes.shape) == 1, "repeating conflicts with ensemble"
             index = np.tile(index, self.repeat)
 
         inputs = dict([(key, self.inputs[key][index]) for key in self.inputs])

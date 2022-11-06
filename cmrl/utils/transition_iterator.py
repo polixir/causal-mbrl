@@ -2,13 +2,11 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-import pathlib
-import warnings
-from typing import Any, List, Optional, Sequence, Sized, Tuple, Type, Union
+from typing import Any, Optional, Sequence, Sized
 
 import numpy as np
 
-from cmrl.types import InteractionBatch
+from cmrl.utils.types import InteractionBatch
 
 
 def _consolidate_batches(batches: Sequence[InteractionBatch]) -> InteractionBatch:

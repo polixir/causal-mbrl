@@ -1,11 +1,10 @@
-from typing import Dict, Optional, Tuple, Union, cast
+from typing import Dict, Optional, Tuple, cast
 
 import emei
 import gym
 import omegaconf
-import torch
 
-import cmrl.types
+import cmrl.utils.types
 
 
 def to_num(s):
@@ -17,13 +16,18 @@ def to_num(s):
 
 def get_term_and_reward_fn(
     cfg: omegaconf.DictConfig,
-) -> Tuple[cmrl.types.TermFnType, Optional[cmrl.types.RewardFnType]]:
+) -> Tuple[cmrl.utils.types.TermFnType, Optional[cmrl.utils.types.RewardFnType]]:
     return None, None
 
 
 def make_env(
     cfg: omegaconf.DictConfig,
-) -> Tuple[emei.EmeiEnv, cmrl.types.TermFnType, Optional[cmrl.types.RewardFnType], Optional[cmrl.types.InitObsFnType],]:
+) -> Tuple[
+    emei.EmeiEnv,
+    cmrl.utils.types.TermFnType,
+    Optional[cmrl.utils.types.RewardFnType],
+    Optional[cmrl.utils.types.InitObsFnType],
+]:
     if "gym___" in cfg.task.env:
         env = gym.make(cfg.task.env.split("___")[1])
         term_fn, reward_fn = get_term_and_reward_fn(cfg)

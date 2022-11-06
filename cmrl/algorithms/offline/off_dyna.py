@@ -1,22 +1,19 @@
 import os
-from typing import Optional, cast
+from typing import Optional
 from functools import partial
 
 import emei
-import hydra.utils
-import numpy as np
 from omegaconf import DictConfig
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.agent import complete_agent_cfg
-from cmrl.algorithms.util import setup_fake_env, load_offline_data
+from cmrl.models.util import load_offline_data
 
 # from cmrl.models.dynamics import ConstraintBasedDynamics
 from cmrl.sb3_extension.eval_callback import EvalCallback
 from cmrl.models.fake_env import VecFakeEnv
 from cmrl.sb3_extension.logger import configure as logger_configure
-from cmrl.types import InitObsFnType, RewardFnType, TermFnType
-from cmrl.util.creator import create_dynamics, create_agent
+from cmrl.utils.types import InitObsFnType, RewardFnType, TermFnType
+from cmrl.utils.creator import create_dynamics, create_agent
 
 
 def train(

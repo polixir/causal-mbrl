@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Union
+from typing import Optional, List, Dict, Union, MutableMapping
 import pathlib
 import itertools
 import copy
@@ -6,18 +6,14 @@ import copy
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
 from torch.optim import Adam
 from omegaconf import DictConfig
 from stable_baselines3.common.logger import Logger
 
-from cmrl.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
+from cmrl.utils.types import Variable
 from cmrl.models.networks.parallel_mlp import ParallelMLP
-from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
-
-from time import time
 
 
 class PlainMech(BaseCausalMech):
@@ -95,10 +91,10 @@ class PlainMech(BaseCausalMech):
     def build_graph(self):
         self.graph = None
 
-    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        assert list(inputs.keys()) == list(self.variable_encoders.keys())
+    def forward(self, inputs: MutableMapping[str, Union[torch.Tensor]]) -> Dict[str, torch.Tensor]:
+        assert len(set(inputs.keys()) & set(self.variable_encoders.keys())) == len(inputs)
         data_shape = list(inputs.values())[0].shape
-        assert len(data_shape) == 3  # ensemble-num, batch-size, specific-dim
+        assert len(data_shape) == 3, "{}".format(data_shape)  # ensemble-num, batch-size, specific-dim
         ensemble, batch_size, specific_dim = data_shape
         assert ensemble == self.ensemble_num
 

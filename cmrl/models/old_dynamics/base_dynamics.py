@@ -11,8 +11,8 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from cmrl.models.reward_mech.base_reward_mech import BaseRewardMech
 from cmrl.models.termination_mech.base_termination_mech import BaseTerminationMech
 from cmrl.models.transition.base_transition import BaseTransition
-from cmrl.types import InteractionBatch
-from cmrl.util.transition_iterator import BootstrapIterator, TransitionIterator
+from cmrl.utils.types import InteractionBatch
+from cmrl.utils.transition_iterator import BootstrapIterator, TransitionIterator
 
 
 def split_dict(old_dict: Dict, need_keys: List[str]):

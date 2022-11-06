@@ -1,10 +1,9 @@
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional
 
-import torch
 import torch.nn as nn
 from omegaconf import DictConfig
 
-from cmrl.types import Variable, DiscreteVariable, ContinuousVariable, BinaryVariable
+from cmrl.utils.types import Variable, DiscreteVariable, ContinuousVariable, BinaryVariable
 from cmrl.models.networks.base_network import BaseNetwork, create_activation
 
 

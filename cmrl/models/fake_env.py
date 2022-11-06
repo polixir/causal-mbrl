@@ -2,17 +2,15 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-from typing import Any, Callable, Dict, List, Optional, Sequence, Type, Union
+from typing import Any, Dict, List, Optional, Type
 
 import gym
 import numpy as np
-import torch
-from gym.core import ActType, ObsType
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
-import cmrl.types
+import cmrl.utils.types
 from cmrl.models.dynamics import Dynamics
 
 
@@ -25,9 +23,9 @@ class VecFakeEnv(VecEnv):
         action_space: gym.spaces.Space,
         # for dynamics
         dynamics: Dynamics,
-        reward_fn: Optional[cmrl.types.RewardFnType] = None,
-        termination_fn: Optional[cmrl.types.TermFnType] = None,
-        get_init_obs_fn: Optional[cmrl.types.InitObsFnType] = None,
+        reward_fn: Optional[cmrl.utils.types.RewardFnType] = None,
+        termination_fn: Optional[cmrl.utils.types.TermFnType] = None,
+        get_init_obs_fn: Optional[cmrl.utils.types.InitObsFnType] = None,
         real_replay_buffer: Optional[ReplayBuffer] = None,
         # for offline
         penalty_coeff: float = 0.0,

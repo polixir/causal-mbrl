@@ -1,9 +1,8 @@
 import torch
-import numpy as np
 from torch.nn.functional import one_hot
 
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
-from cmrl.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
+from cmrl.utils.types import ContinuousVariable, DiscreteVariable, BinaryVariable
 
 
 def test_continuous_encoder():

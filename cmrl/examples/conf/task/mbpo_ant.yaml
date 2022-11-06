@@ -1,5 +1,5 @@
 env: "ant_truncated_obs"
-# term_fn is set automatically by cmrl.util.env.EnvHandler.make_env
+# term_fn is set automatically by cmrl.utils.env.EnvHandler.make_env
 
 num_steps: 300000
 epoch_length: 1000

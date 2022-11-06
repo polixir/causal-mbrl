@@ -8,10 +8,10 @@ import matplotlib as mpl
 import matplotlib.pylab as plt
 import numpy as np
 
-import cmrl.util.creator
-import cmrl.util.env
-from cmrl.util.config import load_hydra_cfg
-from cmrl.util.transition_iterator import TransitionIterator
+import cmrl.utils.creator
+import cmrl.utils.env
+from cmrl.utils.config import load_hydra_cfg
+from cmrl.utils.transition_iterator import TransitionIterator
 
 
 class DatasetEvaluator:

@@ -40,11 +40,11 @@ def create_handler(cfg: Union[Dict, omegaconf.ListConfig, omegaconf.DictConfig])
 
     target = cfg.overrides.env_cfg.get_dynamics_predict("_target_")
     if "pybulletgym" in target:
-        from cmrl.util.pybullet import PybulletEnvHandler
+        from cmrl.utils.pybullet import PybulletEnvHandler
 
         return PybulletEnvHandler()
     elif "mujoco" in target:
-        from cmrl.util.mujoco import MujocoEnvHandler
+        from cmrl.utils.mujoco import MujocoEnvHandler
 
         return MujocoEnvHandler()
     else:
@@ -74,15 +74,15 @@ def create_handler_from_str(env_name: str):
         (EnvHandler): A handler for the associated gym environment
     """
     if "dmcontrol___" in env_name:
-        from cmrl.util.dmcontrol import DmcontrolEnvHandler
+        from cmrl.utils.dmcontrol import DmcontrolEnvHandler
 
         return DmcontrolEnvHandler()
     elif "pybulletgym___" in env_name:
-        from cmrl.util.pybullet import PybulletEnvHandler
+        from cmrl.utils.pybullet import PybulletEnvHandler
 
         return PybulletEnvHandler()
     elif "gym___" in env_name or env_name == "ideal_inv_pendulum":
-        from cmrl.util.mujoco import MujocoEnvHandler
+        from cmrl.utils.mujoco import MujocoEnvHandler
 
         return MujocoEnvHandler()
     else:

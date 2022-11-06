@@ -4,8 +4,11 @@ import torch
 import wandb
 from omegaconf import DictConfig, OmegaConf
 
-from cmrl.algorithms import mopo, mbpo, off_dyna, on_dyna
-from cmrl.util.env import make_env
+import cmrl.algorithms.offline.off_dyna as off_dyna
+import cmrl.algorithms.offline.mopo as mopo
+import cmrl.algorithms.online.on_dyna as on_dyna
+import cmrl.algorithms.online.mbpo as mbpo
+from cmrl.utils.env import make_env
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="main")

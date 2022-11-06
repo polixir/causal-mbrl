@@ -1,20 +1,16 @@
-import pathlib
 from typing import Optional, cast
 from copy import deepcopy
 
-import emei
 import hydra
-import numpy as np
 from omegaconf import DictConfig
 
 from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.types import InitObsFnType, RewardFnType, TermFnType
+from cmrl.utils.types import InitObsFnType, RewardFnType, TermFnType
 
 # from cmrl.models.dynamics import BaseDynamics
-from cmrl.util.config import get_complete_dynamics_cfg, load_hydra_cfg
 from cmrl.models.fake_env import VecFakeEnv
 
 
@@ -104,25 +100,3 @@ def setup_fake_env(
     )
     fake_eval_env.seed(seed=cfg.seed)
     return fake_eval_env
-
-
-def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):
-    assert hasattr(env, "get_dataset"), "env must have `get_dataset` method"
-
-    data_dict = env.get_dataset(dataset_name)
-    all_data_num = len(data_dict["observations"])
-    sample_data_num = int(use_ratio * all_data_num)
-    sample_idx = np.random.permutation(all_data_num)[:sample_data_num]
-
-    assert replay_buffer.n_envs == 1
-    assert replay_buffer.buffer_size >= sample_data_num
-
-    if sample_data_num == replay_buffer.buffer_size:
-        replay_buffer.full = True
-        replay_buffer.pos = 0
-    else:
-        replay_buffer.pos = sample_data_num
-
-    # set all data
-    for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
-        getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]

@@ -2,16 +2,16 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from gym import spaces
 from omegaconf import DictConfig
 
-import cmrl.types
-from cmrl.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
+from stable_baselines3.common.buffers import ReplayBuffer
+
+from cmrl.utils.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 
 
@@ -39,14 +39,6 @@ def truncated_normal_(tensor: torch.Tensor, mean: float = 0, std: float = 1) -> 
     return tensor
 
 
-def to_tensor(x: cmrl.types.TensorType):
-    if isinstance(x, torch.Tensor):
-        return x
-    if isinstance(x, np.ndarray):
-        return torch.from_numpy(x)
-    raise ValueError("Input must be torch.Tensor or np.ndarray.")
-
-
 def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
     variables = []
     if isinstance(space, spaces.Box):
@@ -65,6 +57,37 @@ def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
         raise NotImplementedError
 
     return variables
+
+
+def space2dict(
+    data: np.ndarray, space: spaces.Space, prefix="obs", repeat: Optional[int] = None, to_tensor: bool = False
+) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+    if repeat:
+        assert repeat > 1, "repeat must be a int greater than 1"
+
+    dict_data = {}
+    if isinstance(space, spaces.Box):  # shape: (batch-size, node-num), every node has exactly one dim
+        for i, (low, high) in enumerate(zip(space.low, space.high)):
+            # shape: (batch-size, specific-dim)
+            dict_data["{}_{}".format(prefix, i)] = data[:, i, None].astype(np.float32)
+    else:
+        # TODO
+        raise NotImplementedError
+
+    for name in dict_data:
+        if repeat:
+            # shape: (repeat-dim, batch-size, specific-dim)
+            dict_data[name] = np.tile(dict_data[name][None, :, :], [repeat, 1, 1])
+        if to_tensor:
+            dict_data[name] = torch.from_numpy(dict_data[name])
+
+    return dict_data
+
+
+def dict2space(
+    data: Dict[str, Union[np.ndarray, torch.Tensor]], space: spaces.Space
+) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+    pass
 
 
 def create_encoders(
@@ -105,3 +128,25 @@ def create_decoders(
             normal_distribution=normal_distribution,
         ).to(device)
     return decoders
+
+
+def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):
+    assert hasattr(env, "get_dataset"), "env must have `get_dataset` method"
+
+    data_dict = env.get_dataset(dataset_name)
+    all_data_num = len(data_dict["observations"])
+    sample_data_num = int(use_ratio * all_data_num)
+    sample_idx = np.random.permutation(all_data_num)[:sample_data_num]
+
+    assert replay_buffer.n_envs == 1
+    assert replay_buffer.buffer_size >= sample_data_num
+
+    if sample_data_num == replay_buffer.buffer_size:
+        replay_buffer.full = True
+        replay_buffer.pos = 0
+    else:
+        replay_buffer.pos = sample_data_num
+
+    # set all data
+    for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
+        getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]

@@ -1,16 +1,17 @@
-from typing import Optional, List, Dict, Union, TypeVar, Type
+from typing import Optional, List, Dict, Union, MutableMapping
 from abc import abstractmethod
 
 import torch
+import numpy as np
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from stable_baselines3.common.logger import Logger
 
-from cmrl.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
+from cmrl.utils.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
 from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
-from cmrl.models.util import parse_space, create_decoders, create_encoders
+from cmrl.models.util import create_decoders, create_encoders
 
 
 class BaseCausalMech:
@@ -93,7 +94,7 @@ class BaseCausalMech:
             assert decoder.node_dim == self.node_dim
 
     @abstractmethod
-    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: MutableMapping[str, Union[torch.Tensor]]) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     @abstractmethod

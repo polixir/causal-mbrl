@@ -11,9 +11,9 @@ import matplotlib.pylab as plt
 import numpy as np
 from matplotlib.widgets import Button, RadioButtons, Slider
 
-import cmrl.util.creator
-import cmrl.util.env
-from cmrl.util.config import load_hydra_cfg
+import cmrl.utils.creator
+import cmrl.utils.env
+from cmrl.utils.config import load_hydra_cfg
 
 mpl.use("Qt5Agg")
 SIN_COS_BINDINGS = {"BoundaryInvertedPendulumSwingUp-v0": [1]}
