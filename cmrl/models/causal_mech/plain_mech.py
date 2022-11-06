@@ -62,6 +62,8 @@ class PlainMech(BaseCausalMech):
             node_dim=node_dim,
             variable_encoders=variable_encoders,
             variable_decoders=variable_decoders,
+            ensemble_num=ensemble_num,
+            elite_num=elite_num,
             residual=residual,
             multi_step=multi_step,
             optim_lr=optim_lr,
@@ -86,7 +88,9 @@ class PlainMech(BaseCausalMech):
         parmas = [self.network.parameters()] + [decoder.parameters() for decoder in self.variable_decoders.values()]
         if self.optim_encoder:
             parmas.extend([encoder.parameters() for encoder in self.variable_encoders.values()])
-        self.optim = Adam(itertools.chain(*parmas), lr=self.optim_lr, weight_decay=self.optim_weight_decay, eps=self.optim_eps)
+        self.optimizer = Adam(
+            itertools.chain(*parmas), lr=self.optim_lr, weight_decay=self.optim_weight_decay, eps=self.optim_eps
+        )
 
     def build_graph(self):
         self.graph = None
@@ -139,9 +143,9 @@ class PlainMech(BaseCausalMech):
             outputs = self.forward(inputs)
             loss = self.loss(outputs, targets)  # ensemble-num, batch-size, output-var-num
 
-            self.optim.zero_grad()
+            self.optimizer.zero_grad()
             loss.mean().backward()
-            self.optim.step()
+            self.optimizer.step()
 
             batch_loss_list.append(loss)
         return torch.cat(batch_loss_list, dim=-2).detach().cpu()

@@ -5,13 +5,14 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+from torch.optim import Optimizer
 from stable_baselines3.common.logger import Logger
 
-from cmrl.utils.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
 from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 from cmrl.models.util import create_decoders, create_encoders
+from cmrl.utils.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
 
 
 class BaseCausalMech:
@@ -71,6 +72,7 @@ class BaseCausalMech:
         self.check_coder()
 
         self.network: Optional[BaseNetwork] = None
+        self.optimizer: Optional[Optimizer] = None
         self.graph: Optional[BaseGraph] = None
 
         self.build_network()

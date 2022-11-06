@@ -8,6 +8,10 @@ initial_exploration_steps: 5000
 random_initial_explore: false
 num_eval_episodes: 5
 
+algo:
+  _partial_: true
+  _target_: cmrl.algorithms.MBPO
+
 # --------------------------------------------
 #          SAC Agent configuration
 # --------------------------------------------

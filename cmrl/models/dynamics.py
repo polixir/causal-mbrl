@@ -71,8 +71,6 @@ class Dynamics:
         work_dir: Optional[Union[str, pathlib.Path]] = None,
         **kwargs
     ):
-        longest_epoch = 0
-
         # transition
         self.transition.learn(
             *self.get_loader(real_replay_buffer, "transition"),

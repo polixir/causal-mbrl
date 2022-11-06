@@ -8,6 +8,10 @@ num_eval_episodes: 5
 
 initial_exploration_steps: 1000
 
+algo:
+  _partial_: true
+  _target_: cmrl.algorithms.OnlineDyna
+
 # --------------------------------------------
 #          SAC Agent configuration
 # --------------------------------------------

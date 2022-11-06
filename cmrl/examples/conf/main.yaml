@@ -1,8 +1,6 @@
 defaults:
   - algorithm: off_dyna
-  - dynamics: constraint_based_dynamics
   - task: BIPS
-
   - transition: plain
   - reward_mech: plain
   - termination_mech: plain
@@ -17,8 +15,8 @@ wandb: false
 root_dir: "./exp"
 hydra:
   run:
-    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+    dir: ${root_dir}/${exp_name}/${task.env}/${now:%Y.%m.%d}/${now:%H.%M.%S}
   sweep:
-    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+    dir: ${root_dir}/${exp_name}/${task.env}/${now:%Y.%m.%d}/${now:%H.%M.%S}
   job:
     chdir: true

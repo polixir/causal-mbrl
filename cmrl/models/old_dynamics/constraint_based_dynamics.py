@@ -46,7 +46,7 @@ class ConstraintBasedDynamics(BaseDynamics):
         # self.cmi_test: Optional[EnsembleMLP] = None
         # self.build_cmi_test()
         #
-        # self.cmi_test_optimizer = torch.optim.Adam(
+        # self.cmi_test_optimizer = torch.optimizer.Adam(
         #     self.cmi_test.parameters(),
         #     lr=optim_lr,
         #     weight_decay=weight_decay,
