@@ -8,12 +8,8 @@ import gym
 import numpy as np
 import torch
 from gym.core import ActType, ObsType
-from stable_baselines3.common.vec_env.base_vec_env import (
-    VecEnv,
-    VecEnvIndices,
-    VecEnvObs,
-    VecEnvStepReturn,
-)
+from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices
+from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
 import cmrl.types
@@ -23,102 +19,78 @@ from cmrl.models.dynamics import Dynamics
 class VecFakeEnv(VecEnv):
     def __init__(
         self,
+        # for need of sb3's agent
         num_envs: int,
         observation_space: gym.spaces.Space,
         action_space: gym.spaces.Space,
+        # for dynamics
+        dynamics: Dynamics,
+        reward_fn: Optional[cmrl.types.RewardFnType] = None,
+        termination_fn: Optional[cmrl.types.TermFnType] = None,
+        get_init_obs_fn: Optional[cmrl.types.InitObsFnType] = None,
+        real_replay_buffer: Optional[ReplayBuffer] = None,
+        # for offline
+        penalty_coeff: float = 0.0,
+        # for behaviour
+        deterministic: bool = False,
+        max_episode_steps: int = 1000,
+        branch_rollout: bool = False,
+        # others
+        logger: Optional[Logger] = None,
+        **kwargs,
     ):
         super(VecFakeEnv, self).__init__(
             num_envs=num_envs,
             observation_space=observation_space,
             action_space=action_space,
         )
-
-        self.has_set_up = False
-
-        self.penalty_coeff = None
-        self.deterministic = None
-        self.max_episode_steps = None
-
-        self.dynamics = None
-        self.reward_fn = None
-        self.termination_fn = None
-        self.learn_reward = None
-        self.learn_termination = None
-        self.get_init_obs_fn = None
-        self.replay_buffer = None
-        self.generator = np.random.default_rng()
-        self.device = None
-        self.logger = None
-
-        self._current_batch_obs = None
-        self._current_batch_action = None
-
-        self._reset_by_buffer = True
-
-        self._envs_length = np.zeros(self.num_envs, dtype=int)
-
-    def set_up(
-        self,
-        dynamics: Dynamics,
-        reward_fn: Optional[cmrl.types.RewardFnType] = None,
-        termination_fn: Optional[cmrl.types.TermFnType] = None,
-        get_init_obs_fn: Optional[cmrl.types.InitObsFnType] = None,
-        real_replay_buffer: Optional[ReplayBuffer] = None,
-        penalty_coeff: float = 0.0,
-        deterministic=False,
-        max_episode_steps=1000,
-        logger=None,
-    ):
         self.dynamics = dynamics
-
-        self.penalty_coeff = penalty_coeff
-        self.deterministic = deterministic
-        self.max_episode_steps = max_episode_steps
-
         self.reward_fn = reward_fn
         self.termination_fn = termination_fn
-        assert self.dynamics.learn_reward or reward_fn
-        assert self.dynamics.learn_termination or termination_fn
+        assert self.dynamics.learn_reward or reward_fn, "you must learn a reward-mech or give one"
+        assert self.dynamics.learn_termination or termination_fn, "you must learn a termination-mech or give one"
         self.learn_reward = self.dynamics.learn_reward
         self.learn_termination = self.dynamics.learn_termination
         self.get_init_obs_fn = get_init_obs_fn
         self.replay_buffer = real_replay_buffer
+
+        self.penalty_coeff = penalty_coeff
+        self.deterministic = deterministic
+        self.max_episode_steps = max_episode_steps
+        self.branch_rollout = branch_rollout
+        if self.branch_rollout:
+            assert self.replay_buffer, "you must provide a replay buffer if using branch-rollout"
+        else:
+            assert self.get_init_obs_fn, "you must provide a get-init-obs function if using fully-virtual"
+
         self.logger = logger
 
-        assert self.get_init_obs_fn or self.replay_buffer
-        self._reset_by_buffer = self.replay_buffer is not None
-
         self.device = dynamics.device
-        self.has_set_up = True
+
+        self._current_batch_obs = None
+        self._current_batch_action = None
+        self._envs_length = np.zeros(self.num_envs, dtype=int)
 
     def step_async(self, actions: np.ndarray) -> None:
+        assert len(actions.shape) == 2  # batch, action_dim
         self._current_batch_action = actions
 
     def step_wait(self):
-        assert self.has_set_up, "fake-env has not set up"
-        assert len(self._current_batch_action.shape) == 2  # batch, action_dim
-        with torch.no_grad():
-            batch_obs_tensor = torch.from_numpy(self._current_batch_obs).to(torch.float32).to(self.device)
-            batch_action_tensor = torch.from_numpy(self._current_batch_action).to(torch.float32).to(self.device)
-            dynamics_pred = self.dynamics.query(batch_obs_tensor, batch_action_tensor, return_as_np=True)
+        batch_next_obs, batch_reward, batch_terminal, info = self.dynamics.step(
+            self._current_batch_obs, self._current_batch_action
+        )
 
-            # transition
-            batch_next_obs = self.get_dynamics_predict(dynamics_pred, "transition", deterministic=self.deterministic)
-            if self.learn_reward:
-                batch_reward = self.get_dynamics_predict(dynamics_pred, "reward_mech", deterministic=self.deterministic)
-            else:
-                batch_reward = self.reward_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
-            if self.learn_termination:
-                batch_terminal = self.get_dynamics_predict(dynamics_pred, "termination_mech", deterministic=self.deterministic)
-            else:
-                batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
+        if not self.learn_reward:
+            batch_reward = self.reward_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
+        if not self.learn_termination:
+            batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
 
-            if self.penalty_coeff != 0:
-                penalty = self.get_penalty(dynamics_pred["batch_next_obs"]["mean"]).reshape(batch_reward.shape)
-                batch_reward -= penalty * self.penalty_coeff
+        if self.penalty_coeff != 0:
+            penalty = self.get_penalty(info["origin-next_obs"]).reshape(batch_reward.shape)
+            batch_reward -= penalty * self.penalty_coeff
 
-                if self.logger is not None:
-                    self.logger.record_mean("rollout/penalty", penalty.mean().item())
+            if self.logger is not None:
+                self.logger.record_mean("rollout/penalty", penalty.mean().item())
 
         self._current_batch_obs = batch_next_obs.copy()
         batch_reward = batch_reward.reshape(self.num_envs)
@@ -148,15 +120,17 @@ class VecFakeEnv(VecEnv):
         return_info: bool = False,
         options: Optional[dict] = None,
     ):
-        if self.has_set_up:
-            if self._reset_by_buffer:
-                upper_bound = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
-                batch_inds = np.random.randint(0, upper_bound, size=self.num_envs)
-                self._current_batch_obs = self.replay_buffer.observations[batch_inds, 0]
-            else:
-                self._current_batch_obs = self.get_init_obs_fn(self.num_envs)
-            self._envs_length = np.zeros(self.num_envs, dtype=int)
+        if self.branch_rollout:
+            upper_bound = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
+            batch_inds = np.random.randint(0, upper_bound, size=self.num_envs)
+            self._current_batch_obs = self.replay_buffer.observations[batch_inds, 0]
+        else:
+            self._current_batch_obs = self.get_init_obs_fn(self.num_envs)
+        self._envs_length = np.zeros(self.num_envs, dtype=int)
 
+        if return_info:
+            return self._current_batch_obs.copy(), {}
+        else:
             return self._current_batch_obs.copy()
 
     def seed(self, seed: Optional[int] = None):
@@ -169,10 +143,8 @@ class VecFakeEnv(VecEnv):
         return [False for _ in range(self.num_envs)]
 
     def single_reset(self, idx):
-        assert self.has_set_up, "fake-env has not set up"
-
         self._envs_length[idx] = 0
-        if self._reset_by_buffer:
+        if self.branch_rollout:
             upper_bound = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
             batch_inds = np.random.randint(0, upper_bound)
             self._current_batch_obs[idx] = self.replay_buffer.observations[batch_inds, 0]
@@ -189,7 +161,6 @@ class VecFakeEnv(VecEnv):
         diffs = ensemble_batch_next_obs - avg
         dists = np.linalg.norm(diffs, axis=2)  # distance in obs space
         penalty = np.max(dists, axis=0)  # max distances over models
-
         return penalty
 
     def get_dynamics_predict(

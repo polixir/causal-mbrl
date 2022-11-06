@@ -25,16 +25,16 @@ def run(cfg: DictConfig):
 
     if cfg.algorithm.name == "on_dyna":
         test_env, *_ = make_env(cfg)
-        return on_dyna.train(env, test_env, term_fn, reward_fn, init_obs_fn, cfg)
+        return on_dyna.train(env, test_env, reward_fn, term_fn, init_obs_fn, cfg)
     elif cfg.algorithm.name == "mopo":
         test_env, *_ = make_env(cfg)
-        return mopo.train(env, test_env, term_fn, reward_fn, init_obs_fn, cfg)
+        return mopo.train(env, test_env, reward_fn, term_fn, init_obs_fn, cfg)
     elif cfg.algorithm.name == "off_dyna":
         test_env, *_ = make_env(cfg)
-        return off_dyna.train(env, test_env, term_fn, reward_fn, init_obs_fn, cfg)
+        return off_dyna.train(env, test_env, reward_fn, term_fn, init_obs_fn, cfg)
     elif cfg.algorithm.name == "mbpo":
         test_env, *_ = make_env(cfg)
-        return mbpo.train(env, test_env, term_fn, reward_fn, init_obs_fn, cfg)
+        return mbpo.train(env, test_env, reward_fn, term_fn, init_obs_fn, cfg)
     else:
         raise NotImplementedError
 

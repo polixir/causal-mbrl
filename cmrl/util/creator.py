@@ -1,5 +1,6 @@
 import pathlib
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union, cast
+from functools import partial
 
 import gym.wrappers
 from gym import spaces
@@ -8,12 +9,22 @@ from hydra.utils import instantiate
 import numpy as np
 import omegaconf
 from stable_baselines3.common.logger import Logger
+from stable_baselines3.common.base_class import BaseAlgorithm
+from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.dynamics import Dynamics
-from cmrl.models.transition import ForwardEulerTransition
-from cmrl.util.config import get_complete_dynamics_cfg
-from cmrl.models.util import parse_space, create_decoders, create_encoders
-from cmrl.types import DiscreteVariable, ContinuousVariable, BinaryVariable
+from cmrl.models.fake_env import VecFakeEnv
+from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
+from cmrl.models.util import parse_space
+from cmrl.types import DiscreteVariable, ContinuousVariable, BinaryVariable, InitObsFnType, RewardFnType, TermFnType
+
+
+def create_agent(cfg, fake_env: VecFakeEnv, logger: Optional[Logger] = None):
+    agent = instantiate(cfg.algorithm.agent)(env=fake_env)
+    agent = cast(BaseAlgorithm, agent)
+    agent.set_logger(logger)
+
+    return agent
 
 
 def create_dynamics(
@@ -36,6 +47,7 @@ def create_dynamics(
         variable_decoders=None,
         logger=logger,
     )
+    transition = cast(BaseCausalMech, transition)
     # reward mech
     if cfg.reward_mech.learn:
         reward_mech = instantiate(cfg.reward_mech.mech)(
@@ -45,6 +57,7 @@ def create_dynamics(
             variable_decoders=None,
             logger=logger,
         )
+        reward_mech = cast(BaseCausalMech, reward_mech)
     else:
         reward_mech = None
     # termination mech
@@ -56,6 +69,7 @@ def create_dynamics(
             variable_decoders=None,
             logger=logger,
         )
+        termination_mech = cast(BaseCausalMech, termination_mech)
     else:
         termination_mech = None
 

@@ -36,8 +36,8 @@ class Dynamics:
         self.action_space = action_space
         self.logger = logger
 
-        self.learn_reward = reward_mech is None
-        self.learn_termination = termination_mech is None
+        self.learn_reward = reward_mech is not None
+        self.learn_termination = termination_mech is not None
 
         self.device = self.transition.device
         pass
@@ -75,9 +75,68 @@ class Dynamics:
         work_dir: Optional[Union[str, pathlib.Path]] = None,
         **kwargs
     ):
+        longest_epoch = 0
+
         # transition
-        self.transition.learn(*self.get_loader(real_replay_buffer, "transition"))
+        self.transition.learn(
+            *self.get_loader(real_replay_buffer, "transition"),
+            longest_epoch=longest_epoch,
+            improvement_threshold=improvement_threshold,
+            patience=patience,
+            work_dir=work_dir
+        )
         # reward-mech
-        self.reward_mech.learn(*self.get_loader(real_replay_buffer, "reward_mech"))
+        if self.learn_reward:
+            self.reward_mech.learn(
+                *self.get_loader(real_replay_buffer, "reward_mech"),
+                longest_epoch=longest_epoch,
+                improvement_threshold=improvement_threshold,
+                patience=patience,
+                work_dir=work_dir
+            )
         # termination-mech
-        self.termination_mech.learn(*self.get_loader(real_replay_buffer, "termination_mech"))
+        if self.learn_termination:
+            self.termination_mech.learn(
+                *self.get_loader(real_replay_buffer, "termination_mech"),
+                longest_epoch=longest_epoch,
+                improvement_threshold=improvement_threshold,
+                patience=patience,
+                work_dir=work_dir
+            )
+
+    def step(self, batch_obs, batch_action):
+        with torch.no_grad():
+            if isinstance(self.observation_space, spaces.Box):
+                observations_dict = dict(
+                    [
+                        (
+                            "obs_{}".format(i),
+                            torch.from_numpy(np.tile(batch_obs.T[0][None, :, None], [7, 1, 1])).to(torch.float32),
+                        )
+                        for i, obs in enumerate(batch_obs.T)
+                    ]
+                )
+            else:
+                raise NotImplementedError
+
+            if isinstance(self.action_space, spaces.Box):
+                actions_dict = dict(
+                    [
+                        (
+                            "act_{}".format(i),
+                            torch.from_numpy(np.tile(batch_obs.T[0][None, :, None], [7, 1, 1])).to(torch.float32),
+                        )
+                        for i, obs in enumerate(batch_action.T)
+                    ]
+                )
+            else:
+                raise NotImplementedError
+
+            inputs = {}
+            inputs.update(observations_dict)
+            inputs.update(actions_dict)
+            outputs = self.transition.forward(inputs)
+
+        info = {"origin-next_obs": torch.concat([tensor[:, :, :1] for tensor in outputs.values()], dim=-1).cpu().numpy()}
+
+        return torch.concat([tensor.mean(dim=0)[:, :1] for tensor in outputs.values()], dim=-1).cpu().numpy(), None, None, info

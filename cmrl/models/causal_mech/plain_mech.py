@@ -17,6 +17,8 @@ from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 
+from time import time
+
 
 class PlainMech(BaseCausalMech):
     def __init__(
@@ -94,7 +96,6 @@ class PlainMech(BaseCausalMech):
         self.graph = None
 
     def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        torch.autograd.set_detect_anomaly(True)
         assert list(inputs.keys()) == list(self.variable_encoders.keys())
         data_shape = list(inputs.values())[0].shape
         assert len(data_shape) == 3  # ensemble-num, batch-size, specific-dim
@@ -180,14 +181,13 @@ class PlainMech(BaseCausalMech):
         **kwargs
     ):
         best_weights: Optional[Dict] = None
-        epoch_iter = range(longest_epoch) if longest_epoch > 0 else itertools.count()
+        epoch_iter = range(longest_epoch) if longest_epoch >= 0 else itertools.count()
         epochs_since_update = 0
         best_eval_loss = self.eval(valid_loader).mean(dim=(1, 2))
 
         for epoch in epoch_iter:
             train_loss = self.train(train_loader)
             eval_loss = self.eval(valid_loader).mean(dim=(1, 2))
-
             maybe_best_weights = self._maybe_get_best_weights(best_eval_loss, eval_loss, improvement_threshold)
             if maybe_best_weights:
                 # best loss

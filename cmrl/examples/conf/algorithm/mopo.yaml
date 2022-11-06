@@ -13,6 +13,7 @@ penalty_coeff: ${task.penalty_coeff}
 #          SAC Agent configuration
 # --------------------------------------------
 agent:
+  _partial_: true
   _target_: stable_baselines3.sac.SAC
   policy: "MlpPolicy"
   env:

@@ -12,22 +12,13 @@ penalty_coeff: ${task.penalty_coeff}
 # --------------------------------------------
 #          SAC Agent configuration
 # --------------------------------------------
+num_envs: 16
+deterministic: true
 agent:
+  _partial_: true
   _target_: stable_baselines3.sac.SAC
   policy: "MlpPolicy"
-  env:
-    _target_: cmrl.models.fake_env.VecFakeEnv
-    num_envs: 16
-    action_space:
-      _target_: gym.spaces.Box
-      low: ???
-      high: ???
-      shape: ???
-    observation_space:
-      _target_: gym.spaces.Box
-      low: ???
-      high: ???
-      shape: ???
+  env: ???
   learning_starts: 0
   batch_size: 256
   tau: 0.005

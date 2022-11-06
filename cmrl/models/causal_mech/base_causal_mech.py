@@ -93,6 +93,10 @@ class BaseCausalMech:
             assert decoder.node_dim == self.node_dim
 
     @abstractmethod
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    @abstractmethod
     def learn(
         self,
         # loader

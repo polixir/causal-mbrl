@@ -12,6 +12,7 @@ initial_exploration_steps: 1000
 #          SAC Agent configuration
 # --------------------------------------------
 agent:
+  _partial_: true
   _target_: stable_baselines3.sac.SAC
   policy: "MlpPolicy"
   env:
