@@ -95,7 +95,7 @@ class CMItest(BaseCausalMech):
     def build_graph(self):
         self.graph = None
 
-    def forward(self, inputs: MutableMapping[str, Union[torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         assert len(set(inputs.keys()) & set(self.variable_encoders.keys())) == len(inputs)
         data_shape = list(inputs.values())[0].shape
         assert len(data_shape) == 3, "{}".format(data_shape)  # ensemble-num, batch-size, specific-dim
