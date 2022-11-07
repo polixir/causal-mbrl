@@ -96,7 +96,7 @@ class BaseCausalMech:
             assert decoder.node_dim == self.node_dim
 
     @abstractmethod
-    def forward(self, inputs: MutableMapping[str, Union[torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     @abstractmethod
