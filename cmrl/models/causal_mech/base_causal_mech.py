@@ -37,21 +37,7 @@ class BaseCausalMech(ABC):
         self.output_var_num = len(self.output_variables)
 
     @abstractmethod
-    def learn(
-        self,
-        # loader
-        train_loader: DataLoader,
-        valid_loader: DataLoader,
-        **kwargs
-    ):
-        raise NotImplementedError
-
-    @abstractmethod
-    def train(self, loader: DataLoader):
-        raise NotImplementedError
-
-    @abstractmethod
-    def eval(self, loader: DataLoader):
+    def learn(self, train_loader: DataLoader, valid_loader: DataLoader, **kwargs):
         raise NotImplementedError
 
     @abstractmethod

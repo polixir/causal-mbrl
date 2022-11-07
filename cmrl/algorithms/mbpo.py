@@ -31,7 +31,7 @@ class MBPO(BaseAlgorithm):
             self.env,
             self.dynamics,
             self.real_replay_buffer,
-            total_num_steps=self.cfg.task.online_num_steps,
+            total_online_timesteps=self.cfg.task.online_num_steps,
             initial_exploration_steps=self.cfg.algorithm.initial_exploration_steps,
             freq_train_model=self.cfg.task.freq_train_model,
             device=self.cfg.device,

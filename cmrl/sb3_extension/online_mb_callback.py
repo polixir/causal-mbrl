@@ -8,11 +8,7 @@ import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback, EventCallback
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.buffers import ReplayBuffer
-from stable_baselines3.common.vec_env import (
-    DummyVecEnv,
-    VecEnv,
-    sync_envs_normalization,
-)
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 from cmrl.models.fake_env import VecFakeEnv
 from cmrl.models.dynamics import Dynamics
@@ -24,7 +20,7 @@ class OnlineModelBasedCallback(BaseCallback):
         env: gym.Env,
         dynamics: Dynamics,
         real_replay_buffer: ReplayBuffer,
-        total_num_steps: int = int(1e5),
+        total_online_timesteps: int = int(1e5),
         initial_exploration_steps: int = 1000,
         freq_train_model: int = 250,
         device: str = "cpu",
@@ -33,7 +29,7 @@ class OnlineModelBasedCallback(BaseCallback):
 
         self.env = DummyVecEnv([lambda: env])
         self.dynamics = dynamics
-        self.total_num_steps = total_num_steps
+        self.total_online_timesteps = total_online_timesteps
         self.initial_exploration_steps = initial_exploration_steps
         self.freq_train_model = freq_train_model
         self.device = device
@@ -43,18 +39,19 @@ class OnlineModelBasedCallback(BaseCallback):
 
         self.real_replay_buffer = real_replay_buffer
 
-        self.now_num_steps = 0
-        self.step_times = 0
+        self.now_online_timesteps = 0
         self._last_obs = None
 
     def _on_step(self) -> bool:
-        if self.step_times % self.freq_train_model == 0:
+        if self.n_calls % self.freq_train_model == 0:
+            # dump some residual log before dynamics learn
+            self.model.logger.dump(step=self.num_timesteps)
+
             self.dynamics.learn(self.real_replay_buffer)
 
         self.step_and_add(explore=False)
-        self.step_times += 1
 
-        if self.now_num_steps >= self.total_num_steps:
+        if self.now_online_timesteps >= self.total_online_timesteps:
             return False
         return True
 
@@ -62,7 +59,7 @@ class OnlineModelBasedCallback(BaseCallback):
         assert self.env.num_envs == 1
 
         self._last_obs = self.env.reset()
-        while self.now_num_steps < self.initial_exploration_steps:
+        while self.now_online_timesteps < self.initial_exploration_steps:
             self.step_and_add(explore=True)
 
     def step_and_add(self, explore=True):
@@ -73,7 +70,7 @@ class OnlineModelBasedCallback(BaseCallback):
         buffer_actions = self.model.policy.scale_action(actions)
 
         new_obs, rewards, dones, infos = self.env.step(actions)
-        self.now_num_steps += 1
+        self.now_online_timesteps += 1
 
         next_obs = deepcopy(new_obs)
         if dones[0] and infos[0].get("terminal_observation") is not None:
