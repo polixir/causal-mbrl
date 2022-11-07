@@ -3,12 +3,8 @@ from typing import List, Optional, Union, Dict
 import numpy as np
 import torch
 from gym import spaces
-from omegaconf import DictConfig
-
-from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.utils.types import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
-from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 
 
 # inplace truncated normal function for pytorch.
@@ -56,7 +52,12 @@ def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
 
 
 def space2dict(
-    data: np.ndarray, space: spaces.Space, prefix="obs", repeat: Optional[int] = None, to_tensor: bool = False
+    data: np.ndarray,
+    space: spaces.Space,
+    prefix="obs",
+    repeat: Optional[int] = None,
+    to_tensor: bool = False,
+    device: Union[str, torch.device] = "cpu",
 ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
     if repeat:
         assert repeat > 1, "repeat must be a int greater than 1"
@@ -75,7 +76,7 @@ def space2dict(
             # shape: (repeat-dim, batch-size, specific-dim)
             dict_data[name] = np.tile(dict_data[name][None, :, :], [repeat, 1, 1])
         if to_tensor:
-            dict_data[name] = torch.from_numpy(dict_data[name])
+            dict_data[name] = torch.from_numpy(dict_data[name]).to(device)
 
     return dict_data
 
@@ -84,65 +85,3 @@ def dict2space(
     data: Dict[str, Union[np.ndarray, torch.Tensor]], space: spaces.Space
 ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
     pass
-
-
-def create_encoders(
-    input_variables: List[Variable],
-    node_dim: int,
-    hidden_dims: Optional[List[int]] = None,
-    bias: bool = True,
-    activation_fn_cfg: Optional[DictConfig] = None,
-    device: Union[str, torch.device] = "cpu",
-):
-    encoders = {}
-    for var in input_variables:
-        assert var.name not in encoders, "duplicate name in decoders: {}".format(var.name)
-        encoders[var.name] = VariableEncoder(
-            variable=var, output_dim=node_dim, hidden_dims=hidden_dims, bias=bias, activation_fn_cfg=activation_fn_cfg
-        ).to(device)
-    return encoders
-
-
-def create_decoders(
-    input_variables: List[Variable],
-    node_dim: int,
-    hidden_dims: Optional[List[int]] = None,
-    bias: bool = True,
-    activation_fn_cfg: Optional[DictConfig] = None,
-    normal_distribution: bool = True,
-    device: Union[str, torch.device] = "cpu",
-):
-    decoders = {}
-    for var in input_variables:
-        assert var.name not in decoders, "duplicate name in decoders: {}".format(var.name)
-        decoders[var.name] = VariableDecoder(
-            variable=var,
-            input_dim=node_dim,
-            hidden_dims=hidden_dims,
-            bias=bias,
-            activation_fn_cfg=activation_fn_cfg,
-            normal_distribution=normal_distribution,
-        ).to(device)
-    return decoders
-
-
-def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):
-    assert hasattr(env, "get_dataset"), "env must have `get_dataset` method"
-
-    data_dict = env.get_dataset(dataset_name)
-    all_data_num = len(data_dict["observations"])
-    sample_data_num = int(use_ratio * all_data_num)
-    sample_idx = np.random.permutation(all_data_num)[:sample_data_num]
-
-    assert replay_buffer.n_envs == 1
-    assert replay_buffer.buffer_size >= sample_data_num
-
-    if sample_data_num == replay_buffer.buffer_size:
-        replay_buffer.full = True
-        replay_buffer.pos = 0
-    else:
-        replay_buffer.pos = sample_data_num
-
-    # set all data
-    for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
-        getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]

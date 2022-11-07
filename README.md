@@ -1,4 +1,4 @@
-![](/img/cmrl_logo.png)
+![](/docs/cmrl_logo.png)
 
 # Causal-MBRL
 

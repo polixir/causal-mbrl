@@ -9,7 +9,7 @@ from stable_baselines3.common.base_class import BaseAlgorithm
 
 from cmrl.models.dynamics import Dynamics
 from cmrl.models.fake_env import VecFakeEnv
-from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
+from cmrl.models.causal_mech.base_causal_mech import NeuralCausalMech
 from cmrl.models.util import parse_space
 from cmrl.utils.types import ContinuousVariable, BinaryVariable
 
@@ -39,7 +39,7 @@ def create_dynamics(
         output_variables=next_obs_variables,
         logger=logger,
     )
-    transition = cast(BaseCausalMech, transition)
+    transition = cast(NeuralCausalMech, transition)
 
     # reward mech
     assert cfg.reward_mech.mech.multi_step == "none", "reward-mech must be one-step"
@@ -49,7 +49,7 @@ def create_dynamics(
             output_variables=[ContinuousVariable("reward", dim=1, low=-np.inf, high=np.inf)],
             logger=logger,
         )
-        reward_mech = cast(BaseCausalMech, reward_mech)
+        reward_mech = cast(NeuralCausalMech, reward_mech)
     else:
         reward_mech = None
 
@@ -61,7 +61,7 @@ def create_dynamics(
             output_variables=[BinaryVariable("terminal")],
             logger=logger,
         )
-        termination_mech = cast(BaseCausalMech, termination_mech)
+        termination_mech = cast(NeuralCausalMech, termination_mech)
     else:
         termination_mech = None
 

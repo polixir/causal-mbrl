@@ -11,18 +11,19 @@ from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.models.util import space2dict
-from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
+from cmrl.models.causal_mech.base_causal_mech import NeuralCausalMech
 from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
 
 
 class Dynamics:
     def __init__(
         self,
-        transition: BaseCausalMech,
-        reward_mech: Optional[BaseCausalMech],
-        termination_mech: Optional[BaseCausalMech],
+        transition: NeuralCausalMech,
+        reward_mech: Optional[NeuralCausalMech],
+        termination_mech: Optional[NeuralCausalMech],
         observation_space: spaces.Space,
         action_space: spaces.Space,
+        seed: int = 7,
         logger: Optional[Logger] = None,
     ):
         self.transition = transition
@@ -30,6 +31,7 @@ class Dynamics:
         self.termination_mech = termination_mech
         self.observation_space = observation_space
         self.action_space = action_space
+        self.seed = seed
         self.logger = logger
 
         self.learn_reward = reward_mech is not None
@@ -47,6 +49,7 @@ class Dynamics:
             mech=mech,
             train_ensemble=True,
             ensemble_num=self.transition.ensemble_num,
+            seed=self.seed,
         )
         train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn)
         valid_dataset = BufferDataset(
@@ -56,6 +59,7 @@ class Dynamics:
             is_valid=True,
             mech=mech,
             repeat=self.transition.ensemble_num,
+            seed=self.seed,
         )
         valid_loader = DataLoader(valid_dataset, batch_size=batch_size, collate_fn=collate_fn)
 

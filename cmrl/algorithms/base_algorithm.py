@@ -8,12 +8,33 @@ from omegaconf import DictConfig
 from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 
-from cmrl.models.util import load_offline_data
 from cmrl.models.fake_env import VecFakeEnv
 from cmrl.sb3_extension.logger import configure as logger_configure
 from cmrl.sb3_extension.eval_callback import EvalCallback
 from cmrl.utils.creator import create_dynamics, create_agent
 from cmrl.utils.env import make_env
+
+
+def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):
+    assert hasattr(env, "get_dataset"), "env must have `get_dataset` method"
+
+    data_dict = env.get_dataset(dataset_name)
+    all_data_num = len(data_dict["observations"])
+    sample_data_num = int(use_ratio * all_data_num)
+    sample_idx = np.random.permutation(all_data_num)[:sample_data_num]
+
+    assert replay_buffer.n_envs == 1
+    assert replay_buffer.buffer_size >= sample_data_num
+
+    if sample_data_num == replay_buffer.buffer_size:
+        replay_buffer.full = True
+        replay_buffer.pos = 0
+    else:
+        replay_buffer.pos = sample_data_num
+
+    # set all data
+    for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
+        getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]
 
 
 class BaseAlgorithm:
@@ -25,24 +46,28 @@ class BaseAlgorithm:
         self.cfg = cfg
         self.work_dir = work_dir or os.getcwd()
 
-        self.env, self.reward_fn, self.termination_fn, self.get_init_obs_fn = make_env(cfg)
-        self.eval_env, *_ = make_env(cfg)
-        np.random.seed(cfg.seed)
-        torch.manual_seed(cfg.seed)
+        self.env, self.reward_fn, self.termination_fn, self.get_init_obs_fn = make_env(self.cfg)
+        self.eval_env, *_ = make_env(self.cfg)
+        np.random.seed(self.cfg.seed)
+        torch.manual_seed(self.cfg.seed)
 
         self.logger = logger_configure("log", ["tensorboard", "multi_csv", "stdout"])
 
         # create ``cmrl`` dynamics
-        self.dynamics = create_dynamics(cfg, self.env.observation_space, self.env.action_space, logger=self.logger)
+        self.dynamics = create_dynamics(self.cfg, self.env.observation_space, self.env.action_space, logger=self.logger)
 
         # create sb3's replay buffer for real offline data
         self.real_replay_buffer = ReplayBuffer(
-            cfg.task.num_steps, self.env.observation_space, self.env.action_space, cfg.device, handle_timeout_termination=False
+            cfg.task.num_steps,
+            self.env.observation_space,
+            self.env.action_space,
+            self.cfg.device,
+            handle_timeout_termination=False,
         )
 
         self.partial_fake_env = partial(
             VecFakeEnv,
-            cfg.algorithm.num_envs,
+            self.cfg.algorithm.num_envs,
             self.env.observation_space,
             self.env.action_space,
             self.dynamics,
@@ -50,13 +75,13 @@ class BaseAlgorithm:
             self.termination_fn,
             self.get_init_obs_fn,
             self.real_replay_buffer,
-            penalty_coeff=cfg.task.penalty_coeff,
+            penalty_coeff=self.cfg.task.penalty_coeff,
             logger=self.logger,
         )
 
         self.fake_env = self.get_fake_env()
 
-        self.agent = create_agent(cfg, self.fake_env, self.logger)
+        self.agent = create_agent(self.cfg, self.fake_env, self.logger)
 
         self.callback = self.get_callback()
 

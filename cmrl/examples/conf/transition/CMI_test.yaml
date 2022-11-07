@@ -1,5 +1,5 @@
-name: "plain_termination_mech"
-learn: false
+name: "CMI_test_transition"
+learn: true
 
 encoder_cfg:
   _partial_: true
@@ -36,9 +36,9 @@ optimizer_cfg:
 mech:
   _partial_: true
   _recursive_: false
-  _target_: cmrl.models.causal_mech.PlainMech
+  _target_: cmrl.models.causal_mech.CMItest
   # base causal-mech params
-  name: termination_mech
+  name: transition
   input_variables: ???
   output_variables: ???
   ensemble_num: 7

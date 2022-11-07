@@ -1,6 +1,5 @@
 from typing import Optional
 
-import gym
 from gym import spaces
 import torch
 from torch.utils.data import Dataset, default_collate
@@ -56,9 +55,25 @@ class BufferDataset(Dataset):
             self.indexes = permutation[: int(self.size * self.train_ratio)]
 
     def load_from_buffer(self):
-        obs_dict = space2dict(self.replay_buffer.observations[: self.size, 0], self.observation_space, "obs")
-        act_dict = space2dict(self.replay_buffer.actions[: self.size, 0], self.action_space, "act")
-        next_obs_dict = space2dict(self.replay_buffer.next_observations[: self.size, 0], self.observation_space, "next_obs")
+        obs_dict = space2dict(
+            self.replay_buffer.observations[: self.size, 0],
+            self.observation_space,
+            prefix="obs",
+            to_tensor=True,
+        )
+        act_dict = space2dict(
+            self.replay_buffer.actions[: self.size, 0],
+            self.action_space,
+            prefix="act",
+            to_tensor=True,
+        )
+        next_obs_dict = space2dict(
+            self.replay_buffer.next_observations[: self.size, 0],
+            self.observation_space,
+            prefix="next_obs",
+            to_tensor=True,
+            # device=self.device
+        )
 
         self.inputs = {}
         self.inputs.update(obs_dict)
@@ -68,13 +83,12 @@ class BufferDataset(Dataset):
             self.outputs = next_obs_dict
         elif self.mech == "reward_mech":
             rewards = self.replay_buffer.rewards[: self.size, 0]
-            rewards_dict = {"reward": rewards[:, None]}
+            rewards_dict = {"reward": torch.from_numpy(rewards[:, None])}
             self.inputs.update(next_obs_dict)
             self.outputs = rewards_dict
         else:
-            dones = self.replay_buffer.dones[: self.size, 0]
-            timeouts = self.replay_buffer.timeouts[: self.size, 0]
-            terminals_dict = {"terminal": (dones * (1 - timeouts))[:, None]}
+            terminals = self.replay_buffer.dones[: self.size, 0] * (1 - self.replay_buffer.timeouts[: self.size, 0])
+            terminals_dict = {"terminal": torch.from_numpy(terminals[:, None])}
             self.inputs.update(next_obs_dict)
             self.outputs = terminals_dict
 
