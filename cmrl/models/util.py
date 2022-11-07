@@ -96,9 +96,9 @@ def create_encoders(
 ):
     encoders = {}
     for var in input_variables:
-        assert var.name not in encoders, "Duplicate name in decoders: {}".format(var.name)
+        assert var.name not in encoders, "duplicate name in decoders: {}".format(var.name)
         encoders[var.name] = VariableEncoder(
-            variable=var, node_dim=node_dim, hidden_dims=hidden_dims, bias=bias, activation_fn_cfg=activation_fn_cfg
+            variable=var, output_dim=node_dim, hidden_dims=hidden_dims, bias=bias, activation_fn_cfg=activation_fn_cfg
         ).to(device)
     return encoders
 
@@ -114,10 +114,10 @@ def create_decoders(
 ):
     decoders = {}
     for var in input_variables:
-        assert var.name not in decoders, "Duplicate name in decoders: {}".format(var.name)
+        assert var.name not in decoders, "duplicate name in decoders: {}".format(var.name)
         decoders[var.name] = VariableDecoder(
             variable=var,
-            node_dim=node_dim,
+            input_dim=node_dim,
             hidden_dims=hidden_dims,
             bias=bias,
             activation_fn_cfg=activation_fn_cfg,

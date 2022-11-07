@@ -1,12 +1,15 @@
 from typing import Optional, List, Dict, Union, MutableMapping
 from abc import abstractmethod
+from itertools import chain
 
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-from torch.optim import Optimizer
+from torch.optim import Optimizer, Adam
 from stable_baselines3.common.logger import Logger
+from omegaconf import DictConfig
+from hydra.utils import instantiate
 
 from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
@@ -21,19 +24,17 @@ class BaseCausalMech:
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
-        node_dim: int,
-        variable_encoders: Optional[Dict[str, VariableEncoder]],
-        variable_decoders: Optional[Dict[str, VariableDecoder]],
         ensemble_num: int = 7,
         elite_num: int = 5,
+        # cfgs
+        network_cfg: Optional[DictConfig] = None,
+        encoder_cfg: Optional[DictConfig] = None,
+        decoder_cfg: Optional[DictConfig] = None,
+        optimizer_cfg: Optional[DictConfig] = None,
         # forward method
         residual: bool = True,
+        encoder_reduction: str = "sum",
         multi_step: str = "none",
-        # trainer
-        optim_lr: float = 1e-4,
-        optim_weight_decay: float = 1e-5,
-        optim_eps: float = 1e-8,
-        optim_encoder: bool = True,
         # logger
         logger: Optional[Logger] = None,
         # others
@@ -43,19 +44,17 @@ class BaseCausalMech:
         self.name = name
         self.input_variables = input_variables
         self.output_variables = output_variables
-        self.node_dim = node_dim
-        self.variable_encoders = variable_encoders
-        self.variable_decoders = variable_decoders
         self.ensemble_num = ensemble_num
         self.elite_num = elite_num
+        # cfgs
+        self.network_cfg = network_cfg
+        self.encoder_cfg = encoder_cfg
+        self.decoder_cfg = decoder_cfg
+        self.optimizer_cfg = optimizer_cfg
         # forward method
         self.residual = residual
+        self.encoder_reduction = encoder_reduction
         self.multi_step = multi_step
-        # trainer
-        self.optim_lr = optim_lr
-        self.optim_weight_decay = optim_weight_decay
-        self.optim_eps = optim_eps
-        self.optim_encoder = optim_encoder
         # logger
         self.logger = logger
         # others
@@ -64,40 +63,40 @@ class BaseCausalMech:
         self.input_var_num = len(self.input_variables)
         self.output_var_num = len(self.output_variables)
 
-        if self.variable_encoders is None:
-            assert self.optim_encoder
-            self.variable_encoders = create_encoders(input_variables, node_dim=self.node_dim, device=self.device)
-        if self.variable_decoders is None:
-            self.variable_decoders = create_decoders(output_variables, node_dim=self.node_dim, device=self.device)
-        self.check_coder()
-
+        self.variable_encoders: Optional[Dict[str, VariableEncoder]] = None
+        self.variable_decoders: Optional[Dict[str, VariableEncoder]] = None
         self.network: Optional[BaseNetwork] = None
-        self.optimizer: Optional[Optimizer] = None
         self.graph: Optional[BaseGraph] = None
+        self.optimizer: Optional[Optimizer] = None
 
+        self.build_coder()
         self.build_network()
         self.build_graph()
+        self.build_optimizer()
 
         self.total_epoch = 0
         self.elite_indices: List[int] = []
 
-    def check_coder(self):
-        assert len(self.input_variables) == len(self.variable_encoders)
-        assert len(self.output_variables) == len(self.variable_decoders)
-
-        for var in self.input_variables:
-            assert var.name in self.variable_encoders
-            encoder = self.variable_encoders[var.name]
-            assert encoder.node_dim == self.node_dim
-
-        for var in self.output_variables:
-            assert var.name in self.variable_decoders
-            decoder = self.variable_decoders[var.name]
-            assert decoder.node_dim == self.node_dim
-
     @abstractmethod
-    def forward(self, inputs: MutableMapping[str, Union[torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
+
+    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        if self.multi_step.startswith("forward-euler"):
+            step_num = int(self.multi_step.split()[-1])
+
+            outputs = {}
+            for step in range(step_num):
+                outputs = self.single_step_forward(inputs)
+                if step < step_num - 1:
+                    for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
+                        assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
+                        assert inputs[name].shape[2] * 2 == outputs["next_{}".format(name)].shape[2]
+                        inputs[name] = outputs["next_{}".format(name)][:, :, : inputs[name].shape[2]]
+        else:
+            raise NotImplementedError("multi-step method {} is not supported".format(self.multi_step))
+
+        return outputs
 
     @abstractmethod
     def learn(
@@ -113,9 +112,32 @@ class BaseCausalMech:
     def build_network(self):
         raise NotImplementedError
 
+    def build_optimizer(self):
+        assert self.network is not None, "you must build network first"
+        params = (
+            [self.network.parameters()]
+            + [encoder.parameters() for encoder in self.variable_encoders.values()]
+            + [decoder.parameters() for decoder in self.variable_decoders.values()]
+        )
+
+        self.optimizer = instantiate(self.optimizer_cfg)(params=chain(*params))
+
     @abstractmethod
     def build_graph(self):
         raise NotImplementedError
+
+    def build_coder(self):
+        self.variable_encoders = {}
+        for var in self.input_variables:
+            assert var.name not in self.variable_encoders, "duplicate name in encoders: {}".format(var.name)
+            self.variable_encoders[var.name] = instantiate(self.encoder_cfg)(variable=var).to(self.device)
+
+        assert self.decoder_input_dim
+
+        self.variable_decoders = {}
+        for var in self.output_variables:
+            assert var.name not in self.variable_decoders, "duplicate name in decoders: {}".format(var.name)
+            self.variable_decoders[var.name] = instantiate(self.decoder_cfg)(variable=var).to(self.device)
 
     def loss(self, outputs, targets):
         ensemble_num, batch_size = list(targets.values())[0].shape[:2]
@@ -139,36 +161,37 @@ class BaseCausalMech:
                 raise NotImplementedError
         return total_loss
 
+    @property
+    def encoder_output_dim(self):
+        return self.encoder_cfg.output_dim
 
-# Causal = TypeVar("Causal", bound=BaseCausalMech)
-#
-#
-# class BaseMultiStepCausalMech(BaseCausalMech):
-#     def __init__(
-#         self,
-#         single_step_mech_class: Type[Causal],
-#         input_variables: List[Variable],
-#         output_variables: List[Variable],
-#         node_dim: int,
-#         variable_encoders: Dict[str, VariableEncoder],
-#         variable_decoders: Dict[str, VariableDecoder],
-#         **kwargs
-#     ):
-#         super(BaseMultiStepCausalMech, self).__init__(
-#             input_variables=input_variables,
-#             output_variables=output_variables,
-#             node_dim=node_dim,
-#             variable_encoders=variable_encoders,
-#             variable_decoders=variable_decoders,
-#         )
-#
-#         self.single_step_mech = single_step_mech_class(**kwargs)
-#         pass
-#
-#     @abstractmethod
-#     def build_network(self):
-#         raise NotImplementedError
-#
-#     @abstractmethod
-#     def build_graph(self):
-#         raise NotImplementedError
+    @property
+    def union_output_var_dim(self):
+        # all output variables should be ContinuousVariable and have same variable.dim
+        output_dim = []
+        for var in self.output_variables:
+            assert isinstance(var, ContinuousVariable), "all output variables should be ContinuousVariable"
+            output_dim.append(var.dim)
+        assert len(set(output_dim)) == 1, "all output variables should have same variable.dim"
+        return output_dim[0]
+
+    @property
+    def decoder_input_dim(self):
+        if self.decoder_cfg.identity:
+            return self.union_output_var_dim * 2
+        else:
+            return self.decoder_cfg.input_dim
+
+    def reduce_encoder_output(self, encoder_output: torch.Tensor) -> torch.Tensor:
+        assert len(encoder_output.shape) == 4, (
+            "shape of encoder_output should be (ensemble-num, batch-size, input-cvar-num, encoder-output-dim), "
+            "rather than {}".format(encoder_output.shape)
+        )
+        if self.encoder_reduction == "sum":
+            return encoder_output.sum(-2)
+        elif self.encoder_reduction == "mean":
+            return encoder_output.mean(-2)
+        elif self.encoder_reduction == "sum":
+            return encoder_output.sum(-2)
+        else:
+            raise NotImplementedError("not implemented encoder reduction method: {}".format(self.encoder_reduction))

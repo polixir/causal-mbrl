@@ -48,7 +48,7 @@ class Dynamics:
             train_ensemble=True,
             ensemble_num=self.transition.ensemble_num,
         )
-        train_loader = DataLoader(train_dataset, batch_size=8, collate_fn=collate_fn)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn)
         valid_dataset = BufferDataset(
             real_replay_buffer,
             self.observation_space,
@@ -57,7 +57,7 @@ class Dynamics:
             mech=mech,
             repeat=self.transition.ensemble_num,
         )
-        valid_loader = DataLoader(valid_dataset, batch_size=8, collate_fn=collate_fn)
+        valid_loader = DataLoader(valid_dataset, batch_size=batch_size, collate_fn=collate_fn)
 
         return train_loader, valid_loader
 

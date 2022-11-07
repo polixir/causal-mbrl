@@ -56,26 +56,6 @@ class BufferDataset(Dataset):
             self.indexes = permutation[: int(self.size * self.train_ratio)]
 
     def load_from_buffer(self):
-        # if isinstance(self.replay_buffer, DictReplayBuffer):
-        #     # TODO: DictReplayBuffer case
-        #     raise NotImplementedError
-        # else:
-        #     observations = self.replay_buffer.observations[: self.size, 0].astype(np.float32)
-        #     assert len(observations.shape) == 2
-        #     next_observations = self.replay_buffer.next_observations[: self.size, 0].astype(np.float32)
-        #
-        #     observations_dict = dict([("obs_{}".format(i), obs[:, None]) for i, obs in enumerate(observations.T)])
-        #     next_observations_dict = dict(
-        #         [("next_obs_{}".format(i), obs[:, None]) for i, obs in enumerate(next_observations.T)]
-        #     )
-
-        # assert isinstance(self.observation_space, spaces.Box)
-        # # TODO: other spaces for observation and action(e.g. one-hot for spaces.Discrete)
-        # # see: https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/preprocessing.py#L85
-        #
-        # actions = self.replay_buffer.actions[: self.size, 0]
-        # actions_dict = dict([("act_{}".format(i), obs[:, None]) for i, obs in enumerate(actions.T)])
-
         obs_dict = space2dict(self.replay_buffer.observations[: self.size, 0], self.observation_space, "obs")
         act_dict = space2dict(self.replay_buffer.actions[: self.size, 0], self.action_space, "act")
         next_obs_dict = space2dict(self.replay_buffer.next_observations[: self.size, 0], self.observation_space, "next_obs")

@@ -11,17 +11,18 @@ class VariableEncoder(BaseNetwork):
     def __init__(
         self,
         variable: Variable,
-        node_dim: int,
+        output_dim: int = 100,
         hidden_dims: Optional[List[int]] = None,
         bias: bool = True,
         activation_fn_cfg: Optional[DictConfig] = None,
     ):
         self.variable = variable
-        self.node_dim = node_dim
+        self.output_dim = output_dim
         self.hidden_dims = hidden_dims if hidden_dims is not None else []
         self.bias = bias
-        self.name = "{}_encoder".format(variable.name)
         self.activation_fn_cfg = activation_fn_cfg
+
+        self.name = "{}_encoder".format(variable.name)
 
         super(VariableEncoder, self).__init__()
         self._model_filename = "{}.pth".format(self.name)
@@ -29,7 +30,7 @@ class VariableEncoder(BaseNetwork):
     def build(self):
         layers = []
         if len(self.hidden_dims) == 0:
-            hidden_dim = self.node_dim
+            hidden_dim = self.output_dim
         else:
             hidden_dim = self.hidden_dims[0]
 
@@ -42,7 +43,7 @@ class VariableEncoder(BaseNetwork):
         else:
             raise NotImplementedError("Type {} is not supported by VariableEncoder".format(type(self.variable)))
 
-        hidden_dims = self.hidden_dims + [self.node_dim]
+        hidden_dims = self.hidden_dims + [self.output_dim]
         for i in range(len(hidden_dims) - 1):
             layers += [nn.Linear(hidden_dims[i], hidden_dims[i + 1], bias=self.bias)]
             layers += [create_activation(self.activation_fn_cfg)]
@@ -54,42 +55,44 @@ class VariableDecoder(BaseNetwork):
     def __init__(
         self,
         variable: Variable,
-        node_dim: int,
+        input_dim: int = 100,
         hidden_dims: Optional[List[int]] = None,
         bias: bool = True,
+        identity: bool = False,
         activation_fn_cfg: Optional[DictConfig] = None,
-        normal_distribution: bool = True,
     ):
         self.variable = variable
-        self.node_dim = node_dim
+        self.input_dim = input_dim
         self.hidden_dims = hidden_dims if hidden_dims is not None else []
         self.bias = bias
-        self.name = "{}_decoder".format(variable.name)
+        self.identity = identity
         self.activation_fn_cfg = activation_fn_cfg
 
-        self.normal_distribution = normal_distribution
+        self.name = "{}_decoder".format(variable.name)
 
         super(VariableDecoder, self).__init__()
         self._model_filename = "{}.pth".format(self.name)
 
     def build(self):
+        if self.identity:
+            assert isinstance(self.variable, ContinuousVariable), "only ContinuousVariable could use identity"
+            self._layers = nn.ModuleList([nn.Identity()])
+            return
+
         layers = [create_activation(self.activation_fn_cfg)]
 
-        hidden_dims = [self.node_dim] + self.hidden_dims
+        hidden_dims = [self.input_dim] + self.hidden_dims
         for i in range(len(hidden_dims) - 1):
             layers += [nn.Linear(hidden_dims[i], hidden_dims[i + 1], bias=self.bias)]
             layers += [create_activation(self.activation_fn_cfg)]
 
         if len(self.hidden_dims) == 0:
-            hidden_dim = self.node_dim
+            hidden_dim = self.input_dim
         else:
             hidden_dim = self.hidden_dims[-1]
 
         if isinstance(self.variable, ContinuousVariable):
-            if self.normal_distribution:
-                layers.append(nn.Linear(hidden_dim, self.variable.dim * 2))
-            else:
-                layers.append(nn.Linear(hidden_dim, self.variable.dim))
+            layers.append(nn.Linear(hidden_dim, self.variable.dim * 2))
         elif isinstance(self.variable, DiscreteVariable):
             layers.append(nn.Linear(hidden_dim, self.variable.n))
             layers.append(nn.Softmax())

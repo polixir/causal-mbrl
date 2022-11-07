@@ -89,8 +89,8 @@ class Variable:
 @dataclass
 class ContinuousVariable(Variable):
     dim: int
-    low: np.ndarray
-    high: np.ndarray
+    low: np.ndarray = None
+    high: np.ndarray = None
 
 
 @dataclass

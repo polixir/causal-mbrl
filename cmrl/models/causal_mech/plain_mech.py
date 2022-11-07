@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.optim import Adam
 from omegaconf import DictConfig
+from hydra.utils import instantiate
 from stable_baselines3.common.logger import Logger
 
 from cmrl.utils.types import Variable
@@ -20,38 +21,25 @@ class PlainMech(BaseCausalMech):
     def __init__(
         self,
         name: str,
-        # base causal-mech params
         input_variables: List[Variable],
         output_variables: List[Variable],
-        node_dim: int,
-        variable_encoders: Optional[Dict[str, VariableEncoder]],
-        variable_decoders: Optional[Dict[str, VariableDecoder]],
         ensemble_num: int = 7,
         elite_num: int = 5,
-        # network params
-        deterministic: bool = False,
-        hidden_dims: Optional[List[int]] = None,
-        use_bias: bool = True,
-        activation_fn_cfg: Optional[DictConfig] = None,
+        # cfgs
+        network_cfg: Optional[DictConfig] = None,
+        encoder_cfg: Optional[DictConfig] = None,
+        decoder_cfg: Optional[DictConfig] = None,
+        optimizer_cfg: Optional[DictConfig] = None,
         # forward method
         residual: bool = True,
+        encoder_reduction: str = "sum",
         multi_step: str = "none",
-        # trainer
-        optim_lr: float = 1e-4,
-        optim_weight_decay: float = 1e-5,
-        optim_eps: float = 1e-8,
-        optim_encoder: bool = True,
         # logger
         logger: Optional[Logger] = None,
         # others
         device: Union[str, torch.device] = "cpu",
         **kwargs
     ):
-        self.deterministic = deterministic
-        self.hidden_dims = hidden_dims if hidden_dims is not None else [200] * 4
-        self.use_bias = use_bias
-        self.activation_fn_cfg = activation_fn_cfg
-
         if multi_step == "none":
             multi_step = "forward-euler 1"
 
@@ -59,74 +47,53 @@ class PlainMech(BaseCausalMech):
             name=name,
             input_variables=input_variables,
             output_variables=output_variables,
-            node_dim=node_dim,
-            variable_encoders=variable_encoders,
-            variable_decoders=variable_decoders,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
+            network_cfg=network_cfg,
+            encoder_cfg=encoder_cfg,
+            decoder_cfg=decoder_cfg,
+            optimizer_cfg=optimizer_cfg,
             residual=residual,
+            encoder_reduction=encoder_reduction,
             multi_step=multi_step,
-            optim_lr=optim_lr,
-            optim_weight_decay=optim_weight_decay,
-            optim_eps=optim_eps,
-            optim_encoder=optim_encoder,
             logger=logger,
             device=device,
             **kwargs
         )
 
     def build_network(self):
-        self.network = ParallelMLP(
-            input_dim=self.input_var_num * self.node_dim,
-            output_dim=self.output_var_num * self.node_dim,
-            hidden_dims=self.hidden_dims,
-            use_bias=self.use_bias,
+        self.network = instantiate(self.network_cfg)(
+            input_dim=self.encoder_output_dim,
+            output_dim=self.output_var_num * self.decoder_input_dim,
             extra_dims=[self.ensemble_num],
-            activation_fn_cfg=self.activation_fn_cfg,
         ).to(self.device)
-
-        parmas = [self.network.parameters()] + [decoder.parameters() for decoder in self.variable_decoders.values()]
-        if self.optim_encoder:
-            parmas.extend([encoder.parameters() for encoder in self.variable_encoders.values()])
-        self.optimizer = Adam(
-            itertools.chain(*parmas), lr=self.optim_lr, weight_decay=self.optim_weight_decay, eps=self.optim_eps
-        )
 
     def build_graph(self):
         self.graph = None
 
-    def forward(self, inputs: MutableMapping[str, Union[torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         assert len(set(inputs.keys()) & set(self.variable_encoders.keys())) == len(inputs)
         data_shape = list(inputs.values())[0].shape
         assert len(data_shape) == 3, "{}".format(data_shape)  # ensemble-num, batch-size, specific-dim
         ensemble, batch_size, specific_dim = data_shape
         assert ensemble == self.ensemble_num
 
-        inputs_tensor = torch.zeros(ensemble, batch_size, self.input_var_num * self.node_dim).to(self.device)
+        inputs_tensor = torch.zeros(ensemble, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
         for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))  # ensemble-num, batch-size, node-dim
-            inputs_tensor[:, :, i * self.node_dim : (i + 1) * self.node_dim] = out
-
-        if self.multi_step.startswith("forward-euler"):
-            step_num = int(self.multi_step.split()[-1])
-            output_tensor = None
-            for step in range(step_num):
-                if step > 0:
-                    inputs_tensor = torch.concat(
-                        [output_tensor, inputs_tensor[:, :, self.output_var_num * self.node_dim :]], dim=-1
-                    )
-                output_tensor = self.network(inputs_tensor)
-                if self.residual:
-                    output_tensor += inputs_tensor[:, :, : self.output_var_num * self.node_dim]
-        else:
-            raise NotImplementedError
+            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
+            inputs_tensor[:, :, i] = out
+        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
 
         outputs = {}
         for i, var in enumerate(self.output_variables):
-            hid = output_tensor[:, :, i * self.node_dim : (i + 1) * self.node_dim]
-            out = self.variable_decoders[var.name](hid)
-            outputs[var.name] = out
+            hid = output_tensor[:, :, i * self.decoder_input_dim : (i + 1) * self.decoder_input_dim]
+            outputs[var.name] = self.variable_decoders[var.name](hid)
 
+        if self.residual:
+            for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
+                assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
+                assert inputs[name].shape[2] * 2 == outputs["next_{}".format(name)].shape[2]
+                outputs["next_{}".format(name)][:, :, : inputs[name].shape[2]] += inputs[name].to(self.device)
         return outputs
 
     def train(self, loader: DataLoader):

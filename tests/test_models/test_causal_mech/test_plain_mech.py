@@ -4,8 +4,7 @@ from torch.utils.data import DataLoader
 
 from cmrl.models.causal_mech.plain_mech import PlainMech
 from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
-from cmrl.algorithms.util import load_offline_data
-from cmrl.models.util import parse_space, create_decoders, create_encoders
+from cmrl.models.util import parse_space, load_offline_data
 
 
 def prepare(freq_rate):
@@ -40,7 +39,7 @@ def prepare(freq_rate):
     output_variables = parse_space(env.observation_space, "next_obs")
     variable_decoders = create_decoders(output_variables, node_dim=node_dim)
 
-    return input_variables, output_variables, node_dim, variable_encoders, variable_decoders, train_loader, valid_loader
+    return input_variables, output_variables, train_loader, valid_loader
 
 
 def test_inv_pendulum_single_step():
