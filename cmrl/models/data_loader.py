@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, default_collate
 import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer, DictReplayBuffer
 
-from cmrl.models.util import space2dict
+from cmrl.utils.variables import space2dict
 
 
 class BufferDataset(Dataset):

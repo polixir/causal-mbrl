@@ -15,14 +15,19 @@ decoder_cfg:
   _partial_: true
   _recursive_: false
   _target_: cmrl.models.networks.VariableDecoder
-  identity: true
+  identity: false
+  input_dim: 100
+  hidden_dims: [ 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
 
 network_cfg:
   _partial_: true
   _recursive_: false
   _target_: cmrl.models.networks.ParallelMLP
   hidden_dims: [ 200, 200 ]
-  use_bias: true
+  bias: true
   activation_fn_cfg:
     _target_: torch.nn.SiLU
 

@@ -8,7 +8,7 @@ from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.utils.types import InitObsFnType, RewardFnType, TermFnType
+from cmrl.utils.variables import InitObsFnType, RewardFnType, TermFnType
 
 # from cmrl.models.dynamics import BaseDynamics
 from cmrl.models.fake_env import VecFakeEnv

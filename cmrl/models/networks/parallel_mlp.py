@@ -19,7 +19,7 @@ class ParallelMLP(BaseNetwork):
         output_dim: int,
         extra_dims: Optional[List[int]] = None,
         hidden_dims: Optional[List[int]] = None,
-        use_bias: bool = True,
+        bias: bool = True,
         init_type: str = "truncated_normal",
         activation_fn_cfg: Optional[DictConfig] = None,
         **kwargs
@@ -28,7 +28,7 @@ class ParallelMLP(BaseNetwork):
         self.output_dim = output_dim
         self.extra_dims = extra_dims if extra_dims is not None else []
         self.hidden_dims = hidden_dims if hidden_dims is not None else [200, 200, 200, 200]
-        self.use_bias = use_bias
+        self.bias = bias
         self.init_type = init_type
         self.activation_fn_cfg = activation_fn_cfg
 
@@ -41,13 +41,13 @@ class ParallelMLP(BaseNetwork):
         for i in range(len(hidden_dims) - 1):
             layers += [
                 ParallelLinear(
-                    input_dim=hidden_dims[i], output_dim=hidden_dims[i + 1], extra_dims=self.extra_dims, use_bias=self.use_bias
+                    input_dim=hidden_dims[i], output_dim=hidden_dims[i + 1], extra_dims=self.extra_dims, use_bias=self.bias
                 )
             ]
             layers += [create_activation(self.activation_fn_cfg)]
         layers += [
             ParallelLinear(
-                input_dim=hidden_dims[-1], output_dim=self.output_dim, extra_dims=self.extra_dims, use_bias=self.use_bias
+                input_dim=hidden_dims[-1], output_dim=self.output_dim, extra_dims=self.extra_dims, use_bias=self.bias
             )
         ]
 

@@ -4,15 +4,14 @@ from torch.utils.data import DataLoader
 
 from cmrl.models.causal_mech.plain_mech import PlainMech
 from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
-from cmrl.models.util import parse_space, load_offline_data
+from cmrl.utils.creator import parse_space
+from cmrl.utils.env import load_offline_data
 
 
 def prepare(freq_rate):
     env = gym.make("BoundaryInvertedPendulumSwingUp-v0", freq_rate=freq_rate, time_step=0.02)
 
-    real_replay_buffer = ReplayBuffer(
-        int(1e5), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
-    )
+    real_replay_buffer = ReplayBuffer(1000, env.observation_space, env.action_space, "cpu", handle_timeout_termination=False)
     load_offline_data(env, real_replay_buffer, "SAC-expert-replay", use_ratio=0.001)
 
     ensemble_num = 7
@@ -32,51 +31,31 @@ def prepare(freq_rate):
     )
     valid_loader = DataLoader(valid_dataset, batch_size=8, collate_fn=collate_fn)
 
-    node_dim = 16
-
     input_variables = parse_space(env.observation_space, "obs") + parse_space(env.action_space, "act")
-    variable_encoders = create_encoders(input_variables, node_dim=node_dim)
     output_variables = parse_space(env.observation_space, "next_obs")
-    variable_decoders = create_decoders(output_variables, node_dim=node_dim)
 
     return input_variables, output_variables, train_loader, valid_loader
 
 
 def test_inv_pendulum_single_step():
-    input_variables, output_variables, node_dim, variable_encoders, variable_decoders, train_loader, valid_loader = prepare(
-        freq_rate=1
-    )
+    input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
 
     mech = PlainMech(
         name="test",
         input_variables=input_variables,
         output_variables=output_variables,
-        node_dim=node_dim,
-        # variable_encoders=variable_encoders,
-        # variable_decoders=variable_decoders,
-        variable_encoders=None,
-        variable_decoders=None,
-        multi_step="none",
-        # device="cuda"
     )
 
     mech.learn(train_loader, valid_loader, longest_epoch=1)
 
 
 def test_inv_pendulum_multi_step():
-    input_variables, output_variables, node_dim, variable_encoders, variable_decoders, train_loader, valid_loader = prepare(
-        freq_rate=2
-    )
+    input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=2)
 
     mech = PlainMech(
         name="test",
         input_variables=input_variables,
         output_variables=output_variables,
-        node_dim=node_dim,
-        # variable_encoders=variable_encoders,
-        # variable_decoders=variable_decoders,
-        variable_encoders=None,
-        variable_decoders=None,
         multi_step="forward-euler 2",
     )
 

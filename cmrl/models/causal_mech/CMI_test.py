@@ -5,8 +5,8 @@ from omegaconf import DictConfig
 from hydra.utils import instantiate
 from stable_baselines3.common.logger import Logger
 
-from cmrl.utils.types import Variable
-from cmrl.models.causal_mech.base_causal_mech import NeuralCausalMech
+from cmrl.utils.variables import Variable
+from cmrl.models.causal_mech.neural_causal_mech import NeuralCausalMech
 
 
 class CMItest(NeuralCausalMech):

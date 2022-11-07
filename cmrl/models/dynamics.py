@@ -10,27 +10,27 @@ from torch.utils.data import DataLoader
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
-from cmrl.models.util import space2dict
-from cmrl.models.causal_mech.base_causal_mech import NeuralCausalMech
+from cmrl.utils.variables import space2dict
+from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
 from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
 
 
 class Dynamics:
     def __init__(
         self,
-        transition: NeuralCausalMech,
-        reward_mech: Optional[NeuralCausalMech],
-        termination_mech: Optional[NeuralCausalMech],
+        transition: BaseCausalMech,
         observation_space: spaces.Space,
         action_space: spaces.Space,
+        reward_mech: Optional[BaseCausalMech] = None,
+        termination_mech: Optional[BaseCausalMech] = None,
         seed: int = 7,
         logger: Optional[Logger] = None,
     ):
         self.transition = transition
-        self.reward_mech = reward_mech
-        self.termination_mech = termination_mech
         self.observation_space = observation_space
         self.action_space = action_space
+        self.reward_mech = reward_mech
+        self.termination_mech = termination_mech
         self.seed = seed
         self.logger = logger
 

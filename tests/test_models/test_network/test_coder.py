@@ -2,7 +2,7 @@ import torch
 from torch.nn.functional import one_hot
 
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
-from cmrl.utils.types import ContinuousVariable, DiscreteVariable, BinaryVariable
+from cmrl.utils.variables import ContinuousVariable, DiscreteVariable, BinaryVariable
 
 
 def test_continuous_encoder():

@@ -3,7 +3,7 @@ from typing import List, Optional
 import torch.nn as nn
 from omegaconf import DictConfig
 
-from cmrl.utils.types import Variable, DiscreteVariable, ContinuousVariable, BinaryVariable
+from cmrl.utils.variables import Variable, DiscreteVariable, ContinuousVariable, BinaryVariable
 from cmrl.models.networks.base_network import BaseNetwork, create_activation
 
 

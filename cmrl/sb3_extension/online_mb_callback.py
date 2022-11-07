@@ -1,5 +1,5 @@
 import os
-import warnings
+import pathlib
 from typing import Any, Callable, Dict, List, Optional, Union
 from copy import deepcopy
 
@@ -20,24 +20,35 @@ class OnlineModelBasedCallback(BaseCallback):
         env: gym.Env,
         dynamics: Dynamics,
         real_replay_buffer: ReplayBuffer,
+        # online RL
         total_online_timesteps: int = int(1e5),
         initial_exploration_steps: int = 1000,
         freq_train_model: int = 250,
+        # dynamics learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
+        work_dir: Optional[Union[str, pathlib.Path]] = None,
         device: str = "cpu",
     ):
         super(OnlineModelBasedCallback, self).__init__(verbose=2)
 
         self.env = DummyVecEnv([lambda: env])
         self.dynamics = dynamics
+        self.real_replay_buffer = real_replay_buffer
+        # online RL
         self.total_online_timesteps = total_online_timesteps
         self.initial_exploration_steps = initial_exploration_steps
         self.freq_train_model = freq_train_model
+        # dynamics learning
+        self.longest_epoch = longest_epoch
+        self.improvement_threshold = improvement_threshold
+        self.patience = patience
+        self.work_dir = work_dir
         self.device = device
 
         self.action_space = env.action_space
         self.observation_space = env.observation_space
-
-        self.real_replay_buffer = real_replay_buffer
 
         self.now_online_timesteps = 0
         self._last_obs = None
@@ -47,9 +58,15 @@ class OnlineModelBasedCallback(BaseCallback):
             # dump some residual log before dynamics learn
             self.model.logger.dump(step=self.num_timesteps)
 
-            self.dynamics.learn(self.real_replay_buffer)
+            self.dynamics.learn(
+                self.real_replay_buffer,
+                longest_epoch=self.longest_epoch,
+                improvement_threshold=self.improvement_threshold,
+                patience=self.patience,
+                work_dir=self.work_dir,
+            )
 
-        self.step_and_add(explore=False)
+            self.step_and_add(explore=False)
 
         if self.now_online_timesteps >= self.total_online_timesteps:
             return False

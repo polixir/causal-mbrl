@@ -15,28 +15,6 @@ from cmrl.utils.creator import create_dynamics, create_agent
 from cmrl.utils.env import make_env
 
 
-def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):
-    assert hasattr(env, "get_dataset"), "env must have `get_dataset` method"
-
-    data_dict = env.get_dataset(dataset_name)
-    all_data_num = len(data_dict["observations"])
-    sample_data_num = int(use_ratio * all_data_num)
-    sample_idx = np.random.permutation(all_data_num)[:sample_data_num]
-
-    assert replay_buffer.n_envs == 1
-    assert replay_buffer.buffer_size >= sample_data_num
-
-    if sample_data_num == replay_buffer.buffer_size:
-        replay_buffer.full = True
-        replay_buffer.pos = 0
-    else:
-        replay_buffer.pos = sample_data_num
-
-    # set all data
-    for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
-        getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]
-
-
 class BaseAlgorithm:
     def __init__(
         self,

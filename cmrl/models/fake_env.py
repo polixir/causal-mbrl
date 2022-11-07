@@ -6,7 +6,7 @@ from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
 
-import cmrl.utils.types
+from cmrl.types import RewardFnType, TermFnType, InitObsFnType
 from cmrl.models.dynamics import Dynamics
 
 
@@ -19,9 +19,9 @@ class VecFakeEnv(VecEnv):
         action_space: gym.spaces.Space,
         # for dynamics
         dynamics: Dynamics,
-        reward_fn: Optional[cmrl.utils.types.RewardFnType] = None,
-        termination_fn: Optional[cmrl.utils.types.TermFnType] = None,
-        get_init_obs_fn: Optional[cmrl.utils.types.InitObsFnType] = None,
+        reward_fn: Optional[RewardFnType] = None,
+        termination_fn: Optional[TermFnType] = None,
+        get_init_obs_fn: Optional[InitObsFnType] = None,
         real_replay_buffer: Optional[ReplayBuffer] = None,
         # for offline
         penalty_coeff: float = 0.0,

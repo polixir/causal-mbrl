@@ -5,7 +5,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.data import DataLoader
 
 from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset
-from cmrl.models.util import load_offline_data
+from cmrl.utils.env import load_offline_data
 
 
 def test_buffer_dataset():
