@@ -16,8 +16,9 @@ class OnlineDyna(BaseAlgorithm):
     ):
         super(OnlineDyna, self).__init__(cfg, work_dir)
 
-    def get_callback(self) -> BaseCallback:
-        eval_callback = super(OnlineDyna, self).get_callback()
+    @property
+    def callback(self) -> BaseCallback:
+        eval_callback = super(OnlineDyna, self).callback
         omb_callback = OnlineModelBasedCallback(
             self.env,
             self.dynamics,
@@ -29,6 +30,3 @@ class OnlineDyna(BaseAlgorithm):
         )
 
         return CallbackList([eval_callback, omb_callback])
-
-    def _setup_learn(self):
-        pass

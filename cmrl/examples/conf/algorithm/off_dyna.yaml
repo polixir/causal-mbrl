@@ -9,10 +9,8 @@ num_eval_episodes: 5
 dataset_size: 1000000
 penalty_coeff: ${task.penalty_coeff}
 
-
-
 num_envs: 16
-deterministic: true
+deterministic: false
 agent:
   _partial_: true
   _target_: stable_baselines3.sac.SAC

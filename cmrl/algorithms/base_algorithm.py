@@ -78,21 +78,18 @@ class BaseAlgorithm:
             penalty_coeff=self.cfg.task.penalty_coeff,
             logger=self.logger,
         )
-
-        self.fake_env = self.get_fake_env()
-
         self.agent = create_agent(self.cfg, self.fake_env, self.logger)
 
-        self.callback = self.get_callback()
-
-    def get_fake_env(self) -> VecFakeEnv:
+    @property
+    def fake_env(self) -> VecFakeEnv:
         return self.partial_fake_env(
             deterministic=self.cfg.algorithm.deterministic,
             max_episode_steps=self.env.spec.max_episode_steps,
             branch_rollout=False,
         )
 
-    def get_callback(self) -> BaseCallback:
+    @property
+    def callback(self) -> BaseCallback:
         fake_eval_env = self.partial_fake_env(
             deterministic=True, max_episode_steps=self.env.spec.max_episode_steps, branch_rollout=False
         )
@@ -109,15 +106,7 @@ class BaseAlgorithm:
     def learn(self):
         self._setup_learn()
 
-        self.dynamics.learn(
-            real_replay_buffer=self.real_replay_buffer,
-            longest_epoch=self.cfg.task.longest_epoch,
-            improvement_threshold=self.cfg.task.improvement_threshold,
-            patience=self.cfg.task.patience,
-            work_dir=self.work_dir,
-        )
-
         self.agent.learn(total_timesteps=self.cfg.task.num_steps, callback=self.callback)
 
     def _setup_learn(self):
-        load_offline_data(self.env, self.real_replay_buffer, self.cfg.task.dataset, self.cfg.task.use_ratio)
+        pass

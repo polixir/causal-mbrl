@@ -16,15 +16,17 @@ class MBPO(BaseAlgorithm):
     ):
         super(MBPO, self).__init__(cfg, work_dir)
 
-    def get_fake_env(self) -> VecFakeEnv:
+    @property
+    def fake_env(self) -> VecFakeEnv:
         return self.partial_fake_env(
             deterministic=self.cfg.algorithm.deterministic,
             max_episode_steps=self.cfg.algorithm.branch_rollout_length,
             branch_rollout=True,
         )
 
-    def get_callback(self) -> BaseCallback:
-        eval_callback = super(MBPO, self).get_callback()
+    @property
+    def callback(self) -> BaseCallback:
+        eval_callback = super(MBPO, self).callback
         omb_callback = OnlineModelBasedCallback(
             self.env,
             self.dynamics,
@@ -36,6 +38,3 @@ class MBPO(BaseAlgorithm):
         )
 
         return CallbackList([eval_callback, omb_callback])
-
-    def _setup_learn(self):
-        pass
