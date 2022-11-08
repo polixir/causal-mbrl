@@ -41,7 +41,7 @@ optimizer_cfg:
 mech:
   _partial_: true
   _recursive_: false
-  _target_: cmrl.models.causal_mech.CMItest
+  _target_: cmrl.models.causal_mech.CMITest
   # base causal-mech params
   name: transition
   input_variables: ???

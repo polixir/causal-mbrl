@@ -73,6 +73,7 @@ class NeuralCausalMech(BaseCausalMech):
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
+        # ensemble
         ensemble_num: int = 7,
         elite_num: int = 5,
         # cfgs
@@ -96,6 +97,7 @@ class NeuralCausalMech(BaseCausalMech):
             output_variables=output_variables,
             device=device,
         )
+        # ensemble
         self.ensemble_num = ensemble_num
         self.elite_num = elite_num
         # cfgs
@@ -359,16 +361,27 @@ class NeuralCausalMech(BaseCausalMech):
         else:
             return self.decoder_cfg.input_dim
 
-    def reduce_encoder_output(self, encoder_output: torch.Tensor) -> torch.Tensor:
+    def reduce_encoder_output(
+        self,
+        encoder_output: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         assert len(encoder_output.shape) == 4, (
-            "shape of encoder_output should be (ensemble-num, batch-size, input-cvar-num, encoder-output-dim), "
+            "shape of encoder_output should be (ensemble-num, batch-size, input-var-num, encoder-output-dim), "
             "rather than {}".format(encoder_output.shape)
         )
+
+        if mask is not None:
+            mask = mask.unsqueeze(-1).unsqueeze(-3).unsqueeze(-4)
+            masked_encoder_output = encoder_output * mask
+        else:
+            masked_encoder_output = encoder_output
+
         if self.encoder_reduction == "sum":
-            return encoder_output.sum(-2)
+            return masked_encoder_output.sum(-2)
         elif self.encoder_reduction == "mean":
-            return encoder_output.mean(-2)
-        elif self.encoder_reduction == "sum":
-            return encoder_output.sum(-2)
+            return masked_encoder_output.mean(-2)
+        elif self.encoder_reduction == "max":
+            return masked_encoder_output.max(-2)
         else:
             raise NotImplementedError("not implemented encoder reduction method: {}".format(self.encoder_reduction))

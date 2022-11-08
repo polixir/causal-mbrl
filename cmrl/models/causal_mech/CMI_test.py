@@ -9,12 +9,15 @@ from cmrl.utils.variables import Variable
 from cmrl.models.causal_mech.neural_causal_mech import NeuralCausalMech
 
 
-class CMItest(NeuralCausalMech):
+class CMITest(NeuralCausalMech):
     def __init__(
         self,
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
+        # mask
+        mask_method: str = "zero",
+        # ensemble
         ensemble_num: int = 7,
         elite_num: int = 5,
         # cfgs
@@ -35,7 +38,9 @@ class CMItest(NeuralCausalMech):
         if multi_step == "none":
             multi_step = "forward-euler 1"
 
-        super(CMItest, self).__init__(
+        self.mask_method = mask_method
+
+        super(CMITest, self).__init__(
             name=name,
             input_variables=input_variables,
             output_variables=output_variables,
@@ -71,7 +76,10 @@ class CMItest(NeuralCausalMech):
             out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[:, :, i] = out
 
-        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
+        reduced_inputs_tensor = self.reduce_encoder_output(
+            inputs_tensor,
+        )
+        output_tensor = self.network(reduced_inputs_tensor)
 
         outputs = {}
         for i, var in enumerate(self.output_variables):
@@ -81,3 +89,6 @@ class CMItest(NeuralCausalMech):
         if self.residual:
             outputs = self.residual_outputs(inputs, outputs)
         return outputs
+
+    def CMI_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        pass
