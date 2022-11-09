@@ -1,6 +1,6 @@
 env: "emei___BoundaryInvertedPendulumSwingUp-v0___freq_rate=${task.freq_rate}&time_step=${task.time_step}___${task.dataset}"
 dataset: "SAC-expert-replay"
-freq_rate: 2
+freq_rate: 1
 time_step: 0.02
 
 # basic RL params

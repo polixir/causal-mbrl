@@ -20,8 +20,6 @@ class CMITest(NeuralCausalMech):
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
-        # mask
-        mask_method: str = "zero",
         # ensemble
         ensemble_num: int = 7,
         elite_num: int = 5,
@@ -43,7 +41,6 @@ class CMITest(NeuralCausalMech):
         if multi_step == "none":
             multi_step = "forward-euler 1"
 
-        self.mask_method = mask_method
         self.total_CMI_epoch = 0
 
         super(CMITest, self).__init__(
@@ -96,18 +93,12 @@ class CMITest(NeuralCausalMech):
 
     @property
     def CMI_mask(self) -> torch.Tensor:
-        mask = torch.zeros(self.input_var_num + 1, self.output_var_num, self.input_var_num)
+        mask = torch.zeros(self.input_var_num + 1, self.output_var_num, self.input_var_num, dtype=torch.long)
         for i in range(self.input_var_num + 1):
             m = torch.ones(self.output_var_num, self.input_var_num)
             if i != self.input_var_num:
                 m[:, i] = 0
             mask[i] = m
-
-        if self.mask_method == "zero":
-            pass
-        elif self.mask_method == "-inf":
-            mask[mask == 0] = -torch.inf
-
         return mask.to(self.device)
 
     def CMI_single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:

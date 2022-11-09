@@ -59,7 +59,7 @@ mech:
   # forward method
   residual: true
   encoder_reduction: "sum"
-  multi_step: "forward-euler 2"
+  multi_step: "forward-euler 1"
   # logger
   logger: ???
   # others
