@@ -3,7 +3,8 @@ from typing import Optional
 from omegaconf import DictConfig
 
 from cmrl.models.fake_env import VecFakeEnv
-from cmrl.algorithms.base_algorithm import BaseAlgorithm, load_offline_data
+from cmrl.algorithms.base_algorithm import BaseAlgorithm
+from cmrl.utils.env import load_offline_data
 
 
 class OfflineDyna(BaseAlgorithm):

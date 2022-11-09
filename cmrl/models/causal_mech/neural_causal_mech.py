@@ -1,8 +1,8 @@
 from typing import Optional, List, Dict, Union, MutableMapping
 from abc import abstractmethod, ABC
-from itertools import chain
+from itertools import chain, count
+from functools import partial
 import pathlib
-import itertools
 import copy
 
 import torch
@@ -19,6 +19,7 @@ from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 from cmrl.utils.variables import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
+from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_func
 
 default_network_cfg = DictConfig(
     dict(
@@ -126,9 +127,24 @@ class NeuralCausalMech(BaseCausalMech):
         self.total_epoch = 0
         self.elite_indices: List[int] = []
 
-    @abstractmethod
     def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        raise NotImplementedError
+        batch_size = self.get_inputs_batch_size(inputs)
+
+        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
+        for i, var in enumerate(self.input_variables):
+            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
+            inputs_tensor[:, :, i] = out
+
+        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
+
+        outputs = {}
+        for i, var in enumerate(self.output_variables):
+            hid = output_tensor[:, :, i * self.decoder_input_dim : (i + 1) * self.decoder_input_dim]
+            outputs[var.name] = self.variable_decoders[var.name](hid)
+
+        if self.residual:
+            outputs = self.residual_outputs(inputs, outputs)
+        return outputs
 
     def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         if self.multi_step.startswith("forward-euler"):
@@ -137,6 +153,7 @@ class NeuralCausalMech(BaseCausalMech):
             outputs = {}
             for step in range(step_num):
                 outputs = self.single_step_forward(inputs)
+                inputs = {}
                 if step < step_num - 1:
                     for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
                         assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
@@ -178,36 +195,14 @@ class NeuralCausalMech(BaseCausalMech):
             assert var.name not in self.variable_decoders, "duplicate name in decoders: {}".format(var.name)
             self.variable_decoders[var.name] = instantiate(self.decoder_cfg)(variable=var).to(self.device)
 
-    def loss(self, outputs, targets):
-        ensemble_num, batch_size = list(targets.values())[0].shape[:2]
-        total_loss = torch.zeros(ensemble_num, batch_size, self.output_var_num)
-        for i, var in enumerate(self.output_variables):
-            output = outputs[var.name]
-            target = targets[var.name].to(self.device)
-            if isinstance(var, ContinuousVariable):
-                dim = target.shape[-1]  # ensemble-num, batch-size, dim
-                assert output.shape[-1] == 2 * dim
-                mean, log_var = output[:, :, :dim], output[:, :, dim:]
-                loss = F.gaussian_nll_loss(mean, target, log_var.exp(), reduction="none").mean(dim=-1)
-                total_loss[..., i] = loss
-            elif isinstance(var, DiscreteVariable):
-                # TODO: onehot to int?
-                raise NotImplementedError
-                total_loss[..., i] = F.cross_entropy(output, target, reduction="none")
-            elif isinstance(var, BinaryVariable):
-                total_loss[..., i] = F.binary_cross_entropy(output, target, reduction="none")
-            else:
-                raise NotImplementedError
-        return total_loss
-
     def get_inputs_batch_size(self, inputs: MutableMapping[str, torch.Tensor]) -> int:
         assert len(set(inputs.keys()) & set(self.variable_encoders.keys())) == len(inputs)
         data_shape = list(inputs.values())[0].shape
-        assert len(data_shape) == 3, "{}".format(data_shape)  # ensemble-num, batch-size, specific-dim
-        ensemble, batch_size, specific_dim = data_shape
+        # assert len(data_shape) == 3, "{}".format(data_shape)  # ensemble-num, batch-size, specific-dim
+        ensemble, batch_size, specific_dim = data_shape[-3:]
         assert ensemble == self.ensemble_num
 
-        return batch_size
+        return batch_size, data_shape[:-3]
 
     def residual_outputs(
         self,
@@ -215,49 +210,11 @@ class NeuralCausalMech(BaseCausalMech):
         outputs: MutableMapping[str, torch.Tensor],
     ) -> MutableMapping[str, torch.Tensor]:
         for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
-            assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
-            assert inputs[name].shape[2] * 2 == outputs["next_{}".format(name)].shape[2]
-            outputs["next_{}".format(name)][:, :, : inputs[name].shape[2]] += inputs[name].to(self.device)
+            # assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
+            # assert inputs[name].shape[2] * 2 == outputs["next_{}".format(name)].shape[2]
+            var_dim = inputs[name].shape[-1]
+            outputs["next_{}".format(name)][..., :var_dim] += inputs[name].to(self.device)
         return outputs
-
-    def train(self, loader: DataLoader):
-        """train for ensemble data
-
-        Args:
-            loader: train data-loader.
-
-        Returns: tensor of train loss, with shape (ensemble-num, batch-size).
-
-        """
-        batch_loss_list = []
-        for inputs, targets in loader:
-            outputs = self.forward(inputs)
-            loss = self.loss(outputs, targets)  # ensemble-num, batch-size, output-var-num
-
-            self.optimizer.zero_grad()
-            loss.mean().backward()
-            self.optimizer.step()
-
-            batch_loss_list.append(loss)
-        return torch.cat(batch_loss_list, dim=-2).detach().cpu()
-
-    def eval(self, loader: DataLoader):
-        """evaluate for non-ensemble data
-
-        Args:
-            loader: valid data-loader.
-
-        Returns: tensor of eval loss, with shape (batch-size).
-
-        """
-        batch_loss_list = []
-        with torch.no_grad():
-            for inputs, targets in loader:
-                outputs = self.forward(inputs)
-                loss = self.loss(outputs, targets)  # ensemble-num, batch-size, output-var-num
-
-                batch_loss_list.append(loss)
-        return torch.cat(batch_loss_list, dim=-2).detach().cpu()
 
     def learn(
         self,
@@ -272,17 +229,24 @@ class NeuralCausalMech(BaseCausalMech):
         **kwargs
     ):
         best_weights: Optional[Dict] = None
-        epoch_iter = range(longest_epoch) if longest_epoch >= 0 else itertools.count()
+        epoch_iter = range(longest_epoch) if longest_epoch >= 0 else count()
         epochs_since_update = 0
-        best_eval_loss = self.eval(valid_loader).mean(dim=(1, 2))
+
+        loss_func = partial(variable_loss_func, output_variables=self.output_variables, device=self.device)
+        train = partial(train_func, forward=self.forward, optimizer=self.optimizer, loss_func=loss_func)
+        eval = partial(eval_func, forward=self.forward, loss_func=loss_func)
+
+        best_eval_loss = eval(valid_loader).mean(dim=(-2, -1))
 
         for epoch in epoch_iter:
-            train_loss = self.train(train_loader)
-            eval_loss = self.eval(valid_loader).mean(dim=(1, 2))
-            maybe_best_weights = self._maybe_get_best_weights(best_eval_loss, eval_loss, improvement_threshold)
+            train_loss = train(train_loader)
+            eval_loss = eval(valid_loader)
+            maybe_best_weights = self._maybe_get_best_weights(
+                best_eval_loss, eval_loss.mean(dim=(-2, -1)), improvement_threshold
+            )
             if maybe_best_weights:
                 # best loss
-                best_eval_loss = torch.minimum(best_eval_loss, eval_loss)
+                best_eval_loss = torch.minimum(best_eval_loss, eval_loss.mean(dim=(-2, -1)))
                 best_weights = maybe_best_weights
                 epochs_since_update = 0
             else:
@@ -292,6 +256,7 @@ class NeuralCausalMech(BaseCausalMech):
             self.total_epoch += 1
             if self.logger is not None:
                 self.logger.record("{}/epoch".format(self.name), epoch)
+                self.logger.record("{}/epochs_since_update".format(self.name), epochs_since_update)
                 self.logger.record("{}/train_dataset_size".format(self.name), len(train_loader.dataset))
                 self.logger.record("{}/valid_dataset_size".format(self.name), len(valid_loader.dataset))
                 self.logger.record("{}/train_loss".format(self.name), train_loss.mean().item())
@@ -371,17 +336,20 @@ class NeuralCausalMech(BaseCausalMech):
             "rather than {}".format(encoder_output.shape)
         )
 
-        if mask is not None:
-            mask = mask.unsqueeze(-1).unsqueeze(-3).unsqueeze(-4)
-            masked_encoder_output = encoder_output * mask
-        else:
-            masked_encoder_output = encoder_output
+        if mask is None:
+            mask = self.forward_mask
+
+        mask = mask.unsqueeze(-1).unsqueeze(-3).unsqueeze(-4)
+        masked_encoder_output = encoder_output * mask
+        if torch.isinf(masked_encoder_output).any():
+            masked_encoder_output[torch.isinf(masked_encoder_output)] = -torch.inf
 
         if self.encoder_reduction == "sum":
             return masked_encoder_output.sum(-2)
         elif self.encoder_reduction == "mean":
             return masked_encoder_output.mean(-2)
         elif self.encoder_reduction == "max":
-            return masked_encoder_output.max(-2)
+            values, indices = masked_encoder_output.max(-2)
+            return values
         else:
             raise NotImplementedError("not implemented encoder reduction method: {}".format(self.encoder_reduction))

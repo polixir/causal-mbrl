@@ -7,6 +7,7 @@ from cmrl.models.causal_mech.CMI_test import CMITest
 from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
 from cmrl.utils.creator import parse_space
 from cmrl.utils.env import load_offline_data
+from cmrl.models.causal_mech.util import variable_loss_func
 
 
 def prepare(freq_rate):
@@ -78,3 +79,31 @@ def test_mask():
         )
 
         break
+
+
+def test_CMI_forward():
+    input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
+
+    mech = CMITest(
+        name="test",
+        input_variables=input_variables,
+        output_variables=output_variables,
+    )
+
+    for inputs, targets in train_loader:
+        outputs = mech.CMI_single_step_forward(inputs)
+        variable_loss_func(outputs, targets, output_variables)
+
+        break
+
+
+def test_forward():
+    input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
+
+    mech = CMITest(
+        name="test",
+        input_variables=input_variables,
+        output_variables=output_variables,
+    )
+
+    mech.learn(train_loader, valid_loader, longest_epoch=10)

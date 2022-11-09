@@ -17,7 +17,7 @@ def test_parallel_mlp():
             "input_dim": input_dim,
             "output_dim": output_dim,
             "hidden_dims": [32, 32],
-            "use_bias": use_bias,
+            "bias": use_bias,
             "extra_dims": extra_dims,
             "activation_fn_cfg": DictConfig({"_target_": "torch.nn.SiLU"}),
         }

@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: on_dyna
+  - algorithm: off_dyna
   - task: BIPS
   - transition: CMI_test
   - reward_mech: plain

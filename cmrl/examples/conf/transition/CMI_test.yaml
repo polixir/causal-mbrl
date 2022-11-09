@@ -46,6 +46,9 @@ mech:
   name: transition
   input_variables: ???
   output_variables: ???
+  # mask
+  mask_method: "zero"
+  # ensemble
   ensemble_num: 7
   elite_num: 5
   # cfgs
@@ -55,7 +58,8 @@ mech:
   optimizer_cfg: ${transition.optimizer_cfg}
   # forward method
   residual: true
-  multi_step: "none"
+  encoder_reduction: "sum"
+  multi_step: "forward-euler 2"
   # logger
   logger: ???
   # others

@@ -63,21 +63,6 @@ class PlainMech(NeuralCausalMech):
     def build_graph(self):
         self.graph = None
 
-    def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        batch_size = self.get_inputs_batch_size(inputs)
-
-        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
-        for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
-            inputs_tensor[:, :, i] = out
-
-        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
-
-        outputs = {}
-        for i, var in enumerate(self.output_variables):
-            hid = output_tensor[:, :, i * self.decoder_input_dim : (i + 1) * self.decoder_input_dim]
-            outputs[var.name] = self.variable_decoders[var.name](hid)
-
-        if self.residual:
-            outputs = self.residual_outputs(inputs, outputs)
-        return outputs
+    @property
+    def forward_mask(self):
+        return torch.ones(self.input_var_num).to(self.device)

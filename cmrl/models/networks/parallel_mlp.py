@@ -41,14 +41,12 @@ class ParallelMLP(BaseNetwork):
         for i in range(len(hidden_dims) - 1):
             layers += [
                 ParallelLinear(
-                    input_dim=hidden_dims[i], output_dim=hidden_dims[i + 1], extra_dims=self.extra_dims, use_bias=self.bias
+                    input_dim=hidden_dims[i], output_dim=hidden_dims[i + 1], extra_dims=self.extra_dims, bias=self.bias
                 )
             ]
             layers += [create_activation(self.activation_fn_cfg)]
         layers += [
-            ParallelLinear(
-                input_dim=hidden_dims[-1], output_dim=self.output_dim, extra_dims=self.extra_dims, use_bias=self.bias
-            )
+            ParallelLinear(input_dim=hidden_dims[-1], output_dim=self.output_dim, extra_dims=self.extra_dims, bias=self.bias)
         ]
 
         self._layers = nn.ModuleList(layers)

@@ -15,7 +15,7 @@ class ParallelLinear(nn.Module):
         input_dim: int,
         output_dim: int,
         extra_dims: Optional[List[int]] = None,
-        use_bias: bool = True,
+        bias: bool = True,
         init_type: str = "truncated_normal",
     ):
         """Linear layer with the same properties as Parallel MLP. It effectively applies N independent linear layers
@@ -26,7 +26,7 @@ class ParallelLinear(nn.Module):
             output_dim: Number of output dimensions per layer.
             extra_dims: Number of neural networks to have in parallel (e.g. number of variables). Can have multiple
                 dimensions if needed.
-            use_bias: Weather using bias in this layer.
+            bias: Weather using bias in this layer.
             init_type: How to initialize weights and biases.
         """
         super().__init__()
@@ -36,7 +36,7 @@ class ParallelLinear(nn.Module):
         self.init_type = init_type
 
         self.weight = nn.Parameter(torch.zeros(*self.extra_dims, self.input_dim, self.output_dim))
-        if use_bias:
+        if bias:
             self.bias = nn.Parameter(torch.zeros(*self.extra_dims, 1, self.output_dim))
             self.use_bias = True
         else:
@@ -60,14 +60,6 @@ class ParallelLinear(nn.Module):
             raise NotImplementedError
 
     def forward(self, x):
-        x_extra_dims = x.shape[:-2]
-        if len(x_extra_dims) > 0:
-            for i in range(len(x_extra_dims)):
-                assert x_extra_dims[-(i + 1)] == self.extra_dims[-(i + 1)], "Shape mismatch: X=%s, Layer=%s" % (
-                    str(x.shape),
-                    str(self.extra_dims),
-                )
-
         xw = x.matmul(self.weight)
         if self.use_bias:
             return xw + self.bias
@@ -86,6 +78,6 @@ class ParallelLinear(nn.Module):
         return torch.device("cpu")
 
     def __repr__(self):
-        return 'ParallelLinear(input_dims={}, output_dims={}, extra_dims={}, use_bias={}, init_type="{}")'.format(
+        return 'ParallelLinear(input_dims={}, output_dims={}, extra_dims={}, bias={}, init_type="{}")'.format(
             self.input_dim, self.output_dim, str(self.extra_dims), self.use_bias, self.init_type
         )
