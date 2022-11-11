@@ -1,23 +1,11 @@
 from typing import Optional, List, Dict, Union, MutableMapping
 from abc import abstractmethod, ABC
-from itertools import chain
-import pathlib
-import itertools
-import copy
 
 import torch
-import numpy as np
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
-from torch.optim import Optimizer
-from stable_baselines3.common.logger import Logger
-from omegaconf import DictConfig
-from hydra.utils import instantiate
 
-from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
-from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
-from cmrl.utils.variables import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
+from cmrl.utils.variables import Variable
 
 
 class BaseCausalMech(ABC):
@@ -35,6 +23,7 @@ class BaseCausalMech(ABC):
 
         self.input_var_num = len(self.input_variables)
         self.output_var_num = len(self.output_variables)
+        self.graph: Optional[BaseGraph] = None
 
     @abstractmethod
     def learn(self, train_loader: DataLoader, valid_loader: DataLoader, **kwargs):
@@ -43,3 +32,16 @@ class BaseCausalMech(ABC):
     @abstractmethod
     def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
+
+    @property
+    def causal_graph(self) -> torch.Tensor:
+        """property causal graph"""
+        if self.graph is None:
+            return torch.ones(len(self.input_variables), len(self.output_variables), dtype=torch.int, device=self.device)
+        else:
+            return self.graph.get_binary_adj_matrix()
+
+    @property
+    def forward_mask(self) -> torch.Tensor:
+        """property input masks"""
+        return self.causal_graph.T

@@ -343,9 +343,6 @@ class NeuralCausalMech(BaseCausalMech):
 
         # [..., ensemble_num, batch_size, input_var_num, encoder_output_dim]
         mask = mask.unsqueeze(-1).unsqueeze(-3).unsqueeze(-4)
-        repeat_shape = (*mask.shape[:-4], *encoder_output.shape[:-2], 1, encoder_output.shape[-1])
-        # mask = mask.repeat((*mask.shape[:-4], *encoder_output.shape[:-2], 1, encoder_output.shape[-1]))
-
         mask = mask.repeat((1,) * len(mask.shape[:-4]) + (*encoder_output.shape[:-2], 1, encoder_output.shape[-1]))
 
         # [*mask_extra_dims, ensemble_num, batch_size, input_var_num, encoder_output_dim]
@@ -355,9 +352,6 @@ class NeuralCausalMech(BaseCausalMech):
         mask_value = 0
         if self.encoder_reduction == "max":
             mask_value = -float("inf")
-        assert masked_encoder_output.shape == mask.shape
-        # print(torch.unique(mask, return_counts=True))
-
         masked_encoder_output[mask == 0] = mask_value
 
         if self.encoder_reduction == "sum":
