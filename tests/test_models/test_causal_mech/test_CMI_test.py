@@ -49,7 +49,7 @@ def test_mask():
     )
 
     for inputs, targets in train_loader:
-        batch_size = mech.get_inputs_batch_size(inputs)
+        batch_size, extra_dim = mech.get_inputs_batch_size(inputs)
 
         inputs_tensor = torch.zeros(mech.ensemble_num, batch_size, mech.input_var_num, mech.encoder_output_dim).to(mech.device)
         for i, var in enumerate(mech.input_variables):
@@ -58,17 +58,19 @@ def test_mask():
 
         mask = None
         masked_inputs_tensor = mech.reduce_encoder_output(inputs_tensor, mask)
-        assert masked_inputs_tensor.shape == (mech.ensemble_num, batch_size, mech.encoder_output_dim)
+        assert masked_inputs_tensor.shape == (mech.output_var_num, mech.ensemble_num, batch_size, mech.encoder_output_dim)
 
-        mask = torch.ones(mech.input_var_num).to(mech.device)
+        mask = torch.ones(mech.ensemble_num, batch_size, mech.input_var_num).to(mech.device)
         masked_inputs_tensor = mech.reduce_encoder_output(inputs_tensor, mask)
         assert masked_inputs_tensor.shape == (mech.ensemble_num, batch_size, mech.encoder_output_dim)
 
-        mask = torch.ones(mech.output_var_num, mech.input_var_num).to(mech.device)
+        mask = torch.ones(mech.output_var_num, mech.ensemble_num, batch_size, mech.input_var_num).to(mech.device)
         masked_inputs_tensor = mech.reduce_encoder_output(inputs_tensor, mask)
         assert masked_inputs_tensor.shape == (mech.output_var_num, mech.ensemble_num, batch_size, mech.encoder_output_dim)
 
-        mask = torch.ones(mech.input_var_num + 1, mech.output_var_num, mech.input_var_num).to(mech.device)
+        mask = torch.ones(mech.input_var_num + 1, mech.output_var_num, mech.ensemble_num, batch_size, mech.input_var_num).to(
+            mech.device
+        )
         masked_inputs_tensor = mech.reduce_encoder_output(inputs_tensor, mask)
         assert masked_inputs_tensor.shape == (
             mech.input_var_num + 1,

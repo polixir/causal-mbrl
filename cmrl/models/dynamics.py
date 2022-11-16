@@ -51,7 +51,7 @@ class Dynamics:
             ensemble_num=self.transition.ensemble_num,
             seed=self.seed,
         )
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=True)
         valid_dataset = BufferDataset(
             real_replay_buffer,
             self.observation_space,

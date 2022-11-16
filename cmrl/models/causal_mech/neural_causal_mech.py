@@ -128,7 +128,7 @@ class NeuralCausalMech(BaseCausalMech):
         self.elite_indices: List[int] = []
 
     def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        batch_size = self.get_inputs_batch_size(inputs)
+        batch_size, _ = self.get_inputs_batch_size(inputs)
 
         inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
         for i, var in enumerate(self.input_variables):
@@ -153,7 +153,6 @@ class NeuralCausalMech(BaseCausalMech):
             outputs = {}
             for step in range(step_num):
                 outputs = self.single_step_forward(inputs)
-                inputs = {}
                 if step < step_num - 1:
                     for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
                         assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
@@ -337,15 +336,19 @@ class NeuralCausalMech(BaseCausalMech):
         )
 
         if mask is None:
+            # [..., input-var-num]
             mask = self.forward_mask
+            # [..., ensemble-num, batch-size, input-var-num]
+            mask = mask.unsqueeze(-2).unsqueeze(-2)
+            mask = mask.repeat((1,) * len(mask.shape[:-3]) + (*encoder_output.shape[:2], 1))
 
-        assert mask.shape[-1] == self.input_var_num
+        # mask shape [..., ensemble-num, batch-size, input-var-num]
+        assert (
+            mask.shape[-3:] == encoder_output.shape[:-1]
+        ), "mask shape should be (..., ensemble-num, batch-size, input-var-num)"
 
-        # [..., ensemble_num, batch_size, input_var_num, encoder_output_dim]
-        mask = mask.unsqueeze(-1).unsqueeze(-3).unsqueeze(-4)
-        mask = mask.repeat((1,) * len(mask.shape[:-4]) + (*encoder_output.shape[:-2], 1, encoder_output.shape[-1]))
-
-        # [*mask_extra_dims, ensemble_num, batch_size, input_var_num, encoder_output_dim]
+        # [*mask-extra-dims, ensemble-num, batch-size, input-var-num, encoder-output-dim]
+        mask = mask[..., None].repeat([1] * len(mask.shape) + [encoder_output.shape[-1]])
         masked_encoder_output = encoder_output.repeat(tuple(mask.shape[:-4]) + (1,) * 4)
 
         # choose mask value

@@ -1,3 +1,7 @@
+import os
+import time
+import shutil
+
 import torch
 import torch.nn as nn
 
@@ -35,14 +39,24 @@ def test_adj_matrix():
 
 
 def test_save_load():
+    # create a temp folder
+    while True:
+        save_dir = "./tmp" + str(time.time())
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+            break
+
     g = NeuralGraph(5, 5, include_input=True)
-    g.save("./")
+    g.save(save_dir)
     old_graph = g.graph
     state_dict = old_graph.state_dict()
 
-    g.load("./")
+    g.load(save_dir)
     assert g.graph is old_graph
     assert g.graph.state_dict() is not state_dict
+
+    # clear the temp folder
+    shutil.rmtree(save_dir)
 
 
 if __name__ == "__main__":

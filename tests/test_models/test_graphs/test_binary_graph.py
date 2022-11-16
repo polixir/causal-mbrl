@@ -1,3 +1,7 @@
+import os
+import time
+import shutil
+
 import torch
 
 from cmrl.models.graphs.binary_graph import BinaryGraph
@@ -60,10 +64,20 @@ def test_set_data():
 
 
 def test_save_load():
+    # create a temp folder
+    while True:
+        save_dir = "./tmp" + str(time.time())
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+            break
+
     g = BinaryGraph(5, 5, include_input=True, init_param=1)
-    g.save("./")
+    g.save(save_dir)
     old_graph = g.graph
 
-    g.load("./")
+    g.load(save_dir)
     assert g.graph is not old_graph
     assert g.graph.equal(old_graph)
+
+    # clear the temp folder
+    shutil.rmtree(save_dir)

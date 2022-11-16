@@ -60,3 +60,7 @@ def test_inv_pendulum_multi_step():
     )
 
     mech.learn(train_loader, valid_loader, longest_epoch=1)
+
+
+if __name__ == "__main__":
+    test_inv_pendulum_multi_step()

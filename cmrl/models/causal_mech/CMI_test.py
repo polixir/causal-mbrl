@@ -121,7 +121,12 @@ class CMITest(NeuralCausalMech):
             inputs_tensor[..., i, :] = out
 
         if len(extra_dim) == 0:
-            reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor, self.CMI_mask)
+            # [..., output-var-num, input-var-num]
+            mask = self.CMI_mask
+            # [..., output-var-num, ensemble-num, batch-size, input-var-num]
+            mask = mask.unsqueeze(-2).unsqueeze(-2)
+            mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
+            reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor, mask)
             assert (
                 not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
             ), "tensor must not be inf or nan"
@@ -130,16 +135,23 @@ class CMITest(NeuralCausalMech):
             output_tensor = torch.empty(
                 *extra_dim, self.output_var_num, self.ensemble_num, batch_size, self.decoder_input_dim
             ).to(self.device)
+
+            CMI_mask = self.CMI_mask
             for i in range(self.input_var_num + 1):
+                # [..., output-var-num, input-var-num]
+                mask = CMI_mask[i]
+                # [..., output-var-num, ensemble-num, batch-size, input-var-num]
+                mask = mask.unsqueeze(-2).unsqueeze(-2)
+                mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
                 if i == len(inputs_tensor) - 1:
-                    reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], self.CMI_mask[i])
+                    reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], mask)
                     outs = self.network(reduced_inputs_tensor)
                     output_tensor[i] = outs
                 else:
                     for j in range(self.output_var_num):
                         ins = inputs_tensor[-1]
                         ins[:, :, j] = inputs_tensor[i, :, :, j, :]
-                        reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], self.CMI_mask[i])
+                        reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], mask)
                         outs = self.network(reduced_inputs_tensor)
                         output_tensor[i, j] = outs[j]
 
