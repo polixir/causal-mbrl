@@ -170,7 +170,20 @@ def test_learn():
 
     # test multi-step
     mech = ReinforceCausalMech(
-        name="test", input_variables=input_variables, output_variables=output_variables, multi_step="forward-euler 2"
+        name="test",
+        input_variables=input_variables,
+        output_variables=output_variables,
+        multi_step="forward-euler 2",
+    )
+
+    mech.learn(train_loader, valid_loader)
+
+    # test cuda
+    mech = ReinforceCausalMech(
+        name="test",
+        input_variables=input_variables,
+        output_variables=output_variables,
+        device="cuda:0",
     )
 
     mech.learn(train_loader, valid_loader)

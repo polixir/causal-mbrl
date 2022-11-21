@@ -16,7 +16,7 @@ def variable_loss_func(
     device: Union[str, torch.device] = "cpu",
 ):
     dims = list(outputs.values())[0].shape[:-1]
-    total_loss = torch.zeros(*dims, len(outputs))
+    total_loss = torch.zeros(*dims, len(outputs)).to(device)
 
     for i, var in enumerate(output_variables):
         output = outputs[var.name]

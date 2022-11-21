@@ -137,7 +137,7 @@ class ReinforceCausalMech(NeuralCausalMech):
 
         inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
         for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name])
+            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[..., i, :] = out
 
         if train:
@@ -259,7 +259,7 @@ class ReinforceCausalMech(NeuralCausalMech):
 
             with torch.no_grad():
                 outputs = self.forward(expanded_inputs, train=False, mask=expanded_masks)
-            loss = variable_loss_func(outputs, expanded_targets, self.output_variables)
+            loss = variable_loss_func(outputs, expanded_targets, self.output_variables, device=self.device)
             loss = loss.reshape(loss.shape[0], graph_count, batch_size, -1)
             losses.append(loss.mean(dim=(0, 2)))
         losses = sum(losses)
