@@ -113,3 +113,5 @@ class Dynamics:
         info = {"origin-next_obs": torch.concat([tensor[:, :, :1] for tensor in outputs.values()], dim=-1).cpu().numpy()}
 
         return torch.concat([tensor.mean(dim=0)[:, :1] for tensor in outputs.values()], dim=-1).cpu().numpy(), None, None, info
+
+    # def set_oracle_graph(self, graph):

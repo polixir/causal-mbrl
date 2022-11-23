@@ -33,6 +33,10 @@ class BaseCausalMech(ABC):
     def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
+    @abstractmethod
+    def set_oracle_graph(self, graph):
+        pass
+
     @property
     def causal_graph(self) -> torch.Tensor:
         """property causal graph"""

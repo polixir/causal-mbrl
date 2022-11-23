@@ -1,5 +1,6 @@
 name: "plain_reward_mech"
 learn: false
+discovery: false
 
 encoder_cfg:
   _partial_: true

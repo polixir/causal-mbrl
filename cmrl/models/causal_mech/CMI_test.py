@@ -72,7 +72,7 @@ class CMITest(NeuralCausalMech):
         self.graph = None
 
     def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        batch_size = self.get_inputs_batch_size(inputs)
+        batch_size, _ = self.get_inputs_batch_size(inputs)
 
         inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
         for i, var in enumerate(self.input_variables):
@@ -193,11 +193,10 @@ class CMITest(NeuralCausalMech):
         return outputs
 
     def calculate_CMI(self, nll_loss: torch.Tensor):
-        print("fc loss", nll_loss[-1].mean(dim=(0, 1)))
-        print("mask", nll_loss[:-1].mean(dim=(1, 2)))
         nll_loss_diff = nll_loss[:-1] - nll_loss[-1]
-        print("cmi", nll_loss_diff.mean(dim=(1, 2)))
-        pass
+        self.forward_mask = (nll_loss_diff.mean(dim=(1, 2)) > 1).to(torch.long)
+
+        print(self.forward_mask)
 
     def learn(
         self,
@@ -223,12 +222,13 @@ class CMITest(NeuralCausalMech):
         for epoch in epoch_iter:
             train_loss = train(train_loader)
             eval_loss = eval(valid_loader)
-            self.calculate_CMI(eval_loss)
 
             improvement = (best_eval_loss - eval_loss.mean(dim=(0, 2, 3))) / torch.abs(best_eval_loss)
             if (improvement > improvement_threshold).any().item():
                 best_eval_loss = torch.minimum(best_eval_loss, eval_loss.mean(dim=(0, 2, 3)))
                 epochs_since_update = 0
+
+                self.calculate_CMI(eval_loss)
             else:
                 epochs_since_update += 1
 
@@ -248,13 +248,17 @@ class CMITest(NeuralCausalMech):
             if patience and epochs_since_update >= patience:
                 break
 
-        # super(CMITest, self).learn(
-        #     train_loader=train_loader,
-        #     valid_loader=valid_loader,
-        #     # model learning
-        #     longest_epoch=longest_epoch,
-        #     improvement_threshold=improvement_threshold,
-        #     patience=patience,
-        #     work_dir=work_dir,
-        #     **kwargs
-        # )
+        super(CMITest, self).learn(
+            train_loader=train_loader,
+            valid_loader=valid_loader,
+            # model learning
+            longest_epoch=longest_epoch,
+            improvement_threshold=improvement_threshold,
+            patience=patience,
+            work_dir=work_dir,
+            **kwargs
+        )
+
+    def set_oracle_graph(self, graph):
+        self._oracle_graph = graph
+        pass
