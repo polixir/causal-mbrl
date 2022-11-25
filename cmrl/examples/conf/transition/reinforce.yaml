@@ -1,4 +1,4 @@
-name: "CMI_test_transition"
+name: "reinforce_transition"
 learn: true
 
 encoder_cfg:
@@ -66,7 +66,7 @@ mech:
   concat_mask: true
   graph_MC_samples: 20
   graph_max_stack: 20
-  lambda_sparse: 1e-3
+  lambda_sparse: 5e-2
   # forward method
   residual: true
   encoder_reduction: "sum"

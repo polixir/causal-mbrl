@@ -320,6 +320,8 @@ class ReinforceCausalMech(NeuralCausalMech):
         for epoch in epoch_iter:
             if epoch % train_graph_freq == 0:
                 grads = self.train_graph(train_loader, data_ratio=graph_data_ratio)
+                print(self.graph.parameters[0])
+                print(self.graph.get_binary_adj_matrix())
 
             train_loss = train_fn(train_loader)
             eval_loss = eval_fn(valid_loader)

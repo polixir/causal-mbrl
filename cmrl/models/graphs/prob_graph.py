@@ -75,7 +75,7 @@ class BernoulliGraph(WeightGraph, BaseProbGraph):
     def get_adj_matrix(self, *args, **kwargs) -> torch.Tensor:
         return torch.sigmoid(self.graph)
 
-    def get_binary_adj_matrix(self, threshold: float, *args, **kwargs) -> torch.Tensor:
+    def get_binary_adj_matrix(self, threshold: float = 0.5, *args, **kwargs) -> torch.Tensor:
         assert 0 <= threshold <= 1, "threshold of bernoulli graph should be in [0, 1]"
 
         return super().get_binary_adj_matrix(threshold, *args, **kwargs)

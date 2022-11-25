@@ -159,18 +159,18 @@ def test_train_graph():
 def test_learn():
     input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
 
-    # test single step
+    # test single step on cpu
     mech = ReinforceCausalMech(
-        name="test",
+        name="test single on cpu",
         input_variables=input_variables,
         output_variables=output_variables,
     )
 
     mech.learn(train_loader, valid_loader)
 
-    # test multi-step
+    # test multi-step on cpu
     mech = ReinforceCausalMech(
-        name="test",
+        name="test multi on cpu",
         input_variables=input_variables,
         output_variables=output_variables,
         multi_step="forward-euler 2",
@@ -178,11 +178,22 @@ def test_learn():
 
     mech.learn(train_loader, valid_loader)
 
-    # test cuda
+    # test single step on cuda
     mech = ReinforceCausalMech(
-        name="test",
+        name="test single on cuda",
         input_variables=input_variables,
         output_variables=output_variables,
+        device="cuda:0",
+    )
+
+    mech.learn(train_loader, valid_loader)
+
+    # test multi-step on cuda
+    mech = ReinforceCausalMech(
+        name="test multi on cuda",
+        input_variables=input_variables,
+        output_variables=output_variables,
+        multi_step="forward-euler 2",
         device="cuda:0",
     )
 
