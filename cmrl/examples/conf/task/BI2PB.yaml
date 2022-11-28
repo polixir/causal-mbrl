@@ -1,7 +1,12 @@
-env: "emei___BoundaryInvertedDoublePendulumBalancing-v0___freq_rate=${task.freq_rate}&time_step=${task.time_step}___${task.dataset}"
+# env parameters
+env_id: "BoundaryInvertedDoublePendulumBalancing-v0"
+
+params:
+  freq_rate: 1
+  real_time_scale: 0.02
+  integrator: "euler"
+
 dataset: "SAC-expert-replay"
-freq_rate: 1
-time_step: 0.02
 
 # basic RL params
 num_steps: 3000000

@@ -2,6 +2,7 @@ import hydra
 from hydra.utils import instantiate
 import wandb
 from omegaconf import DictConfig, OmegaConf
+from emei.core import get_params_str
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="main")
@@ -19,4 +20,5 @@ def run(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    OmegaConf.register_new_resolver("to_str", get_params_str)
     run()
