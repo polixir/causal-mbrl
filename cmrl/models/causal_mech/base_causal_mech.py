@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from cmrl.models.graphs.base_graph import BaseGraph
+from cmrl.models.graphs.binary_graph import BinaryGraph
 from cmrl.utils.variables import Variable
 
 
@@ -24,6 +25,7 @@ class BaseCausalMech(ABC):
         self.input_var_num = len(self.input_variables)
         self.output_var_num = len(self.output_variables)
         self.graph: Optional[BaseGraph] = None
+        self.discovery: bool = True
 
     @abstractmethod
     def learn(self, train_loader: DataLoader, valid_loader: DataLoader, **kwargs):
@@ -32,10 +34,6 @@ class BaseCausalMech(ABC):
     @abstractmethod
     def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
-
-    @abstractmethod
-    def set_oracle_graph(self, graph):
-        pass
 
     @property
     def causal_graph(self) -> torch.Tensor:
@@ -49,3 +47,8 @@ class BaseCausalMech(ABC):
     def forward_mask(self) -> torch.Tensor:
         """property input masks"""
         return self.causal_graph.T
+
+    def set_oracle_graph(self, graph_data):
+        self.discovery = False
+        self.graph = BinaryGraph(self.input_var_num, self.output_var_num)
+        self.graph.set_data(graph_data=graph_data)

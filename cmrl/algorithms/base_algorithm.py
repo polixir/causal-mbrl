@@ -34,6 +34,13 @@ class BaseAlgorithm:
         # create ``cmrl`` dynamics
         self.dynamics = create_dynamics(self.cfg, self.env.observation_space, self.env.action_space, logger=self.logger)
 
+        if not self.cfg.transition.discovery:
+            self.dynamics.transition.set_oracle_graph(self.env.get_transition_graph())
+        if self.cfg.reward_mech.learn and not self.cfg.reward_mech.discovery:
+            self.dynamics.reward_mech.set_oracle_graph(self.env.get_reward_mech_graph())
+        if self.cfg.termination_mech.learn and not self.cfg.termination_mech.discovery:
+            self.dynamics.termination_mech.set_oracle_graph(self.env.get_termination_mech_graph())
+
         # create sb3's replay buffer for real offline data
         self.real_replay_buffer = ReplayBuffer(
             cfg.task.num_steps,

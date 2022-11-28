@@ -17,7 +17,6 @@ from cmrl.models.causal_mech.neural_causal_mech import NeuralCausalMech, default
 from cmrl.models.graphs.prob_graph import BernoulliGraph
 from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_func
 
-
 default_graph_optimizer_cfg = DictConfig(
     dict(
         _target_="torch.optim.Adam",
@@ -70,6 +69,8 @@ class ReinforceCausalMech(NeuralCausalMech):
         self._graph_MC_samples = graph_MC_samples
         self._graph_max_stack = graph_max_stack
         self._lambda_sparse = lambda_sparse
+
+        self.graph_optimizer = None
 
         super(ReinforceCausalMech, self).__init__(
             name=name,

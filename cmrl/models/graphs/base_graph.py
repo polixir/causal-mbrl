@@ -20,7 +20,7 @@ class BaseGraph(abc.ABC):
         in_dim (int): input dimension.
         out_dim (int): output dimension.
         extra_dim (int | tuple(int) | None): extra dimensions (multi-graph).
-        include_input (bool): whether inlcude input variables in the output variables.
+        include_input (bool): whether include input variables in the output variables.
     """
 
     def __init__(
@@ -37,7 +37,7 @@ class BaseGraph(abc.ABC):
         self._extra_dim = extra_dim
         self._include_input = include_input
 
-        assert not (include_input and out_dim < in_dim), "Once include input, the out dimesnion must >= in dimensino"
+        assert not (include_input and out_dim < in_dim), "Once include input, the out dimension must >= in dimension"
 
     @property
     @abc.abstractmethod
