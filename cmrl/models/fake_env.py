@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Type
 
 import gym
 import numpy as np
+import torch
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.buffers import ReplayBuffer
@@ -85,6 +86,10 @@ class VecFakeEnv(VecEnv):
 
             if self.logger is not None:
                 self.logger.record_mean("rollout/penalty", penalty.mean().item())
+
+        assert not np.isnan(batch_next_obs).any(), "next obs of fake env should not be nan."
+        assert not np.isnan(batch_reward).any(), "reward of fake env should not be nan."
+        assert not np.isnan(batch_terminal).any(), "terminal of fake env should not be nan."
 
         self._current_batch_obs = batch_next_obs.copy()
         batch_reward = batch_reward.reshape(self.num_envs)

@@ -135,6 +135,13 @@ class NeuralCausalMech(BaseCausalMech):
             out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[:, :, i] = out
 
+        for name, param in self.network.named_parameters():
+            if param.grad is not None and torch.isnan(param.grad).any():
+                print("nan gradient found")
+                print("name:", name)
+                print("param:", param.grad)
+                raise SystemExit
+
         output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
 
         outputs = {}

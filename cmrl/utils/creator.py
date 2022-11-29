@@ -4,6 +4,7 @@ from gym import spaces
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 import numpy as np
+from stable_baselines3.common.vec_env import VecMonitor
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.base_class import BaseAlgorithm
 
@@ -14,7 +15,7 @@ from cmrl.utils.variables import ContinuousVariable, BinaryVariable, DiscreteVar
 
 
 def create_agent(cfg: DictConfig, fake_env: VecFakeEnv, logger: Optional[Logger] = None):
-    agent = instantiate(cfg.algorithm.agent)(env=fake_env)
+    agent = instantiate(cfg.algorithm.agent)(env=VecMonitor(fake_env))
     agent = cast(BaseAlgorithm, agent)
     agent.set_logger(logger)
 

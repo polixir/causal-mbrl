@@ -3,8 +3,9 @@ from typing import List, Optional
 import torch.nn as nn
 from omegaconf import DictConfig
 
-from cmrl.utils.variables import Variable, DiscreteVariable, ContinuousVariable, BinaryVariable
+from cmrl.utils.variables import Variable, DiscreteVariable, ContinuousVariable, BinaryVariable, RadianVariable
 from cmrl.models.networks.base_network import BaseNetwork, create_activation
+from cmrl.models.layers import RadianLayer
 
 
 class VariableEncoder(BaseNetwork):
@@ -35,6 +36,9 @@ class VariableEncoder(BaseNetwork):
             hidden_dim = self.hidden_dims[0]
 
         if isinstance(self.variable, ContinuousVariable):
+            layers.append(nn.Linear(self.variable.dim, hidden_dim))
+        elif isinstance(self.variable, RadianVariable):
+            layers.append(RadianLayer())
             layers.append(nn.Linear(self.variable.dim, hidden_dim))
         elif isinstance(self.variable, DiscreteVariable):
             layers.append(nn.Linear(self.variable.n, hidden_dim))
@@ -92,6 +96,8 @@ class VariableDecoder(BaseNetwork):
             hidden_dim = self.hidden_dims[-1]
 
         if isinstance(self.variable, ContinuousVariable):
+            layers.append(nn.Linear(hidden_dim, self.variable.dim * 2))
+        elif isinstance(self.variable, RadianVariable):
             layers.append(nn.Linear(hidden_dim, self.variable.dim * 2))
         elif isinstance(self.variable, DiscreteVariable):
             layers.append(nn.Linear(hidden_dim, self.variable.n))

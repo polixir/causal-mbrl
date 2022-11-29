@@ -20,6 +20,11 @@ class ContinuousVariable(Variable):
 
 
 @dataclass
+class RadianVariable(Variable):
+    dim: int
+
+
+@dataclass
 class BinaryVariable(Variable):
     pass
 
@@ -33,7 +38,10 @@ def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
     variables = []
     if isinstance(space, spaces.Box):
         for i, (low, high) in enumerate(zip(space.low, space.high)):
-            variables.append(ContinuousVariable(dim=1, low=low, high=high, name="{}_{}".format(prefix, i)))
+            if np.isclose(low, -np.pi) and np.isclose(high, np.pi):
+                variables.append(RadianVariable(dim=1, name="{}_{}".format(prefix, i)))
+            else:
+                variables.append(ContinuousVariable(dim=1, low=low, high=high, name="{}_{}".format(prefix, i)))
     elif isinstance(space, spaces.Discrete):
         variables.append(DiscreteVariable(n=space.n, name="{}_0".format(prefix)))
     elif isinstance(space, spaces.MultiDiscrete):

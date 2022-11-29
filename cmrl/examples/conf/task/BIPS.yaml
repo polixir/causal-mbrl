@@ -9,7 +9,7 @@ params:
 dataset: "SAC-expert-replay"
 
 # basic RL params
-num_steps: 300000
+num_steps: 1000000
 online_num_steps: 10000
 epoch_length: 10000
 n_eval_episodes: 8

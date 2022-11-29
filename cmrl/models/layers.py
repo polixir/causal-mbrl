@@ -3,6 +3,7 @@ from typing import Optional, List
 import numpy as np
 import torch
 from torch import nn as nn
+from torch import Tensor
 from itertools import product
 
 from cmrl.models.util import truncated_normal_
@@ -59,7 +60,7 @@ class ParallelLinear(nn.Module):
         else:
             raise NotImplementedError
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         xw = x.matmul(self.weight)
         if self.use_bias:
             return xw + self.bias
@@ -77,7 +78,15 @@ class ParallelLinear(nn.Module):
             return param.device
         return torch.device("cpu")
 
-    def __repr__(self):
-        return 'ParallelLinear(input_dims={}, output_dims={}, extra_dims={}, bias={}, init_type="{}")'.format(
+    def extra_repr(self):
+        return 'input_dims={}, output_dims={}, extra_dims={}, bias={}, init_type="{}"'.format(
             self.input_dim, self.output_dim, str(self.extra_dims), self.use_bias, self.init_type
         )
+
+
+class RadianLayer(nn.Module):
+    def __init__(self) -> None:
+        super(RadianLayer, self).__init__()
+
+    def forward(self, input: Tensor) -> Tensor:
+        return torch.remainder(input + torch.pi, 2 * torch.pi) - torch.pi
