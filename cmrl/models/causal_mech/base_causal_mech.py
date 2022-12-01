@@ -51,7 +51,7 @@ class BaseCausalMech(ABC):
 
     def set_oracle_graph(self, graph_data):
         self.discovery = False
-        self.graph = BinaryGraph(self.input_var_num, self.output_var_num)
+        self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
         self.graph.set_data(graph_data=graph_data)
 
     def save(self):

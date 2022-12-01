@@ -141,7 +141,7 @@ class ReinforceCausalMech(NeuralCausalMech):
             out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[..., i, :] = out
 
-        if train:
+        if train and self.discovery:
             # [ensemble-num, batch-size, input-var-num, output-var-num]
             adj_matrix = self.graph.sample(None, sample_size=(self.ensemble_num, batch_size))
             # [ensemble-num, batch-size, output-var-num, input-var-num]
@@ -319,7 +319,7 @@ class ReinforceCausalMech(NeuralCausalMech):
 
         best_eval_loss = eval_fn(valid_loader).mean(dim=(-2, -1))
         for epoch in epoch_iter:
-            if epoch % train_graph_freq == 0:
+            if self.discovery and epoch % train_graph_freq == 0:
                 grads = self.train_graph(train_loader, data_ratio=graph_data_ratio)
                 print(self.graph.parameters[0])
                 print(self.graph.get_binary_adj_matrix())
@@ -349,7 +349,7 @@ class ReinforceCausalMech(NeuralCausalMech):
                 self.logger.record("{}/val_loss".format(self.name), eval_loss.mean().item())
                 self.logger.record("{}/best_val_loss".format(self.name), best_eval_loss.mean().item())
 
-                if epoch % train_graph_freq == 0:
+                if self.discovery and epoch % train_graph_freq == 0:
                     self.logger.record("{}/graph_update_grads".format(self.name), grads.abs().mean().item())
 
                 self.logger.dump(self.total_epoch)
