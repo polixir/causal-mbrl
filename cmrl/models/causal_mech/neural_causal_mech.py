@@ -277,6 +277,26 @@ class NeuralCausalMech(BaseCausalMech):
         # saving the best models:
         self._maybe_set_best_weights_and_elite(best_weights, best_eval_loss)
 
+    def save(self):
+        save_dir = pathlib.Path(self.name)
+        save_dir.mkdir(exist_ok=True)
+        self.network.save(save_dir)
+        for coder in self.variable_encoders.values():
+            coder.save(save_dir)
+        for coder in self.variable_decoders.values():
+            coder.save(save_dir)
+
+    def load(self, load_dir: Union[str, pathlib.Path]):
+        if isinstance(load_dir, str):
+            load_dir = pathlib.Path(load_dir)
+        assert load_dir.exists()
+
+        self.network.load(load_dir)
+        for coder in self.variable_encoders.values():
+            coder.load(load_dir)
+        for coder in self.variable_decoders.values():
+            coder.load(load_dir)
+
     def _maybe_get_best_weights(
         self,
         best_val_loss: torch.Tensor,

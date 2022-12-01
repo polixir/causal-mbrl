@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Union, MutableMapping
 from abc import abstractmethod, ABC
+import pathlib
 
 import torch
 from torch.utils.data import DataLoader
@@ -52,3 +53,9 @@ class BaseCausalMech(ABC):
         self.discovery = False
         self.graph = BinaryGraph(self.input_var_num, self.output_var_num)
         self.graph.set_data(graph_data=graph_data)
+
+    def save(self):
+        pass
+
+    def load(self, load_dir: Union[str, pathlib.Path]):
+        pass
