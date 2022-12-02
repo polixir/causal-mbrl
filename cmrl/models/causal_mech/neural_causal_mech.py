@@ -277,6 +277,8 @@ class NeuralCausalMech(BaseCausalMech):
         # saving the best models:
         self._maybe_set_best_weights_and_elite(best_weights, best_eval_loss)
 
+        self.save()
+
     def save(self):
         save_dir = pathlib.Path(self.name)
         save_dir.mkdir(exist_ok=True)

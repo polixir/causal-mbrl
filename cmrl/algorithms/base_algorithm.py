@@ -4,9 +4,10 @@ from functools import partial
 
 import numpy as np
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.callbacks import BaseCallback
+import wandb
 
 from cmrl.models.fake_env import VecFakeEnv
 from cmrl.sb3_extension.logger import configure as logger_configure
@@ -30,6 +31,14 @@ class BaseAlgorithm:
         torch.manual_seed(self.cfg.seed)
 
         self.logger = logger_configure("log", ["tensorboard", "multi_csv", "stdout"])
+
+        if cfg.wandb:
+            wandb.init(
+                project="causal-mbrl",
+                group=cfg.exp_name,
+                config=OmegaConf.to_container(cfg, resolve=True),
+                sync_tensorboard=True,
+            )
 
         # create ``cmrl`` dynamics
         self.dynamics = create_dynamics(self.cfg, self.env.observation_space, self.env.action_space, logger=self.logger)
