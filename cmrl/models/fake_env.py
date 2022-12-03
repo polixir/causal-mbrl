@@ -11,6 +11,14 @@ from cmrl.types import RewardFnType, TermFnType, InitObsFnType
 from cmrl.models.dynamics import Dynamics
 
 
+def get_penalty(ensemble_batch_next_obs):
+    avg = np.mean(ensemble_batch_next_obs, axis=0)  # average predictions over models
+    diffs = ensemble_batch_next_obs - avg
+    dists = np.linalg.norm(diffs, axis=2)  # distance in obs space
+    penalty = np.max(dists, axis=0)  # max distances over models
+    return penalty
+
+
 class VecFakeEnv(VecEnv):
     def __init__(
         self,
@@ -81,7 +89,7 @@ class VecFakeEnv(VecEnv):
             batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
 
         if self.penalty_coeff != 0:
-            penalty = self.get_penalty(info["origin-next_obs"]).reshape(batch_reward.shape)
+            penalty = get_penalty(info["origin-next_obs"]).reshape(batch_reward.shape)
             batch_reward -= penalty * self.penalty_coeff
 
             if self.logger is not None:
@@ -153,36 +161,6 @@ class VecFakeEnv(VecEnv):
 
     def render(self, mode="human"):
         raise NotImplementedError
-
-    @staticmethod
-    def get_penalty(ensemble_batch_next_obs):
-        avg = np.mean(ensemble_batch_next_obs, axis=0)  # average predictions over models
-        diffs = ensemble_batch_next_obs - avg
-        dists = np.linalg.norm(diffs, axis=2)  # distance in obs space
-        penalty = np.max(dists, axis=0)  # max distances over models
-        return penalty
-
-    def get_dynamics_predict(
-        self,
-        origin_predict: Dict,
-        mech: str,
-        deterministic: bool = False,
-    ):
-        variable = self.dynamics.get_variable_by_mech(mech)
-        ensemble_mean, ensemble_logvar = (
-            origin_predict[variable]["mean"],
-            origin_predict[variable]["logvar"],
-        )
-        batch_size = ensemble_mean.shape[1]
-        random_index = getattr(self.dynamics, mech).get_random_index(batch_size, self.generator)
-        if deterministic:
-            pred = ensemble_mean[random_index, np.arange(batch_size)]
-        else:
-            ensemble_std = np.sqrt(np.exp(ensemble_logvar))
-            pred = ensemble_mean[random_index, np.arange(batch_size)] + ensemble_std[
-                random_index, np.arange(batch_size)
-            ] * self.generator.normal(size=ensemble_mean.shape[1:]).astype(np.float32)
-        return pred
 
     def env_method(
         self,
