@@ -54,6 +54,10 @@ mech:
   name: transition
   input_variables: ???
   output_variables: ???
+  # model learning
+  patience: 20
+  longest_epoch: -1
+  improvement_threshold: 0.01
   # ensemble
   ensemble_num: 7
   elite_num: 5

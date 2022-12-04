@@ -1,6 +1,6 @@
 name: "CMI_test_transition"
 learn: true
-discovery: false
+discovery: true
 
 encoder_cfg:
   _partial_: true
@@ -39,6 +39,12 @@ optimizer_cfg:
   weight_decay: 1e-5
   eps: 1e-8
 
+scheduler_cfg:
+  _partial_: true
+  _target_: torch.optim.lr_scheduler.StepLR
+  step_size: 1
+  gamma: 0.95
+
 mech:
   _partial_: true
   _recursive_: false
@@ -47,6 +53,10 @@ mech:
   name: transition
   input_variables: ???
   output_variables: ???
+  # model learning
+  patience: 20
+  longest_epoch: -1
+  improvement_threshold: 0.01
   # mask
   mask_method: "zero"
   # ensemble
@@ -57,6 +67,7 @@ mech:
   encoder_cfg: ${transition.encoder_cfg}
   decoder_cfg: ${transition.decoder_cfg}
   optimizer_cfg: ${transition.optimizer_cfg}
+  scheduler_cfg: ${transition.scheduler_cfg}
   # forward method
   residual: true
   encoder_reduction: "sum"

@@ -24,8 +24,5 @@ class OfflineDyna(BaseAlgorithm):
         if not existed_trained_model:
             self.dynamics.learn(
                 real_replay_buffer=self.real_replay_buffer,
-                longest_epoch=self.cfg.task.longest_epoch,
-                improvement_threshold=self.cfg.task.improvement_threshold,
-                patience=self.cfg.task.patience,
                 work_dir=self.work_dir,
             )

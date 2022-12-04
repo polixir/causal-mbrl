@@ -67,6 +67,15 @@ default_optimizer_cfg = DictConfig(
     )
 )
 
+default_scheduler_cfg = DictConfig(
+    dict(
+        _target_="torch.optim.lr_scheduler.StepLR",
+        _partial_=True,
+        step_size=1,
+        gamma=1,
+    )
+)
+
 
 class NeuralCausalMech(BaseCausalMech):
     def __init__(
@@ -74,6 +83,10 @@ class NeuralCausalMech(BaseCausalMech):
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
         # ensemble
         ensemble_num: int = 7,
         elite_num: int = 5,
@@ -82,6 +95,7 @@ class NeuralCausalMech(BaseCausalMech):
         encoder_cfg: Optional[DictConfig] = None,
         decoder_cfg: Optional[DictConfig] = None,
         optimizer_cfg: Optional[DictConfig] = None,
+        scheduler_cfg: Optional[DictConfig] = None,
         # forward method
         residual: bool = True,
         encoder_reduction: str = "sum",
@@ -98,6 +112,10 @@ class NeuralCausalMech(BaseCausalMech):
             output_variables=output_variables,
             device=device,
         )
+        # model learning
+        self.longest_epoch = longest_epoch
+        self.improvement_threshold = improvement_threshold
+        self.patience = patience
         # ensemble
         self.ensemble_num = ensemble_num
         self.elite_num = elite_num
@@ -106,6 +124,7 @@ class NeuralCausalMech(BaseCausalMech):
         self.encoder_cfg = default_encoder_cfg if encoder_cfg is None else encoder_cfg
         self.decoder_cfg = default_decoder_cfg if decoder_cfg is None else decoder_cfg
         self.optimizer_cfg = default_optimizer_cfg if optimizer_cfg is None else optimizer_cfg
+        self.scheduler_cfg = default_scheduler_cfg if scheduler_cfg is None else scheduler_cfg
         # forward method
         self.residual = residual
         self.encoder_reduction = encoder_reduction
@@ -119,6 +138,7 @@ class NeuralCausalMech(BaseCausalMech):
         self.network: Optional[BaseNetwork] = None
         self.graph: Optional[BaseGraph] = None
         self.optimizer: Optional[Optimizer] = None
+        self.scheduler: Optional[object] = None
         self.build_coder()
         self.build_network()
         self.build_graph()
@@ -183,6 +203,7 @@ class NeuralCausalMech(BaseCausalMech):
         )
 
         self.optimizer = instantiate(self.optimizer_cfg)(params=chain(*params))
+        self.scheduler = instantiate(self.scheduler_cfg)(optimizer=self.optimizer)
 
     @abstractmethod
     def build_graph(self):
@@ -227,15 +248,11 @@ class NeuralCausalMech(BaseCausalMech):
         # loader
         train_loader: DataLoader,
         valid_loader: DataLoader,
-        # model learning
-        longest_epoch: int = -1,
-        improvement_threshold: float = 0.01,
-        patience: int = 5,
         work_dir: Optional[Union[str, pathlib.Path]] = None,
         **kwargs
     ):
         best_weights: Optional[Dict] = None
-        epoch_iter = range(longest_epoch) if longest_epoch >= 0 else count()
+        epoch_iter = range(self.longest_epoch) if self.longest_epoch >= 0 else count()
         epochs_since_update = 0
 
         loss_func = partial(variable_loss_func, output_variables=self.output_variables, device=self.device)
@@ -247,8 +264,9 @@ class NeuralCausalMech(BaseCausalMech):
         for epoch in epoch_iter:
             train_loss = train(train_loader)
             eval_loss = eval(valid_loader)
+
             maybe_best_weights = self._maybe_get_best_weights(
-                best_eval_loss, eval_loss.mean(dim=(-2, -1)), improvement_threshold
+                best_eval_loss, eval_loss.mean(dim=(-2, -1)), self.improvement_threshold
             )
             if maybe_best_weights:
                 # best loss
@@ -268,11 +286,14 @@ class NeuralCausalMech(BaseCausalMech):
                 self.logger.record("{}/train_loss".format(self.name), train_loss.mean().item())
                 self.logger.record("{}/val_loss".format(self.name), eval_loss.mean().item())
                 self.logger.record("{}/best_val_loss".format(self.name), best_eval_loss.mean().item())
+                self.logger.record("{}/lr".format(self.name), self.optimizer.param_groups[0]["lr"])
 
                 self.logger.dump(self.total_epoch)
 
-            if patience and epochs_since_update >= patience:
+            if self.patience and epochs_since_update >= self.patience:
                 break
+
+            self.scheduler.step()
 
         # saving the best models:
         self._maybe_set_best_weights_and_elite(best_weights, best_eval_loss)

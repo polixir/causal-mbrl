@@ -39,6 +39,8 @@ optimizer_cfg:
   weight_decay: 1e-5
   eps: 1e-8
 
+
+
 mech:
   _partial_: true
   _recursive_: false
@@ -47,6 +49,11 @@ mech:
   name: transition
   input_variables: ???
   output_variables: ???
+  # model learning
+  patience: 20
+  longest_epoch: -1
+  improvement_threshold: 0.01
+  # ensemble
   ensemble_num: 7
   elite_num: 5
   # cfgs
@@ -61,3 +68,8 @@ mech:
   logger: ???
   # others
   device: ${device}
+
+# model learning
+patience: 20
+longest_epoch: -1
+improvement_threshold: 0.01

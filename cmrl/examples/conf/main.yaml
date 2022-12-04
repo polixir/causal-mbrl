@@ -9,7 +9,7 @@ defaults:
 seed: 0
 device: "cuda:0"
 
-exp_name: refactor
+exp_name: default
 wandb: false
 
 root_dir: "./exp"

@@ -65,42 +65,15 @@ class Dynamics:
 
         return train_loader, valid_loader
 
-    def learn(
-        self,
-        real_replay_buffer: ReplayBuffer,
-        # model learning
-        longest_epoch: int = -1,
-        improvement_threshold: float = 0.01,
-        patience: int = 5,
-        work_dir: Optional[Union[str, pathlib.Path]] = None,
-        **kwargs
-    ):
+    def learn(self, real_replay_buffer: ReplayBuffer, work_dir: Optional[Union[str, pathlib.Path]] = None, **kwargs):
         # transition
-        self.transition.learn(
-            *self.get_loader(real_replay_buffer, "transition"),
-            longest_epoch=longest_epoch,
-            improvement_threshold=improvement_threshold,
-            patience=patience,
-            work_dir=work_dir
-        )
+        self.transition.learn(*self.get_loader(real_replay_buffer, "transition"), work_dir=work_dir)
         # reward-mech
         if self.learn_reward:
-            self.reward_mech.learn(
-                *self.get_loader(real_replay_buffer, "reward_mech"),
-                longest_epoch=longest_epoch,
-                improvement_threshold=improvement_threshold,
-                patience=patience,
-                work_dir=work_dir
-            )
+            self.reward_mech.learn(*self.get_loader(real_replay_buffer, "reward_mech"), work_dir=work_dir)
         # termination-mech
         if self.learn_termination:
-            self.termination_mech.learn(
-                *self.get_loader(real_replay_buffer, "termination_mech"),
-                longest_epoch=longest_epoch,
-                improvement_threshold=improvement_threshold,
-                patience=patience,
-                work_dir=work_dir
-            )
+            self.termination_mech.learn(*self.get_loader(real_replay_buffer, "termination_mech"), work_dir=work_dir)
 
     def step(self, batch_obs, batch_action):
         with torch.no_grad():

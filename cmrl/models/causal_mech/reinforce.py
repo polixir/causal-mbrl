@@ -34,6 +34,10 @@ class ReinforceCausalMech(NeuralCausalMech):
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
         # ensemble
         ensemble_num: int = 7,
         elite_num: int = 5,
@@ -76,6 +80,9 @@ class ReinforceCausalMech(NeuralCausalMech):
             name=name,
             input_variables=input_variables,
             output_variables=output_variables,
+            longest_epoch=longest_epoch,
+            improvement_threshold=improvement_threshold,
+            patience=patience,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
             network_cfg=network_cfg,
@@ -299,9 +306,6 @@ class ReinforceCausalMech(NeuralCausalMech):
         self,
         train_loader: DataLoader,
         valid_loader: DataLoader,
-        longest_epoch: int = -1,
-        improvement_threshold: float = 0.01,
-        patience: int = 5,
         graph_data_ratio: float = 0.5,
         train_graph_freq: int = 2,
         work_dir: Optional[Union[str, pathlib.Path]] = None,
@@ -310,7 +314,7 @@ class ReinforceCausalMech(NeuralCausalMech):
         assert 0 <= graph_data_ratio <= 1, "graph data ratio should be in [0, 1]"
 
         best_weights: Optional[Dict] = None
-        epoch_iter = range(longest_epoch) if longest_epoch >= 0 else count()
+        epoch_iter = range(self.longest_epoch) if self.longest_epoch >= 0 else count()
         epochs_since_update = 0
 
         loss_fn = partial(variable_loss_func, output_variables=self.output_variables, device=self.device)
@@ -328,7 +332,7 @@ class ReinforceCausalMech(NeuralCausalMech):
             eval_loss = eval_fn(valid_loader)
 
             maybe_best_weights = self._maybe_get_best_weights(
-                best_eval_loss, eval_loss.mean(dim=(-2, -1)), improvement_threshold
+                best_eval_loss, eval_loss.mean(dim=(-2, -1)), self.improvement_threshold
             )
             if maybe_best_weights:
                 # best loss
@@ -354,7 +358,7 @@ class ReinforceCausalMech(NeuralCausalMech):
 
                 self.logger.dump(self.total_epoch)
 
-            if patience and epochs_since_update >= patience:
+            if self.patience and epochs_since_update >= self.patience:
                 break
 
         # saving the best models

@@ -16,6 +16,8 @@ from cmrl.utils.config import load_hydra_cfg
 
 
 def compare_dict(dict1, dict2):
+    if len(list(dict1)) != len(list(dict2)):
+        return False
     for key in dict1:
         if key not in dict2:
             return False
@@ -32,8 +34,6 @@ def compare_dict(dict1, dict2):
 def maybe_load_offline_model(
     dynamics: Dynamics,
     cfg: DictConfig,
-    # obs_shape,
-    # act_shape,
     work_dir,
 ):
     work_dir = pathlib.Path(work_dir)
@@ -42,7 +42,7 @@ def maybe_load_offline_model(
     else:
         task_exp_dir = work_dir.parent
 
-    transition_cfg = OmegaConf.to_container(cfg.transition.mech, resolve=True)
+    transition_cfg = OmegaConf.to_container(cfg.transition, resolve=True)
 
     for time_dir in task_exp_dir.glob(r"*"):
         if (time_dir / "multirun.yaml").exists():  # exp by hydra's MULTIRUN mode, multi exp in this time
@@ -55,8 +55,12 @@ def maybe_load_offline_model(
                 continue
             exp_cfg = load_hydra_cfg(exp_dir)
 
-            exp_transition_dir = OmegaConf.to_container(exp_cfg.transition.mech, resolve=True)
-            if compare_dict(exp_transition_dir, transition_cfg) and (exp_dir / "transition").exists():
+            exp_transition_dir = OmegaConf.to_container(exp_cfg.transition, resolve=True)
+            if (
+                cfg.seed == exp_cfg.seed
+                and compare_dict(exp_transition_dir, transition_cfg)
+                and (exp_dir / "transition").exists()
+            ):
                 dynamics.transition.load(exp_dir / "transition")
                 print("loaded dynamics from {}".format(exp_dir))
                 return True

@@ -15,6 +15,11 @@ class PlainMech(NeuralCausalMech):
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
+        # ensemble
         ensemble_num: int = 7,
         elite_num: int = 5,
         # cfgs
@@ -39,6 +44,9 @@ class PlainMech(NeuralCausalMech):
             name=name,
             input_variables=input_variables,
             output_variables=output_variables,
+            longest_epoch=longest_epoch,
+            improvement_threshold=improvement_threshold,
+            patience=patience,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
             network_cfg=network_cfg,

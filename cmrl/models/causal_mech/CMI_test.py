@@ -20,6 +20,10 @@ class CMITest(NeuralCausalMech):
         name: str,
         input_variables: List[Variable],
         output_variables: List[Variable],
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
         # ensemble
         ensemble_num: int = 7,
         elite_num: int = 5,
@@ -47,6 +51,9 @@ class CMITest(NeuralCausalMech):
             name=name,
             input_variables=input_variables,
             output_variables=output_variables,
+            longest_epoch=longest_epoch,
+            improvement_threshold=improvement_threshold,
+            patience=patience,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
             network_cfg=network_cfg,
@@ -192,26 +199,23 @@ class CMITest(NeuralCausalMech):
 
         return outputs
 
-    def calculate_CMI(self, nll_loss: torch.Tensor):
+    def calculate_CMI(self, nll_loss: torch.Tensor, threshold=1):
         nll_loss_diff = nll_loss[:-1] - nll_loss[-1]
-        self.forward_mask = (nll_loss_diff.mean(dim=(1, 2)) > 1).to(torch.long)
-
-        print(self.forward_mask)
+        graph_data = (nll_loss_diff.mean(dim=(1, 2)) > threshold).to(torch.long)
+        return graph_data, nll_loss_diff.mean(dim=(1, 2))
 
     def learn(
         self,
         # loader
         train_loader: DataLoader,
         valid_loader: DataLoader,
-        # model learning
-        longest_epoch: int = -1,
-        improvement_threshold: float = 0.01,
-        patience: int = 5,
         work_dir: Optional[Union[str, pathlib.Path]] = None,
         **kwargs
     ):
         if self.discovery:
-            epoch_iter = range(longest_epoch) if longest_epoch >= 0 else count()
+            final_graph_data = None
+
+            epoch_iter = range(self.longest_epoch) if self.longest_epoch >= 0 else count()
             epochs_since_update = 0
 
             loss_func = partial(variable_loss_func, output_variables=self.output_variables, device=self.device)
@@ -225,11 +229,16 @@ class CMITest(NeuralCausalMech):
                 eval_loss = eval(valid_loader)
 
                 improvement = (best_eval_loss - eval_loss.mean(dim=(0, 2, 3))) / torch.abs(best_eval_loss)
-                if (improvement > improvement_threshold).any().item():
+                if (improvement > self.improvement_threshold).any().item():
                     best_eval_loss = torch.minimum(best_eval_loss, eval_loss.mean(dim=(0, 2, 3)))
                     epochs_since_update = 0
 
-                    self.calculate_CMI(eval_loss)
+                    final_graph_data, mean_nll_loss_diff = self.calculate_CMI(eval_loss)
+                    print(
+                        "new best valid, CMI test result:\n{}\nwith mean nll loss diff:\n{}".format(
+                            final_graph_data, mean_nll_loss_diff
+                        )
+                    )
                 else:
                     epochs_since_update += 1
 
@@ -243,19 +252,17 @@ class CMITest(NeuralCausalMech):
                     self.logger.record("{}-CMI-test/train_loss".format(self.name), train_loss.mean().item())
                     self.logger.record("{}-CMI-test/val_loss".format(self.name), eval_loss.mean().item())
                     self.logger.record("{}-CMI-test/best_val_loss".format(self.name), best_eval_loss.mean().item())
+                    self.logger.record("{}-CMI-test/lr".format(self.name), self.optimizer.param_groups[0]["lr"])
 
                     self.logger.dump(self.total_CMI_epoch)
 
-                if patience and epochs_since_update >= patience:
+                if self.patience and epochs_since_update >= self.patience:
                     break
 
-        super(CMITest, self).learn(
-            train_loader=train_loader,
-            valid_loader=valid_loader,
-            # model learning
-            longest_epoch=longest_epoch,
-            improvement_threshold=improvement_threshold,
-            patience=patience,
-            work_dir=work_dir,
-            **kwargs
-        )
+                self.scheduler.step()
+
+            assert final_graph_data is not None
+            self.set_oracle_graph(final_graph_data)
+            self.build_optimizer()
+
+        super(CMITest, self).learn(train_loader=train_loader, valid_loader=valid_loader, work_dir=work_dir, **kwargs)
