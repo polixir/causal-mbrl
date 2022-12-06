@@ -298,11 +298,14 @@ class NeuralCausalMech(BaseCausalMech):
         # saving the best models:
         self._maybe_set_best_weights_and_elite(best_weights, best_eval_loss)
 
-        self.save()
+        self.save(save_dir=work_dir)
 
-    def save(self):
-        save_dir = pathlib.Path(self.name)
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        if isinstance(save_dir, str):
+            save_dir = pathlib.Path(save_dir)
+        save_dir = save_dir / pathlib.Path(self.name)
         save_dir.mkdir(exist_ok=True)
+
         self.network.save(save_dir)
         for coder in self.variable_encoders.values():
             coder.save(save_dir)

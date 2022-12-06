@@ -55,7 +55,7 @@ class BaseCausalMech(ABC):
         self.graph.set_data(graph_data=graph_data)
         print("set oracle causal graph successfully: \n{}".format(graph_data))
 
-    def save(self):
+    def save(self, save_dir: Union[str, pathlib.Path]):
         pass
 
     def load(self, load_dir: Union[str, pathlib.Path]):
