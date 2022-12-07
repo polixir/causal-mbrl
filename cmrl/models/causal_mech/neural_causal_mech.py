@@ -307,6 +307,8 @@ class NeuralCausalMech(BaseCausalMech):
         save_dir.mkdir(exist_ok=True)
 
         self.network.save(save_dir)
+        if self.graph is not None:
+            self.graph.save(save_dir)
         for coder in self.variable_encoders.values():
             coder.save(save_dir)
         for coder in self.variable_decoders.values():
@@ -318,6 +320,8 @@ class NeuralCausalMech(BaseCausalMech):
         assert load_dir.exists()
 
         self.network.load(load_dir)
+        if self.graph is not None:
+            self.graph.load(load_dir)
         for coder in self.variable_encoders.values():
             coder.load(load_dir)
         for coder in self.variable_decoders.values():

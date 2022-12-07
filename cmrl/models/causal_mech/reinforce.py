@@ -364,6 +364,8 @@ class ReinforceCausalMech(NeuralCausalMech):
         # saving the best models
         self._maybe_set_best_weights_and_elite(best_weights, best_eval_loss)
 
+        self.save(save_dir=work_dir)
+
     def _maybe_get_best_weights(
         self, best_val_loss: torch.Tensor, val_loss: torch.Tensor, threshold: float = 0.01
     ) -> Optional[Dict]:
