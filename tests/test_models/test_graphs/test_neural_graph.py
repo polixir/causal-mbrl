@@ -5,7 +5,7 @@ import shutil
 import torch
 import torch.nn as nn
 
-from cmrl.models.graphs.neural_graph import NeuralGraph
+from cmrl.models.graphs.neural_graph import NeuralGraph, NeuralBernoulliGraph
 
 
 def test_init():
@@ -57,6 +57,25 @@ def test_save_load():
 
     # clear the temp folder
     shutil.rmtree(save_dir)
+
+
+def test_bernoulli():
+    g = NeuralBernoulliGraph(5, 5, include_input=True)
+    assert next(g.parameters).grad is None
+
+    inputs = torch.ones(2, 5)
+    adj_mat = g.get_adj_matrix(inputs)
+
+    assert adj_mat.size() == (2, 5, 5), "get_adj_matrix failed"
+    assert (adj_mat[:, torch.arange(5), torch.arange(5)] == 0).all()
+    assert ((adj_mat >= 0) & (adj_mat <= 1)).all()
+    b = adj_mat.sum()
+    b.backward()
+    assert next(g.graph.parameters()).grad is not None
+
+    binary_adj_matrix = g.get_binary_adj_matrix(inputs, 0.5)
+
+    assert binary_adj_matrix.size() == (2, 5, 5), "get_binary_adj_matrix failed"
 
 
 if __name__ == "__main__":

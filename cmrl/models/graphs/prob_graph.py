@@ -3,6 +3,7 @@ from typing import Union, Tuple, Optional
 
 import torch
 import numpy as np
+import torch.nn.functional as F
 
 from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.graphs.weight_graph import WeightGraph
@@ -103,10 +104,11 @@ class BernoulliGraph(WeightGraph, BaseProbGraph):
         if isinstance(sample_size, int):
             sample_size = (sample_size,)
 
-        sample_prob = prob_matrix[None].expand(*sample_size, -1, -1)
+        sample_prob = prob_matrix[None].expand(*sample_size, *((-1,) * len(prob_matrix.shape)))
 
         if reparameterization is None:
             return torch.bernoulli(sample_prob)
+        elif reparameterization == "gumbel-softmax":
+            return F.gumbel_softmax(torch.stack((sample_prob, 1 - sample_prob)), hard=True, dim=0)[0]
         else:
-            # TODO: reparameterization for bernoulli distribution
             raise NotImplementedError
