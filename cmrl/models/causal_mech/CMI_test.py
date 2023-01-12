@@ -11,6 +11,7 @@ from stable_baselines3.common.logger import Logger
 
 from cmrl.utils.variables import Variable
 from cmrl.models.causal_mech.neural_causal_mech import NeuralCausalMech
+from cmrl.models.graphs.binary_graph import BinaryGraph
 from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_func
 
 
@@ -76,7 +77,7 @@ class CMITest(NeuralCausalMech):
         ).to(self.device)
 
     def build_graph(self):
-        self.graph = None
+        self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
 
     def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         batch_size, _ = self.get_inputs_batch_size(inputs)
@@ -262,7 +263,7 @@ class CMITest(NeuralCausalMech):
                 self.scheduler.step()
 
             assert final_graph_data is not None
-            self.set_oracle_graph(final_graph_data)
+            self.graph.set_data(final_graph_data)
             self.build_optimizer()
 
         super(CMITest, self).learn(train_loader=train_loader, valid_loader=valid_loader, work_dir=work_dir, **kwargs)
