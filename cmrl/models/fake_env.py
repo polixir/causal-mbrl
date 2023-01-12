@@ -21,26 +21,26 @@ def get_penalty(ensemble_batch_next_obs):
 
 class VecFakeEnv(VecEnv):
     def __init__(
-        self,
-        # for need of sb3's agent
-        num_envs: int,
-        observation_space: gym.spaces.Space,
-        action_space: gym.spaces.Space,
-        # for dynamics
-        dynamics: Dynamics,
-        reward_fn: Optional[RewardFnType] = None,
-        termination_fn: Optional[TermFnType] = None,
-        get_init_obs_fn: Optional[InitObsFnType] = None,
-        real_replay_buffer: Optional[ReplayBuffer] = None,
-        # for offline
-        penalty_coeff: float = 0.0,
-        # for behaviour
-        deterministic: bool = False,
-        max_episode_steps: int = 1000,
-        branch_rollout: bool = False,
-        # others
-        logger: Optional[Logger] = None,
-        **kwargs,
+            self,
+            # for need of sb3's agent
+            num_envs: int,
+            observation_space: gym.spaces.Space,
+            action_space: gym.spaces.Space,
+            # for dynamics
+            dynamics: Dynamics,
+            reward_fn: Optional[RewardFnType] = None,
+            termination_fn: Optional[TermFnType] = None,
+            get_init_obs_fn: Optional[InitObsFnType] = None,
+            real_replay_buffer: Optional[ReplayBuffer] = None,
+            # for offline
+            penalty_coeff: float = 0.0,
+            # for behaviour
+            deterministic: bool = False,
+            max_episode_steps: int = 1000,
+            branch_rollout: bool = False,
+            # others
+            logger: Optional[Logger] = None,
+            **kwargs,
     ):
         super(VecFakeEnv, self).__init__(
             num_envs=num_envs,
@@ -89,8 +89,8 @@ class VecFakeEnv(VecEnv):
             batch_terminal = self.termination_fn(batch_next_obs, self._current_batch_obs, self._current_batch_action)
 
         if self.penalty_coeff != 0:
-            penalty = get_penalty(info["origin-next_obs"]).reshape(batch_reward.shape)
-            batch_reward -= penalty * self.penalty_coeff
+            penalty = get_penalty(info["origin-next_obs"]).reshape(batch_reward.shape) * self.penalty_coeff
+            batch_reward -= penalty
 
             if self.logger is not None:
                 self.logger.record_mean("rollout/penalty", penalty.mean().item())
@@ -121,11 +121,11 @@ class VecFakeEnv(VecEnv):
         )
 
     def reset(
-        self,
-        *,
-        seed: Optional[int] = None,
-        return_info: bool = False,
-        options: Optional[dict] = None,
+            self,
+            *,
+            seed: Optional[int] = None,
+            return_info: bool = False,
+            options: Optional[dict] = None,
     ):
         if self.branch_rollout:
             upper_bound = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
@@ -163,11 +163,11 @@ class VecFakeEnv(VecEnv):
         raise NotImplementedError
 
     def env_method(
-        self,
-        method_name: str,
-        *method_args,
-        indices: VecEnvIndices = None,
-        **method_kwargs,
+            self,
+            method_name: str,
+            *method_args,
+            indices: VecEnvIndices = None,
+            **method_kwargs,
     ) -> List[Any]:
         pass
 

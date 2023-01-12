@@ -10,7 +10,7 @@
 <a href="https://www.python.org/downloads/release/python-380/"><img src="https://img.shields.io/badge/python-3.8-brightgreen"></a>
 
 `cmrl`(short for `Causal-MBRL`) is a toolbox for facilitating the development of Causal Model-based Reinforcement
-learning algorithms. It use [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3) as model-free engine and
+learning algorithms. It uses [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3) as model-free engine and
 allows flexible use of causal models.
 
 `cmrl` is inspired by [MBRL-Lib](https://github.com/facebookresearch/mbrl-lib). Unlike MBRL-Lib, `cmrl` focuses on the

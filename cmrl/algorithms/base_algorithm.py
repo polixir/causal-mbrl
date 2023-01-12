@@ -92,7 +92,7 @@ class BaseAlgorithm:
             fake_eval_env,
             n_eval_episodes=self.cfg.task.n_eval_episodes,
             best_model_save_path="./",
-            eval_freq=1000,
+            eval_freq=self.cfg.task.eval_freq,
             deterministic=True,
             render=False,
         )

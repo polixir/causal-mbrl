@@ -5,15 +5,17 @@ params:
   freq_rate: 1
   real_time_scale: 0.02
   integrator: "euler"
+  gravity: 9.8
+  length: 0.5
+  force_mag: 10.0
 
 dataset: "SAC-expert-replay"
 
 # basic RL params
-num_steps: 10000000
+num_steps: 3000000
 online_num_steps: 10000
-epoch_length: 10000
-n_eval_episodes: 8
-eval_freq: 100
+n_eval_episodes: 5
+eval_freq: 10000
 
 # offline
 penalty_coeff: 1
