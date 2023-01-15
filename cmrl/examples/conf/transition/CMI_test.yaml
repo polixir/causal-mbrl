@@ -1,6 +1,6 @@
 name: "CMI_test_transition"
 learn: true
-discovery: true
+discovery: false
 
 encoder_cfg:
   _partial_: true
@@ -27,7 +27,7 @@ network_cfg:
   _partial_: true
   _recursive_: false
   _target_: cmrl.models.networks.ParallelMLP
-  hidden_dims: [ 200, 200 ]
+  hidden_dims: [ 100, 100 ]
   bias: true
   activation_fn_cfg:
     _target_: torch.nn.SiLU
