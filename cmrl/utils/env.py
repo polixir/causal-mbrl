@@ -45,4 +45,7 @@ def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_r
 
     # set all data
     for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
+        if attr == "dones" and attr not in data_dict and "terminals" in data_dict:
+            replay_buffer.dones[:sample_data_num, 0] = data_dict["terminals"][sample_idx]
+            continue
         getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]

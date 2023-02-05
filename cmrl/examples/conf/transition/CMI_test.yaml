@@ -1,12 +1,12 @@
 name: "CMI_test_transition"
 learn: true
-discovery: false
+discovery: true
 
 encoder_cfg:
   _partial_: true
   _recursive_: false
   _target_: cmrl.models.networks.VariableEncoder
-  output_dim: 100
+  output_dim: 200
   hidden_dims: [ 100 ]
   bias: true
   activation_fn_cfg:
@@ -54,14 +54,14 @@ mech:
   input_variables: ???
   output_variables: ???
   # model learning
-  patience: 5
+  patience: 20
   longest_epoch: -1
   improvement_threshold: 0.01
   # mask
   mask_method: "zero"
   # ensemble
   ensemble_num: 7
-  elite_num: 5
+  elite_num: 20
   # cfgs
   network_cfg: ${transition.network_cfg}
   encoder_cfg: ${transition.encoder_cfg}
@@ -70,7 +70,7 @@ mech:
   scheduler_cfg: ${transition.scheduler_cfg}
   # forward method
   residual: true
-  encoder_reduction: "max"
+  encoder_reduction: "sum"
   multi_step: "forward-euler 1"
   # logger
   logger: ???

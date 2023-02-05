@@ -1,6 +1,6 @@
 name: "plain_transition"
 learn: true
-discovery: false
+discovery: true
 
 encoder_cfg:
   _partial_: true
@@ -50,7 +50,7 @@ mech:
   input_variables: ???
   output_variables: ???
   # model learning
-  patience: 5
+  patience: 20
   longest_epoch: -1
   improvement_threshold: 0.01
   # ensemble
