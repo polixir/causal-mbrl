@@ -4,54 +4,51 @@ from functools import partial
 from itertools import count
 
 import torch
+import numpy as np
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from stable_baselines3.common.logger import Logger
 
 from cmrl.utils.variables import Variable
-from cmrl.models.causal_mech.neural_causal_mech import NeuralCausalMech
+from cmrl.models.causal_mech.base import EnsembleNeuralMech
 from cmrl.models.graphs.binary_graph import BinaryGraph
 from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_func
 
 
-class CMITest(NeuralCausalMech):
+class CMITestMech(EnsembleNeuralMech):
     def __init__(
-        self,
-        name: str,
-        input_variables: List[Variable],
-        output_variables: List[Variable],
-        # model learning
-        longest_epoch: int = -1,
-        improvement_threshold: float = 0.01,
-        patience: int = 5,
-        # ensemble
-        ensemble_num: int = 7,
-        elite_num: int = 5,
-        # cfgs
-        network_cfg: Optional[DictConfig] = None,
-        encoder_cfg: Optional[DictConfig] = None,
-        decoder_cfg: Optional[DictConfig] = None,
-        optimizer_cfg: Optional[DictConfig] = None,
-        # forward method
-        residual: bool = True,
-        encoder_reduction: str = "sum",
-        multi_step: str = "none",
-        # logger
-        logger: Optional[Logger] = None,
-        # others
-        device: Union[str, torch.device] = "cpu",
-        **kwargs
+            self,
+            name: str,
+            input_variables: List[Variable],
+            output_variables: List[Variable],
+            logger: Optional[Logger] = None,
+            # model learning
+            longest_epoch: int = -1,
+            improvement_threshold: float = 0.01,
+            patience: int = 5,
+            # ensemble
+            ensemble_num: int = 7,
+            elite_num: int = 5,
+            # cfgs
+            network_cfg: Optional[DictConfig] = None,
+            encoder_cfg: Optional[DictConfig] = None,
+            decoder_cfg: Optional[DictConfig] = None,
+            optimizer_cfg: Optional[DictConfig] = None,
+            # forward method
+            residual: bool = True,
+            encoder_reduction: str = "sum",
+            multi_step: str = "none",
+            # others
+            device: Union[str, torch.device] = "cpu",
+            **kwargs
     ):
-        if multi_step == "none":
-            multi_step = "forward-euler 1"
-
-        self.total_CMI_epoch = 0
-
-        super(CMITest, self).__init__(
+        EnsembleNeuralMech.__init__(
+            self,
             name=name,
             input_variables=input_variables,
             output_variables=output_variables,
+            logger=logger,
             longest_epoch=longest_epoch,
             improvement_threshold=improvement_threshold,
             patience=patience,
@@ -63,11 +60,11 @@ class CMITest(NeuralCausalMech):
             optimizer_cfg=optimizer_cfg,
             residual=residual,
             encoder_reduction=encoder_reduction,
-            multi_step=multi_step,
-            logger=logger,
             device=device,
             **kwargs
         )
+
+        self.total_CMI_epoch = 0
 
     def build_network(self):
         self.network = instantiate(self.network_cfg)(
@@ -79,16 +76,16 @@ class CMITest(NeuralCausalMech):
     def build_graph(self):
         self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
 
-    def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         batch_size, _ = self.get_inputs_batch_size(inputs)
 
-        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
+        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
+            self.device)
         for i, var in enumerate(self.input_variables):
             out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[:, :, i] = out
 
-        reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor)
-        output_tensor = self.network(reduced_inputs_tensor)
+        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
 
         outputs = {}
         for i, var in enumerate(self.output_variables):
@@ -109,7 +106,7 @@ class CMITest(NeuralCausalMech):
             mask[i] = m
         return mask.to(self.device)
 
-    def CMI_single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def multi_graph_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """when first step, inputs should be dict of str and Tensor with (ensemble-num, batch-size, specific-dim) shape,
         since twice step, the shape of Tensor becomes (input-var-num + 1, ensemble-num, batch-size, specific-dim)
 
@@ -119,49 +116,59 @@ class CMITest(NeuralCausalMech):
         Returns:
 
         """
-        batch_size, extra_dim = self.get_inputs_batch_size(inputs)
+        batch_size, extra_dim = self.get_inputs_info(inputs)
 
-        inputs_tensor = torch.empty(*extra_dim, self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
-            self.device
-        )
+        inputs_tensor = torch.empty(*extra_dim, self.ensemble_num, batch_size, self.input_var_num,
+                                    self.encoder_output_dim).to(
+            self.device)
         for i, var in enumerate(self.input_variables):
             out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[..., i, :] = out
 
-        if len(extra_dim) == 0:
-            # [..., output-var-num, input-var-num]
-            mask = self.CMI_mask
-            # [..., output-var-num, ensemble-num, batch-size, input-var-num]
-            mask = mask.unsqueeze(-2).unsqueeze(-2)
-            mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
-            reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor, mask)
-            assert (
-                not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
-            ), "tensor must not be inf or nan"
-            output_tensor = self.network(reduced_inputs_tensor)
-        else:
-            output_tensor = torch.empty(
-                *extra_dim, self.output_var_num, self.ensemble_num, batch_size, self.decoder_input_dim
-            ).to(self.device)
+        # if len(extra_dim) == 0:
+        #     # [..., output-var-num, input-var-num]
+        #     mask = self.CMI_mask
+        #     # [..., output-var-num, ensemble-num, batch-size, input-var-num]
+        #     mask = mask.unsqueeze(-2).unsqueeze(-2)
+        #     mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
+        #     reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor, mask)
+        #     assert (
+        #         not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
+        #     ), "tensor must not be inf or nan"
+        #     output_tensor = self.network(reduced_inputs_tensor)
+        # else:
+        #     output_tensor = torch.empty(
+        #         *extra_dim, self.output_var_num, self.ensemble_num, batch_size, self.decoder_input_dim
+        #     ).to(self.device)
+        #
+        #     CMI_mask = self.CMI_mask
+        #     for i in range(self.input_var_num + 1):
+        #         # [..., output-var-num, input-var-num]
+        #         mask = CMI_mask[i]
+        #         # [..., output-var-num, ensemble-num, batch-size, input-var-num]
+        #         mask = mask.unsqueeze(-2).unsqueeze(-2)
+        #         mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
+        #         if i == len(inputs_tensor) - 1:
+        #             reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], mask)
+        #             outs = self.network(reduced_inputs_tensor)
+        #             output_tensor[i] = outs
+        #         else:
+        #             for j in range(self.output_var_num):
+        #                 ins = inputs_tensor[-1]
+        #                 ins[:, :, j] = inputs_tensor[i, :, :, j, :]
+        #                 reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], mask)
+        #                 outs = self.network(reduced_inputs_tensor)
+        #                 output_tensor[i, j] = outs[j]
 
-            CMI_mask = self.CMI_mask
-            for i in range(self.input_var_num + 1):
-                # [..., output-var-num, input-var-num]
-                mask = CMI_mask[i]
-                # [..., output-var-num, ensemble-num, batch-size, input-var-num]
-                mask = mask.unsqueeze(-2).unsqueeze(-2)
-                mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
-                if i == len(inputs_tensor) - 1:
-                    reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], mask)
-                    outs = self.network(reduced_inputs_tensor)
-                    output_tensor[i] = outs
-                else:
-                    for j in range(self.output_var_num):
-                        ins = inputs_tensor[-1]
-                        ins[:, :, j] = inputs_tensor[i, :, :, j, :]
-                        reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor[i], mask)
-                        outs = self.network(reduced_inputs_tensor)
-                        output_tensor[i, j] = outs[j]
+        mask = self.CMI_mask
+        # [..., output-var-num, ensemble-num, batch-size, input-var-num]
+        mask = mask.unsqueeze(-2).unsqueeze(-2)
+        mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
+        reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor, mask)
+        assert (
+                not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
+        ), "tensor must not be inf or nan"
+        output_tensor = self.network(reduced_inputs_tensor)
 
         outputs = {}
         for i, var in enumerate(self.output_variables):
@@ -172,33 +179,33 @@ class CMITest(NeuralCausalMech):
             outputs = self.residual_outputs(inputs, outputs)
         return outputs
 
-    def CMI_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        """inputs should be dict of str and Tensor with (ensemble-num, batch-size, specific-dim) shape
-
-        Args:
-            inputs:
-
-        Returns:
-
-        """
-        if self.multi_step.startswith("forward-euler"):
-            step_num = int(self.multi_step.split()[-1])
-
-            outputs = {}
-            for step in range(step_num):
-                outputs = self.CMI_single_step_forward(inputs)
-                # outputs shape: (input-var-num + 1, ensemble-num, batch-size, specific-dim * 2)
-                # new inputs shape: (input-var-num + 1, ensemble-num, batch-size, specific-dim)
-                if step == 0:
-                    for name in filter(lambda s: s.startswith("act"), inputs.keys()):
-                        inputs[name] = inputs[name][None, ...].repeat([self.input_var_num + 1, 1, 1, 1])
-                if step < step_num - 1:
-                    for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
-                        inputs[name] = outputs["next_{}".format(name)][..., : inputs[name].shape[-1]]
-        else:
-            raise NotImplementedError("multi-step method {} is not supported".format(self.multi_step))
-
-        return outputs
+    # def CMI_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    #     """inputs should be dict of str and Tensor with (ensemble-num, batch-size, specific-dim) shape
+    #
+    #     Args:
+    #         inputs:
+    #
+    #     Returns:
+    #
+    #     """
+    #     if self.multi_step.startswith("forward-euler"):
+    #         step_num = int(self.multi_step.split()[-1])
+    #
+    #         outputs = {}
+    #         for step in range(step_num):
+    #             outputs = self.CMI_single_step_forward(inputs)
+    #             # outputs shape: (input-var-num + 1, ensemble-num, batch-size, specific-dim * 2)
+    #             # new inputs shape: (input-var-num + 1, ensemble-num, batch-size, specific-dim)
+    #             if step == 0:
+    #                 for name in filter(lambda s: s.startswith("act"), inputs.keys()):
+    #                     inputs[name] = inputs[name][None, ...].repeat([self.input_var_num + 1, 1, 1, 1])
+    #             if step < step_num - 1:
+    #                 for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
+    #                     inputs[name] = outputs["next_{}".format(name)][..., : inputs[name].shape[-1]]
+    #     else:
+    #         raise NotImplementedError("multi-step method {} is not supported".format(self.multi_step))
+    #
+    #     return outputs
 
     def calculate_CMI(self, nll_loss: torch.Tensor, threshold=1):
         nll_loss_diff = nll_loss[:-1] - nll_loss[-1]
@@ -206,22 +213,24 @@ class CMITest(NeuralCausalMech):
         return graph_data, nll_loss_diff.mean(dim=(1, 2))
 
     def learn(
-        self,
-        # loader
-        train_loader: DataLoader,
-        valid_loader: DataLoader,
-        work_dir: Optional[Union[str, pathlib.Path]] = None,
-        **kwargs
+            self,
+            # loader
+            inputs: MutableMapping[str, np.ndarray],
+            outputs: MutableMapping[str, np.ndarray],
+            work_dir: Optional[Union[str, pathlib.Path]] = None,
+            **kwargs
     ):
         if self.discovery:
+            train_loader, valid_loader = self.get_data_loaders(inputs, outputs)
+
             final_graph_data = None
 
             epoch_iter = range(self.longest_epoch) if self.longest_epoch >= 0 else count()
             epochs_since_update = 0
 
             loss_func = partial(variable_loss_func, output_variables=self.output_variables, device=self.device)
-            train = partial(train_func, forward=self.CMI_forward, optimizer=self.optimizer, loss_func=loss_func)
-            eval = partial(eval_func, forward=self.CMI_forward, loss_func=loss_func)
+            train = partial(train_func, forward=self.multi_graph_forward, optimizer=self.optimizer, loss_func=loss_func)
+            eval = partial(eval_func, forward=self.multi_graph_forward, loss_func=loss_func)
 
             best_eval_loss = eval(valid_loader).mean(dim=(0, 2, 3))
 
@@ -266,4 +275,40 @@ class CMITest(NeuralCausalMech):
             self.graph.set_data(final_graph_data)
             self.build_optimizer()
 
-        super(CMITest, self).learn(train_loader=train_loader, valid_loader=valid_loader, work_dir=work_dir, **kwargs)
+        super(CMITestMech, self).learn(inputs, outputs, work_dir=work_dir, **kwargs)
+
+
+if __name__ == '__main__':
+    import gym
+    from stable_baselines3.common.buffers import ReplayBuffer
+    from torch.utils.data import DataLoader
+
+    from cmrl.models.causal_mech.reinforce import ReinforceCausalMech
+    from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn, buffer_to_dict
+    from cmrl.utils.creator import parse_space
+    from cmrl.utils.env import load_offline_data
+    from cmrl.models.causal_mech.util import variable_loss_func
+
+    env = gym.make("ContinuousCartPoleSwingUp-v0", real_time_scale=0.02)
+    real_replay_buffer = ReplayBuffer(int(1e6), env.observation_space, env.action_space, "cpu",
+                                      handle_timeout_termination=False)
+    load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=1)
+
+    input_variables = parse_space(env.observation_space, "obs") + parse_space(env.action_space, "act")
+    output_variables = parse_space(env.observation_space, "next_obs")
+
+    mech = CMITestMech(
+        "kernel_test_mech",
+        input_variables,
+        output_variables,
+    )
+
+    inputs, outputs = buffer_to_dict(
+        env.observation_space,
+        env.action_space,
+        env.obs2state,
+        real_replay_buffer,
+        "transition"
+    )
+
+    mech.learn(inputs, outputs)

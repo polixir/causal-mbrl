@@ -3,7 +3,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.data import DataLoader
 
 from cmrl.models.causal_mech.plain_mech import PlainMech
-from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
+from cmrl.models.data_loader import EnsembleBufferDataset, EnsembleBufferDataset, collate_fn
 from cmrl.utils.creator import parse_space
 from cmrl.utils.env import load_offline_data
 
@@ -20,14 +20,14 @@ def prepare(freq_rate):
         real_replay_buffer,
         env.observation_space,
         env.action_space,
-        is_valid=False,
+        training=False,
         mech="transition",
         train_ensemble=True,
         ensemble_num=ensemble_num,
     )
     train_loader = DataLoader(train_dataset, batch_size=8, collate_fn=collate_fn)
-    valid_dataset = BufferDataset(
-        real_replay_buffer, env.observation_space, env.action_space, is_valid=True, mech="transition", repeat=ensemble_num
+    valid_dataset = EnsembleBufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, training=True, mech="transition", repeat=ensemble_num
     )
     valid_loader = DataLoader(valid_dataset, batch_size=8, collate_fn=collate_fn)
 

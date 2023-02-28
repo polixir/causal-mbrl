@@ -1,33 +1,102 @@
 from typing import Optional, List, Dict, Union, MutableMapping
 from abc import abstractmethod, ABC
 from itertools import chain, count
-from functools import partial
 import pathlib
+from functools import partial
 import copy
 
-import torch
 import numpy as np
+import torch
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
 from torch.optim import Optimizer
-from stable_baselines3.common.logger import Logger
 from omegaconf import DictConfig
+from stable_baselines3.common.logger import Logger
 from hydra.utils import instantiate
 
-from cmrl.models.causal_mech.base import BaseCausalMech
+from cmrl.models.graphs.base_graph import BaseGraph
+from cmrl.models.graphs.binary_graph import BinaryGraph
+from cmrl.utils.variables import Variable
+from cmrl.models.constant import NETWORK_CFG, ENCODER_CFG, DECODER_CFG, OPTIMIZER_CFG, SCHEDULER_CFG
 from cmrl.models.networks.base_network import BaseNetwork
 from cmrl.models.graphs.base_graph import BaseGraph
 from cmrl.models.networks.coder import VariableEncoder, VariableDecoder
 from cmrl.utils.variables import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable
 from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_func
+from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn
 
 
-class NeuralCausalMech(BaseCausalMech):
+class BaseCausalMech(ABC):
+    """The base class of causal-mech learned by neural networks.
+    Pay attention that the causal discovery maybe not realized through a neural way.
+    """
+
     def __init__(
             self,
             name: str,
             input_variables: List[Variable],
             output_variables: List[Variable],
+            logger: Optional[Logger] = None,
+    ):
+        self.name = name
+        self.input_variables = input_variables
+        self.output_variables = output_variables
+        self.logger=logger
+
+        self.input_variables_dict = dict([(v.name, v) for v in self.input_variables])
+        self.output_variables_dict = dict([(v.name, v) for v in self.output_variables])
+
+        self.input_var_num = len(self.input_variables)
+        self.output_var_num = len(self.output_variables)
+        self.graph: Optional[BaseGraph] = None
+        self.discovery: bool = True
+
+    @abstractmethod
+    def learn(
+            self,
+            inputs: MutableMapping[str, np.ndarray],
+            outputs: MutableMapping[str, np.ndarray],
+            work_dir: Optional[Union[str, pathlib.Path]] = None,
+            **kwargs
+    ):
+        raise NotImplementedError
+
+    @abstractmethod
+    def forward(
+            self,
+            inputs: MutableMapping[str, np.ndarray]
+    ) -> Dict[str, torch.Tensor]:
+        raise NotImplementedError
+
+    @property
+    def causal_graph(self) -> torch.Tensor:
+        """property causal graph"""
+        if self.graph is None:
+            return torch.ones(len(self.input_variables), len(self.output_variables), dtype=torch.int,
+                              device=self.device)
+        else:
+            return self.graph.get_binary_adj_matrix()
+
+    def set_oracle_graph(self, graph_data):
+        self.discovery = False
+        self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
+        self.graph.set_data(graph_data=graph_data)
+        print("set oracle causal graph successfully: \n{}".format(graph_data))
+
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        pass
+
+    def load(self, load_dir: Union[str, pathlib.Path]):
+        pass
+
+
+class EnsembleNeuralMech(BaseCausalMech):
+    def __init__(
+            self,
+            # base
+            name: str,
+            input_variables: List[Variable],
+            output_variables: List[Variable],
+            logger: Optional[Logger] = None,
             # model learning
             longest_epoch: int = -1,
             improvement_threshold: float = 0.01,
@@ -44,18 +113,15 @@ class NeuralCausalMech(BaseCausalMech):
             # forward method
             residual: bool = True,
             encoder_reduction: str = "sum",
-            multi_step: str = "none",
-            # logger
-            logger: Optional[Logger] = None,
             # others
             device: Union[str, torch.device] = "cpu",
-            **kwargs
     ):
-        super(NeuralCausalMech, self).__init__(
+        BaseCausalMech.__init__(
+            self,
             name=name,
             input_variables=input_variables,
             output_variables=output_variables,
-            device=device,
+            logger=logger
         )
         # model learning
         self.longest_epoch = longest_epoch
@@ -65,17 +131,16 @@ class NeuralCausalMech(BaseCausalMech):
         self.ensemble_num = ensemble_num
         self.elite_num = elite_num
         # cfgs
-        self.network_cfg = default_network_cfg if network_cfg is None else network_cfg
-        self.encoder_cfg = default_encoder_cfg if encoder_cfg is None else encoder_cfg
-        self.decoder_cfg = default_decoder_cfg if decoder_cfg is None else decoder_cfg
-        self.optimizer_cfg = default_optimizer_cfg if optimizer_cfg is None else optimizer_cfg
-        self.scheduler_cfg = default_scheduler_cfg if scheduler_cfg is None else scheduler_cfg
+        self.network_cfg = NETWORK_CFG if network_cfg is None else network_cfg
+        self.encoder_cfg = ENCODER_CFG if encoder_cfg is None else encoder_cfg
+        self.decoder_cfg = DECODER_CFG if decoder_cfg is None else decoder_cfg
+        self.optimizer_cfg = OPTIMIZER_CFG if optimizer_cfg is None else optimizer_cfg
+        self.scheduler_cfg = SCHEDULER_CFG if scheduler_cfg is None else scheduler_cfg
         # forward method
         self.residual = residual
         self.encoder_reduction = encoder_reduction
-        self.multi_step = multi_step
-        # logger
-        self.logger = logger
+        # others
+        self.device = device
 
         # build member object
         self.variable_encoders: Optional[Dict[str, VariableEncoder]] = None
@@ -84,7 +149,7 @@ class NeuralCausalMech(BaseCausalMech):
         self.graph: Optional[BaseGraph] = None
         self.optimizer: Optional[Optimizer] = None
         self.scheduler: Optional[object] = None
-        self.build_coder()
+        self.build_coders()
         self.build_network()
         self.build_graph()
         self.build_optimizer()
@@ -92,56 +157,24 @@ class NeuralCausalMech(BaseCausalMech):
         self.total_epoch = 0
         self.elite_indices: List[int] = []
 
-    def single_step_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        batch_size, _ = self.get_inputs_batch_size(inputs)
+    @property
+    def encoder_output_dim(self):
+        return self.encoder_cfg.output_dim
 
-        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
-            self.device)
-        for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
-            inputs_tensor[:, :, i] = out
+    @property
+    def decoder_input_dim(self):
+        return self.decoder_cfg.input_dim
 
-        for name, param in self.network.named_parameters():
-            if param.grad is not None and torch.isnan(param.grad).any():
-                print("nan gradient found")
-                print("name:", name)
-                print("param:", param.grad)
-                raise SystemExit
-
-        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
-
-        outputs = {}
-        for i, var in enumerate(self.output_variables):
-            hid = output_tensor[:, :, i * self.decoder_input_dim: (i + 1) * self.decoder_input_dim]
-            outputs[var.name] = self.variable_decoders[var.name](hid)
-
-        if self.residual:
-            outputs = self.residual_outputs(inputs, outputs)
-        return outputs
-
-    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        if self.multi_step.startswith("forward-euler"):
-            step_num = int(self.multi_step.split()[-1])
-
-            outputs = {}
-            for step in range(step_num):
-                outputs = self.single_step_forward(inputs)
-                if step < step_num - 1:
-                    for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
-                        assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
-                        assert inputs[name].shape[2] * 2 == outputs["next_{}".format(name)].shape[2]
-                        inputs[name] = outputs["next_{}".format(name)][:, :, : inputs[name].shape[2]]
-        else:
-            raise NotImplementedError("multi-step method {} is not supported".format(self.multi_step))
-
-        return outputs
-
-    @abstractmethod
     def build_network(self):
-        raise NotImplementedError
+        self.network = instantiate(self.network_cfg)(
+            input_dim=self.encoder_output_dim,
+            output_dim=self.decoder_input_dim,
+            extra_dims=[self.ensemble_num],
+        ).to(self.device)
 
     def build_optimizer(self):
-        assert self.network is not None, "you must build network first"
+        assert self.network, "you must build network first"
+        assert self.variable_encoders and self.variable_decoders, "you must build coders first"
         params = (
                 [self.network.parameters()]
                 + [encoder.parameters() for encoder in self.variable_encoders.values()]
@@ -151,26 +184,50 @@ class NeuralCausalMech(BaseCausalMech):
         self.optimizer = instantiate(self.optimizer_cfg)(params=chain(*params))
         self.scheduler = instantiate(self.scheduler_cfg)(optimizer=self.optimizer)
 
-    @abstractmethod
     def build_graph(self):
-        raise NotImplementedError
+        pass
 
-    def build_coder(self):
+    def build_coders(self):
         self.variable_encoders = {}
         for var in self.input_variables:
             assert var.name not in self.variable_encoders, "duplicate name in encoders: {}".format(var.name)
             self.variable_encoders[var.name] = instantiate(self.encoder_cfg)(variable=var).to(self.device)
-
-        assert self.decoder_input_dim
 
         self.variable_decoders = {}
         for var in self.output_variables:
             assert var.name not in self.variable_decoders, "duplicate name in decoders: {}".format(var.name)
             self.variable_decoders[var.name] = instantiate(self.decoder_cfg)(variable=var).to(self.device)
 
-    def get_inputs_batch_size(self, inputs: MutableMapping[str, torch.Tensor]) -> int:
-        assert len(set(inputs.keys()) & set(self.variable_encoders.keys())) == len(inputs)
-        data_shape = list(inputs.values())[0].shape
+    def save(self, save_dir: Union[str, pathlib.Path]):
+        if isinstance(save_dir, str):
+            save_dir = pathlib.Path(save_dir)
+        save_dir = save_dir / pathlib.Path(self.name)
+        save_dir.mkdir(exist_ok=True)
+
+        self.network.save(save_dir)
+        if self.graph is not None:
+            self.graph.save(save_dir)
+        for coder in self.variable_encoders.values():
+            coder.save(save_dir)
+        for coder in self.variable_decoders.values():
+            coder.save(save_dir)
+
+    def load(self, load_dir: Union[str, pathlib.Path]):
+        if isinstance(load_dir, str):
+            load_dir = pathlib.Path(load_dir)
+        assert load_dir.exists()
+
+        self.network.load(load_dir)
+        if self.graph is not None:
+            self.graph.load(load_dir)
+        for coder in self.variable_encoders.values():
+            coder.load(load_dir)
+        for coder in self.variable_decoders.values():
+            coder.load(load_dir)
+
+    def get_inputs_info(self, inputs: MutableMapping[str, torch.Tensor]):
+        assert len(set(inputs.keys()) & set(self.input_variables_dict.keys())) == len(inputs)
+        data_shape = next(iter(inputs.values())).shape
         # assert len(data_shape) == 3, "{}".format(data_shape)  # ensemble-num, batch-size, specific-dim
         ensemble, batch_size, specific_dim = data_shape[-3:]
         assert ensemble == self.ensemble_num
@@ -189,14 +246,89 @@ class NeuralCausalMech(BaseCausalMech):
             outputs["next_{}".format(name)][..., :var_dim] += inputs[name].to(self.device)
         return outputs
 
+    def reduce_encoder_output(
+            self,
+            encoder_output: torch.Tensor,
+            mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        assert len(encoder_output.shape) == 4, (
+            "shape of `encoder_output` should be (ensemble-num, batch-size, input-var-num, encoder-output-dim), "
+            "rather than {}".format(encoder_output.shape)
+        )
+
+        if mask is None:
+            # [..., input-var-num]
+            mask = self.forward_mask
+            # [..., ensemble-num, batch-size, input-var-num]
+            mask = mask.unsqueeze(-2).unsqueeze(-2)
+            mask = mask.repeat((1,) * len(mask.shape[:-3]) + (*encoder_output.shape[:2], 1))
+
+        # mask shape [..., ensemble-num, batch-size, input-var-num]
+        assert (
+                mask.shape[-3:] == encoder_output.shape[:-1]
+        ), "mask shape should be (..., ensemble-num, batch-size, input-var-num)"
+
+        # [*mask-extra-dims, ensemble-num, batch-size, input-var-num, encoder-output-dim]
+        mask = mask[..., None].repeat([1] * len(mask.shape) + [encoder_output.shape[-1]])
+        masked_encoder_output = encoder_output.repeat(tuple(mask.shape[:-4]) + (1,) * 4)
+
+        # choose mask value
+        mask_value = 0
+        if self.encoder_reduction == "max":
+            mask_value = -float("inf")
+        masked_encoder_output[mask == 0] = mask_value
+
+        if self.encoder_reduction == "sum":
+            return masked_encoder_output.sum(-2)
+        elif self.encoder_reduction == "mean":
+            return masked_encoder_output.mean(-2)
+        elif self.encoder_reduction == "max":
+            values, indices = masked_encoder_output.max(-2)
+            return values
+        else:
+            raise NotImplementedError("not implemented encoder reduction method: {}".format(self.encoder_reduction))
+
+    @property
+    def forward_mask(self) -> torch.Tensor:
+        """property input masks"""
+        return self.causal_graph.T
+
+    def get_data_loaders(
+            self,
+            inputs: MutableMapping[str, np.ndarray],
+            outputs: MutableMapping[str, np.ndarray],
+    ):
+        train_set = EnsembleBufferDataset(
+            inputs=inputs,
+            outputs=outputs,
+            training=True,
+            train_ratio=0.8,
+            ensemble_num=7,
+            seed=1
+        )
+        valid_set = EnsembleBufferDataset(
+            inputs=inputs,
+            outputs=outputs,
+            training=False,
+            train_ratio=0.8,
+            ensemble_num=7,
+            seed=1
+        )
+
+        train_loader = DataLoader(train_set, batch_size=32, collate_fn=collate_fn)
+        valid_loader = DataLoader(valid_set, batch_size=32, collate_fn=collate_fn)
+
+        return train_loader, valid_loader
+
     def learn(
             self,
-            # loader
-            train_loader: DataLoader,
-            valid_loader: DataLoader,
+            inputs: MutableMapping[str, np.ndarray],
+            outputs: MutableMapping[str, np.ndarray],
             work_dir: Optional[Union[str, pathlib.Path]] = None,
             **kwargs
     ):
+        train_loader, valid_loader = self.get_data_loaders(inputs, outputs)
+
         best_weights: Optional[Dict] = None
         epoch_iter = range(self.longest_epoch) if self.longest_epoch >= 0 else count()
         epochs_since_update = 0
@@ -246,33 +378,6 @@ class NeuralCausalMech(BaseCausalMech):
 
         self.save(save_dir=work_dir)
 
-    def save(self, save_dir: Union[str, pathlib.Path]):
-        if isinstance(save_dir, str):
-            save_dir = pathlib.Path(save_dir)
-        save_dir = save_dir / pathlib.Path(self.name)
-        save_dir.mkdir(exist_ok=True)
-
-        self.network.save(save_dir)
-        if self.graph is not None:
-            self.graph.save(save_dir)
-        for coder in self.variable_encoders.values():
-            coder.save(save_dir)
-        for coder in self.variable_decoders.values():
-            coder.save(save_dir)
-
-    def load(self, load_dir: Union[str, pathlib.Path]):
-        if isinstance(load_dir, str):
-            load_dir = pathlib.Path(load_dir)
-        assert load_dir.exists()
-
-        self.network.load(load_dir)
-        if self.graph is not None:
-            self.graph.load(load_dir)
-        for coder in self.variable_encoders.values():
-            coder.load(load_dir)
-        for coder in self.variable_decoders.values():
-            coder.load(load_dir)
-
     def _maybe_get_best_weights(
             self,
             best_val_loss: torch.Tensor,
@@ -306,66 +411,3 @@ class NeuralCausalMech(BaseCausalMech):
 
         sorted_indices = np.argsort(best_val_score.tolist())
         self.elite_indices = sorted_indices[: self.elite_num]
-
-    @property
-    def encoder_output_dim(self):
-        return self.encoder_cfg.output_dim
-
-    @property
-    def union_output_var_dim(self):
-        # all output variables should be ContinuousVariable and have same variable.dim
-        output_dim = []
-        for var in self.output_variables:
-            assert isinstance(var, ContinuousVariable), "all output variables should be ContinuousVariable"
-            output_dim.append(var.dim)
-        assert len(set(output_dim)) == 1, "all output variables should have same variable.dim"
-        return output_dim[0]
-
-    @property
-    def decoder_input_dim(self):
-        if self.decoder_cfg.identity:
-            return self.union_output_var_dim * 2
-        else:
-            return self.decoder_cfg.input_dim
-
-    def reduce_encoder_output(
-            self,
-            encoder_output: torch.Tensor,
-            mask: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        assert len(encoder_output.shape) == 4, (
-            "shape of encoder_output should be (ensemble-num, batch-size, input-var-num, encoder-output-dim), "
-            "rather than {}".format(encoder_output.shape)
-        )
-
-        if mask is None:
-            # [..., input-var-num]
-            mask = self.forward_mask
-            # [..., ensemble-num, batch-size, input-var-num]
-            mask = mask.unsqueeze(-2).unsqueeze(-2)
-            mask = mask.repeat((1,) * len(mask.shape[:-3]) + (*encoder_output.shape[:2], 1))
-
-        # mask shape [..., ensemble-num, batch-size, input-var-num]
-        assert (
-                mask.shape[-3:] == encoder_output.shape[:-1]
-        ), "mask shape should be (..., ensemble-num, batch-size, input-var-num)"
-
-        # [*mask-extra-dims, ensemble-num, batch-size, input-var-num, encoder-output-dim]
-        mask = mask[..., None].repeat([1] * len(mask.shape) + [encoder_output.shape[-1]])
-        masked_encoder_output = encoder_output.repeat(tuple(mask.shape[:-4]) + (1,) * 4)
-
-        # choose mask value
-        mask_value = 0
-        if self.encoder_reduction == "max":
-            mask_value = -float("inf")
-        masked_encoder_output[mask == 0] = mask_value
-
-        if self.encoder_reduction == "sum":
-            return masked_encoder_output.sum(-2)
-        elif self.encoder_reduction == "mean":
-            return masked_encoder_output.mean(-2)
-        elif self.encoder_reduction == "max":
-            values, indices = masked_encoder_output.max(-2)
-            return values
-        else:
-            raise NotImplementedError("not implemented encoder reduction method: {}".format(self.encoder_reduction))

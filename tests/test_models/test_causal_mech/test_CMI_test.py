@@ -3,8 +3,8 @@ from stable_baselines3.common.buffers import ReplayBuffer
 import torch
 from torch.utils.data import DataLoader
 
-from cmrl.models.causal_mech.CMI_test import CMITest
-from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset, collate_fn
+from cmrl.models.causal_mech.CMI_test import CMITestMech
+from cmrl.models.data_loader import EnsembleBufferDataset, EnsembleBufferDataset, collate_fn
 from cmrl.utils.creator import parse_space
 from cmrl.utils.env import load_offline_data
 from cmrl.models.causal_mech.util import variable_loss_func
@@ -22,14 +22,14 @@ def prepare(freq_rate):
         real_replay_buffer,
         env.observation_space,
         env.action_space,
-        is_valid=False,
+        training=False,
         mech="transition",
         train_ensemble=True,
         ensemble_num=ensemble_num,
     )
     train_loader = DataLoader(train_dataset, batch_size=8, collate_fn=collate_fn)
-    valid_dataset = BufferDataset(
-        real_replay_buffer, env.observation_space, env.action_space, is_valid=True, mech="transition", repeat=ensemble_num
+    valid_dataset = EnsembleBufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, training=True, mech="transition", repeat=ensemble_num
     )
     valid_loader = DataLoader(valid_dataset, batch_size=8, collate_fn=collate_fn)
 
@@ -42,7 +42,7 @@ def prepare(freq_rate):
 def test_mask():
     input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
 
-    mech = CMITest(
+    mech = CMITestMech(
         name="test",
         input_variables=input_variables,
         output_variables=output_variables,
@@ -86,7 +86,7 @@ def test_mask():
 def test_CMI_forward():
     input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
 
-    mech = CMITest(
+    mech = CMITestMech(
         name="test",
         input_variables=input_variables,
         output_variables=output_variables,
@@ -102,7 +102,7 @@ def test_CMI_forward():
 def test_forward():
     input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
 
-    mech = CMITest(
+    mech = CMITestMech(
         name="test",
         input_variables=input_variables,
         output_variables=output_variables,

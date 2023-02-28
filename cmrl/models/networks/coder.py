@@ -62,14 +62,12 @@ class VariableDecoder(BaseNetwork):
         input_dim: int = 100,
         hidden_dims: Optional[List[int]] = None,
         bias: bool = True,
-        identity: bool = False,
         activation_fn_cfg: Optional[DictConfig] = None,
     ):
         self.variable = variable
         self.input_dim = input_dim
         self.hidden_dims = hidden_dims if hidden_dims is not None else []
         self.bias = bias
-        self.identity = identity
         self.activation_fn_cfg = activation_fn_cfg
 
         self.name = "{}_decoder".format(variable.name)
@@ -78,11 +76,6 @@ class VariableDecoder(BaseNetwork):
         self._model_filename = "{}.pth".format(self.name)
 
     def build(self):
-        if self.identity:
-            assert isinstance(self.variable, ContinuousVariable), "only ContinuousVariable could use identity"
-            self._layers = nn.ModuleList([nn.Identity()])
-            return
-
         layers = [create_activation(self.activation_fn_cfg)]
 
         hidden_dims = [self.input_dim] + self.hidden_dims

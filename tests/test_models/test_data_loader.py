@@ -4,7 +4,7 @@ import numpy as np
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.data import DataLoader
 
-from cmrl.models.data_loader import BufferDataset, EnsembleBufferDataset
+from cmrl.models.data_loader import EnsembleBufferDataset, EnsembleBufferDataset
 from cmrl.utils.env import load_offline_data
 
 
@@ -17,7 +17,7 @@ def test_buffer_dataset():
     load_offline_data(env, real_replay_buffer, "SAC-expert-replay", use_ratio=0.1)
 
     # test for transition
-    dataset = BufferDataset(real_replay_buffer, env.observation_space, env.action_space, mech="transition")
+    dataset = EnsembleBufferDataset(real_replay_buffer, env.observation_space, env.action_space, mech="transition")
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
@@ -29,7 +29,7 @@ def test_buffer_dataset():
             assert outputs[key].shape == (128, 1)
 
     # test for reward
-    dataset = BufferDataset(real_replay_buffer, env.observation_space, env.action_space, mech="reward_mech")
+    dataset = EnsembleBufferDataset(real_replay_buffer, env.observation_space, env.action_space, mech="reward_mech")
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
@@ -53,7 +53,7 @@ def test_buffer_dataset():
             assert outputs[key].shape == (128, 1)
 
     # test for termination
-    dataset = BufferDataset(real_replay_buffer, env.observation_space, env.action_space, mech="termination_mech")
+    dataset = EnsembleBufferDataset(real_replay_buffer, env.observation_space, env.action_space, mech="termination_mech")
     loader = DataLoader(dataset, batch_size=128, drop_last=True)
 
     for inputs, outputs in loader:
@@ -156,11 +156,11 @@ def test_train_valid():
     )
     load_offline_data(env, real_replay_buffer, "SAC-expert-replay", use_ratio=0.1)
 
-    train_dataset = BufferDataset(
-        real_replay_buffer, env.observation_space, env.action_space, mech="transition", is_valid=False
+    train_dataset = EnsembleBufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, mech="transition", training=False
     )
-    valid_dataset = BufferDataset(
-        real_replay_buffer, env.observation_space, env.action_space, mech="transition", is_valid=True
+    valid_dataset = EnsembleBufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, mech="transition", training=True
     )
 
     buffer_size = real_replay_buffer.buffer_size if real_replay_buffer.full else real_replay_buffer.pos
@@ -182,7 +182,7 @@ def test_ensemble_train_valid():
         env.observation_space,
         env.action_space,
         mech="transition",
-        is_valid=False,
+        training=False,
         ensemble_num=ensemble_num,
         train_ensemble=False,
     )
@@ -191,7 +191,7 @@ def test_ensemble_train_valid():
         env.observation_space,
         env.action_space,
         mech="transition",
-        is_valid=True,
+        training=True,
         ensemble_num=ensemble_num,
         train_ensemble=False,
     )
@@ -217,12 +217,12 @@ def test_mixed():
         env.observation_space,
         env.action_space,
         mech="transition",
-        is_valid=False,
+        training=False,
         ensemble_num=ensemble_num,
         train_ensemble=True,
     )
-    valid_dataset = BufferDataset(
-        real_replay_buffer, env.observation_space, env.action_space, mech="transition", is_valid=True
+    valid_dataset = EnsembleBufferDataset(
+        real_replay_buffer, env.observation_space, env.action_space, mech="transition", training=True
     )
 
     buffer_size = real_replay_buffer.buffer_size if real_replay_buffer.full else real_replay_buffer.pos

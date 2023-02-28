@@ -111,6 +111,8 @@ cd causal-mbrl
 # create conda env
 conda create -n cmrl python=3.8
 conda activate cmrl
+# install torch
+conda install pytorch -c pytorch
 # install cmrl and its dependent packages
 pip install -e .
 ```
@@ -119,8 +121,10 @@ If there is no `cuda` in your device, it's convenient to install `cuda` and `pyt
 to [pytorch](https://pytorch.org/get-started/locally/)):
 
 ````shell
-# for example, in the case of cuda=11.3
-conda install pytorch cudatoolkit=11.3 -c pytorch
+# for MacOS
+conda install pytorch -c pytorch
+# for Linux
+conda install pytorch pytorch-cuda=11.6 -c pytorch -c nvidia
 ````
 
 ## install using pip

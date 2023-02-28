@@ -8,9 +8,10 @@ from stable_baselines3.common.vec_env import VecMonitor
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.base_class import BaseAlgorithm
 
+from cmrl.types import Obs2StateFnType
 from cmrl.models.dynamics import Dynamics
 from cmrl.models.fake_env import VecFakeEnv
-from cmrl.models.causal_mech.base_causal_mech import BaseCausalMech
+from cmrl.models.causal_mech.base import BaseCausalMech
 from cmrl.utils.variables import ContinuousVariable, BinaryVariable, DiscreteVariable, Variable, parse_space
 
 
@@ -23,10 +24,11 @@ def create_agent(cfg: DictConfig, fake_env: VecFakeEnv, logger: Optional[Logger]
 
 
 def create_dynamics(
-    cfg: DictConfig,
-    observation_space: spaces.Space,
-    action_space: spaces.Space,
-    logger: Optional[Logger] = None,
+        cfg: DictConfig,
+        observation_space: spaces.Space,
+        action_space: spaces.Space,
+        obs2state_fn: Obs2StateFnType,
+        logger: Optional[Logger] = None,
 ):
     obs_variables = parse_space(observation_space, "obs")
     act_variables = parse_space(action_space, "act")
@@ -71,6 +73,7 @@ def create_dynamics(
         termination_mech=termination_mech,
         observation_space=observation_space,
         action_space=action_space,
+        obs2state_fn=obs2state_fn,
         logger=logger,
     )
 

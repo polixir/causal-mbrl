@@ -1,4 +1,4 @@
-name: "CMI_test_transition"
+name: "kernal_test_transition"
 learn: true
 discovery: true
 
@@ -47,11 +47,12 @@ scheduler_cfg:
 mech:
   _partial_: true
   _recursive_: false
-  _target_: cmrl.models.causal_mech.CMITestMEch
+  _target_: cmrl.models.causal_mech.KernelTestMech
   # base causal-mech params
   name: transition
   input_variables: ???
   output_variables: ???
+  logger: ???
   # model learning
   patience: 5
   longest_epoch: -1
@@ -70,7 +71,8 @@ mech:
   # forward method
   residual: true
   encoder_reduction: "sum"
-  # logger
-  logger: ???
   # others
   device: ${device}
+  # KCI
+  sample_num: 2000
+  kci_times: 10

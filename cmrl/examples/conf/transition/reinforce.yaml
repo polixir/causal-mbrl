@@ -16,7 +16,6 @@ decoder_cfg:
   _partial_: true
   _recursive_: false
   _target_: cmrl.models.networks.VariableDecoder
-  identity: false
   input_dim: 100
   hidden_dims: [ 100 ]
   bias: true

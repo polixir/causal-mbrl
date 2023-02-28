@@ -57,21 +57,33 @@ def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
     return variables
 
 
-def space2dict(
+def to_dict_by_space(
     data: np.ndarray,
     space: spaces.Space,
     prefix="obs",
     repeat: Optional[int] = None,
     to_tensor: bool = False,
-    device: Union[str, torch.device] = "cpu",
 ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+    """Transform the interaction data from its own type to python's dict, by the signature of space.
+
+    Args:
+        data: interaction data from replay buffer
+        space: space of gym
+        prefix: prefix of the key in dict
+        repeat: copy data in a new dimension
+        to_tensor: transform the data from numpy's ndarray to torch's tensor
+
+    Returns: interaction data organized in dictionary form
+
+    """
     if repeat:
         assert repeat > 1, "repeat must be a int greater than 1"
 
     dict_data = {}
-    if isinstance(space, spaces.Box):  # shape: (batch-size, node-num), every node has exactly one dim
+    if isinstance(space, spaces.Box):
+        # shape of data: (batch-size, node-num), every node has exactly one dim
         for i, (low, high) in enumerate(zip(space.low, space.high)):
-            # shape: (batch-size, specific-dim)
+            # shape of dict_data['xxx']: (batch-size, 1)
             dict_data["{}_{}".format(prefix, i)] = data[:, i, None].astype(np.float32)
     else:
         # TODO
@@ -79,10 +91,11 @@ def space2dict(
 
     for name in dict_data:
         if repeat:
-            # shape: (repeat-dim, batch-size, specific-dim)
+            # shape of dict_data['xxx']: (repeat-dim, batch-size, specific-dim)
+            # specific-dim is 1 for the case of spaces.Box
             dict_data[name] = np.tile(dict_data[name][None, :, :], [repeat, 1, 1])
         if to_tensor:
-            dict_data[name] = torch.from_numpy(dict_data[name]).to(device)
+            dict_data[name] = torch.from_numpy(dict_data[name])
 
     return dict_data
 

@@ -7,23 +7,24 @@ import omegaconf
 from stable_baselines3.common.buffers import ReplayBuffer
 
 import cmrl.utils.variables
-from cmrl.types import TermFnType, RewardFnType, InitObsFnType
+from cmrl.types import TermFnType, RewardFnType, InitObsFnType, Obs2StateFnType
 
 
 def make_env(
-    cfg: omegaconf.DictConfig,
-) -> Tuple[emei.EmeiEnv, TermFnType, Optional[RewardFnType], Optional[InitObsFnType],]:
+        cfg: omegaconf.DictConfig,
+) -> Tuple[emei.EmeiEnv, TermFnType, Optional[RewardFnType], Optional[InitObsFnType],Optional[Obs2StateFnType],]:
     env = cast(emei.EmeiEnv, gym.make(cfg.task.env_id, **cfg.task.params))
 
     reward_fn = env.get_batch_reward
     term_fn = env.get_batch_terminal
     init_obs_fn = env.get_batch_init_obs
+    obs2state_fn = env.obs2state
 
     # set seed
     env.reset(seed=cfg.seed)
     env.observation_space.seed(cfg.seed + 1)
     env.action_space.seed(cfg.seed + 2)
-    return env, reward_fn, term_fn, init_obs_fn
+    return env, reward_fn, term_fn, init_obs_fn, obs2state_fn
 
 
 def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):
@@ -45,7 +46,15 @@ def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_r
 
     # set all data
     for attr in ["observations", "next_observations", "actions", "rewards", "dones", "timeouts"]:
-        if attr == "dones" and attr not in data_dict and "terminals" in data_dict:
-            replay_buffer.dones[:sample_data_num, 0] = data_dict["terminals"][sample_idx]
-            continue
+        # if attr == "dones" and attr not in data_dict and "terminals" in data_dict:
+        #     replay_buffer.dones[:sample_data_num, 0] = data_dict["terminals"][sample_idx]
+        #     continue
+        getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]
+
+    for attr in ["extra_obs", "next_extra_obs"]:
+        setattr(
+            replay_buffer,
+            attr,
+            np.zeros((replay_buffer.buffer_size, replay_buffer.n_envs) + data_dict[attr].shape[1:], dtype=np.float32)
+        )
         getattr(replay_buffer, attr)[:sample_data_num, 0] = data_dict[attr][sample_idx]

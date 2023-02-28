@@ -13,7 +13,7 @@ from omegaconf import DictConfig
 from hydra.utils import instantiate
 
 from cmrl.utils.variables import Variable
-from cmrl.models.causal_mech.neural_causal_mech import NeuralCausalMech, default_optimizer_cfg
+from cmrl.models.causal_mech.neural_causal_mech import NeuralCausalMech
 from cmrl.models.graphs.prob_graph import BernoulliGraph
 from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_func
 

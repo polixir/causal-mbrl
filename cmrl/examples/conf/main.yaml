@@ -7,7 +7,7 @@ defaults:
   - _self_
 
 seed: 0
-device: "cuda:0"
+device: "cpu"
 
 exp_name: default
 wandb: false

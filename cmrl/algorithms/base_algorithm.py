@@ -18,14 +18,14 @@ from cmrl.utils.env import make_env
 
 class BaseAlgorithm:
     def __init__(
-        self,
-        cfg: DictConfig,
-        work_dir: Optional[str] = None,
+            self,
+            cfg: DictConfig,
+            work_dir: Optional[str] = None,
     ):
         self.cfg = cfg
         self.work_dir = work_dir or os.getcwd()
 
-        self.env, self.reward_fn, self.termination_fn, self.get_init_obs_fn = make_env(self.cfg)
+        self.env, self.reward_fn, self.termination_fn, self.get_init_obs_fn, self.obs2state_fn = make_env(self.cfg)
         self.eval_env, *_ = make_env(self.cfg)
         np.random.seed(self.cfg.seed)
         torch.manual_seed(self.cfg.seed)
@@ -41,7 +41,8 @@ class BaseAlgorithm:
             )
 
         # create ``cmrl`` dynamics
-        self.dynamics = create_dynamics(self.cfg, self.env.observation_space, self.env.action_space, logger=self.logger)
+        self.dynamics = create_dynamics(self.cfg, self.env.observation_space, self.env.action_space, self.obs2state_fn,
+                                        logger=self.logger)
 
         if not self.cfg.transition.discovery:
             self.dynamics.transition.set_oracle_graph(self.env.get_transition_graph())
