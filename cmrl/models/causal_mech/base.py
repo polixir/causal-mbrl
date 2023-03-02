@@ -411,3 +411,12 @@ class EnsembleNeuralMech(BaseCausalMech):
 
         sorted_indices = np.argsort(best_val_score.tolist())
         self.elite_indices = sorted_indices[: self.elite_num]
+
+    def get_inputs_batch_size(self, inputs: MutableMapping[str, torch.Tensor]) -> int:
+        assert len(set(inputs.keys()) & set(self.variable_encoders.keys())) == len(inputs)
+        data_shape = list(inputs.values())[0].shape
+        # assert len(data_shape) == 3, "{}".format(data_shape)  # ensemble-num, batch-size, specific-dim
+        ensemble, batch_size, specific_dim = data_shape[-3:]
+        assert ensemble == self.ensemble_num
+
+        return batch_size, data_shape[:-3]

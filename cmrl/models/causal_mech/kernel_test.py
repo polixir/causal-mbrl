@@ -139,7 +139,7 @@ class KernelTestMech(EnsembleNeuralMech):
 
         recompute_times = 1
         while len(not_confident_list) != 0:
-            new_sample_length = sample_length * (2**recompute_times)
+            new_sample_length = int(sample_length * 1.5**recompute_times)
             if new_sample_length > length:
                 break
 
@@ -174,8 +174,25 @@ class KernelTestMech(EnsembleNeuralMech):
             extra_dims=[self.ensemble_num],
         ).to(self.device)
 
-    def forward(self, inputs: MutableMapping[str, numpy.ndarray]) -> Dict[str, torch.Tensor]:
-        pass
+    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        batch_size, _ = self.get_inputs_batch_size(inputs)
+
+        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
+            self.device)
+        for i, var in enumerate(self.input_variables):
+            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
+            inputs_tensor[:, :, i] = out
+
+        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
+
+        outputs = {}
+        for i, var in enumerate(self.output_variables):
+            hid = output_tensor[i]
+            outputs[var.name] = self.variable_decoders[var.name](hid)
+
+        if self.residual:
+            outputs = self.residual_outputs(inputs, outputs)
+        return outputs
 
     def build_graph(self):
         self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
@@ -203,6 +220,7 @@ if __name__ == "__main__":
     from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn, buffer_to_dict
     from cmrl.utils.creator import parse_space
     from cmrl.utils.env import load_offline_data
+    from cmrl.sb3_extension.logger import configure as logger_configure
     from cmrl.models.causal_mech.util import variable_loss_func
 
     env = gym.make("ContinuousCartPoleSwingUp-v0", real_time_scale=0.02)
@@ -214,7 +232,10 @@ if __name__ == "__main__":
     input_variables = parse_space(env.observation_space, "obs") + parse_space(env.action_space, "act")
     output_variables = parse_space(env.observation_space, "next_obs")
 
-    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=256, kci_times=16)
+    logger = logger_configure("kci-log", ["tensorboard", "stdout"])
+
+    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=256, kci_times=16,
+    logger=logger)
 
     inputs, outputs = buffer_to_dict(env.observation_space, env.action_space, env.obs2state, real_replay_buffer, "transition")
 

@@ -114,7 +114,7 @@ if __name__ == '__main__':
     input_variables = parse_space(env.observation_space, "obs") + parse_space(env.action_space, "act")
     output_variables = parse_space(env.observation_space, "next_obs")
 
-    logger = logger_configure("log", ["tensorboard", "stdout"])
+    logger = logger_configure("plain-log", ["tensorboard", "stdout"])
 
     mech = PlainMech(
         "plain_mech",
