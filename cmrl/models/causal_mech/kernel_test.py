@@ -19,34 +19,35 @@ from cmrl.models.graphs.binary_graph import BinaryGraph
 
 class KernelTestMech(EnsembleNeuralMech):
     def __init__(
-            self,
-            # base
-            name: str,
-            input_variables: List[Variable],
-            output_variables: List[Variable],
-            logger: Optional[Logger] = None,
-            # model learning
-            longest_epoch: int = -1,
-            improvement_threshold: float = 0.01,
-            patience: int = 5,
-            # ensemble
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            # cfgs
-            network_cfg: Optional[DictConfig] = None,
-            encoder_cfg: Optional[DictConfig] = None,
-            decoder_cfg: Optional[DictConfig] = None,
-            optimizer_cfg: Optional[DictConfig] = None,
-            scheduler_cfg: Optional[DictConfig] = None,
-            # forward method
-            residual: bool = True,
-            encoder_reduction: str = "sum",
-            # others
-            device: Union[str, torch.device] = "cpu",
-            # KCI
-            sample_num=2000,
-            kci_times=10,
-            not_confident_bound=0.2,
+        self,
+        # base
+        name: str,
+        input_variables: List[Variable],
+        output_variables: List[Variable],
+        logger: Optional[Logger] = None,
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
+        batch_size: int = 256,
+        # ensemble
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        # cfgs
+        network_cfg: Optional[DictConfig] = None,
+        encoder_cfg: Optional[DictConfig] = None,
+        decoder_cfg: Optional[DictConfig] = None,
+        optimizer_cfg: Optional[DictConfig] = None,
+        scheduler_cfg: Optional[DictConfig] = None,
+        # forward method
+        residual: bool = True,
+        encoder_reduction: str = "sum",
+        # others
+        device: Union[str, torch.device] = "cpu",
+        # KCI
+        sample_num=2000,
+        kci_times=10,
+        not_confident_bound=0.2,
     ):
         EnsembleNeuralMech.__init__(
             self,
@@ -57,6 +58,7 @@ class KernelTestMech(EnsembleNeuralMech):
             longest_epoch=longest_epoch,
             improvement_threshold=improvement_threshold,
             patience=patience,
+            batch_size=batch_size,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
             network_cfg=network_cfg,
@@ -73,12 +75,12 @@ class KernelTestMech(EnsembleNeuralMech):
         self.not_confident_bound = not_confident_bound
 
     def kci(
-            self,
-            input_idx: int,
-            output_idx: int,
-            inputs: MutableMapping[str, numpy.ndarray],
-            outputs: MutableMapping[str, numpy.ndarray],
-            sample_indices: np.ndarray,
+        self,
+        input_idx: int,
+        output_idx: int,
+        inputs: MutableMapping[str, numpy.ndarray],
+        outputs: MutableMapping[str, numpy.ndarray],
+        sample_indices: np.ndarray,
     ):
         in_name, out_name = list(inputs.keys())[input_idx], list(outputs.keys())[output_idx]
 
@@ -106,7 +108,7 @@ class KernelTestMech(EnsembleNeuralMech):
         return p_value
 
     def kci_compute_graph(
-            self, inputs: MutableMapping[str, numpy.ndarray], outputs: MutableMapping[str, numpy.ndarray], **kwargs
+        self, inputs: MutableMapping[str, numpy.ndarray], outputs: MutableMapping[str, numpy.ndarray], **kwargs
     ):
 
         # [[0, 0, 0, 0],
@@ -120,8 +122,8 @@ class KernelTestMech(EnsembleNeuralMech):
 
         init_pvalues_array = np.empty((self.kci_times, self.input_var_num, self.output_var_num))
         with tqdm(
-                total=self.kci_times * self.input_var_num * self.output_var_num,
-                desc="init kci of {} samples".format(sample_length),
+            total=self.kci_times * self.input_var_num * self.output_var_num,
+            desc="init kci of {} samples".format(sample_length),
         ) as pbar:
             for time in range(self.kci_times):
                 sample_indices = np.random.permutation(length)[:sample_length]
@@ -139,14 +141,14 @@ class KernelTestMech(EnsembleNeuralMech):
 
         recompute_times = 1
         while len(not_confident_list) != 0:
-            new_sample_length = int(sample_length * 1.5 ** recompute_times)
+            new_sample_length = int(sample_length * 1.5**recompute_times)
             if new_sample_length > length:
                 break
 
             pvalues_dict = defaultdict(list)
             with tqdm(
-                    total=self.kci_times * len(not_confident_list),
-                    desc="{}th re-compute kci of {} samples".format(recompute_times, new_sample_length),
+                total=self.kci_times * len(not_confident_list),
+                desc="{}th re-compute kci of {} samples".format(recompute_times, new_sample_length),
             ) as pbar:
                 for time in range(self.kci_times):
                     sample_indices = np.random.permutation(length)[:new_sample_length]
@@ -174,35 +176,15 @@ class KernelTestMech(EnsembleNeuralMech):
             extra_dims=[self.ensemble_num],
         ).to(self.device)
 
-    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        batch_size, _ = self.get_inputs_batch_size(inputs)
-
-        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
-            self.device)
-        for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
-            inputs_tensor[:, :, i] = out
-
-        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
-
-        outputs = {}
-        for i, var in enumerate(self.output_variables):
-            hid = output_tensor[i]
-            outputs[var.name] = self.variable_decoders[var.name](hid)
-
-        if self.residual:
-            outputs = self.residual_outputs(inputs, outputs)
-        return outputs
-
     def build_graph(self):
         self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
 
     def learn(
-            self,
-            inputs: MutableMapping[str, np.ndarray],
-            outputs: MutableMapping[str, np.ndarray],
-            work_dir: Optional[Union[str, pathlib.Path]] = None,
-            **kwargs
+        self,
+        inputs: MutableMapping[str, np.ndarray],
+        outputs: MutableMapping[str, np.ndarray],
+        work_dir: Optional[Union[str, pathlib.Path]] = None,
+        **kwargs
     ):
         if self.discovery:
             graph = self.kci_compute_graph(inputs, outputs)
@@ -241,8 +223,7 @@ if __name__ == "__main__":
 
     logger = logger_configure("kci-log", ["tensorboard", "stdout"])
 
-    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=256, kci_times=5,
-                          logger=logger)
+    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=1024, kci_times=5, logger=logger)
 
     inputs, outputs = buffer_to_dict(env.state_space, env.action_space, env.obs2state, real_replay_buffer, "transition")
 
