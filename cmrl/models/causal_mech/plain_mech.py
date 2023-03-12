@@ -37,7 +37,6 @@ class PlainMech(EnsembleNeuralMech):
             encoder_reduction: str = "sum",
             # others
             device: Union[str, torch.device] = "cpu",
-            **kwargs
     ):
         EnsembleNeuralMech.__init__(
             self,

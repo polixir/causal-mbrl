@@ -38,10 +38,8 @@ class CMITestMech(EnsembleNeuralMech):
             # forward method
             residual: bool = True,
             encoder_reduction: str = "sum",
-            multi_step: str = "none",
             # others
             device: Union[str, torch.device] = "cpu",
-            **kwargs
     ):
         EnsembleNeuralMech.__init__(
             self,
@@ -61,7 +59,6 @@ class CMITestMech(EnsembleNeuralMech):
             residual=residual,
             encoder_reduction=encoder_reduction,
             device=device,
-            **kwargs
         )
 
         self.total_CMI_epoch = 0

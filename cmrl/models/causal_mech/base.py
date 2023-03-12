@@ -40,7 +40,7 @@ class BaseCausalMech(ABC):
         self.name = name
         self.input_variables = input_variables
         self.output_variables = output_variables
-        self.logger=logger
+        self.logger = logger
 
         self.input_variables_dict = dict([(v.name, v) for v in self.input_variables])
         self.output_variables_dict = dict([(v.name, v) for v in self.output_variables])

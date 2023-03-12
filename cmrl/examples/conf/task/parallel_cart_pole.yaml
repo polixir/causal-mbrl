@@ -1,0 +1,23 @@
+# env parameters
+env_id: "ParallelContinuousCartPoleSwingUp-v0"
+
+params:
+  freq_rate: 1
+  real_time_scale: 0.02
+  integrator: "euler"
+  parallel_num: 3
+
+dataset: "SAC-expert-replay"
+
+# basic RL params
+num_steps: 3000000
+online_num_steps: 10000
+n_eval_episodes: 5
+eval_freq: 10000
+
+# offline
+penalty_coeff: 1
+use_ratio: 1
+
+# dyna
+freq_train_model: 100
