@@ -30,6 +30,7 @@ class KernelTestMech(EnsembleNeuralMech):
             longest_epoch: int = -1,
             improvement_threshold: float = 0.01,
             patience: int = 5,
+            batch_size: int = 256,
             # ensemble
             ensemble_num: int = 7,
             elite_num: int = 5,
@@ -58,6 +59,7 @@ class KernelTestMech(EnsembleNeuralMech):
             longest_epoch=longest_epoch,
             improvement_threshold=improvement_threshold,
             patience=patience,
+            batch_size=batch_size,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
             network_cfg=network_cfg,
