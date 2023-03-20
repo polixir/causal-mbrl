@@ -9,6 +9,12 @@ params:
 
 dataset: "SAC-expert-replay"
 
+extra_variable_info:
+  Radian:
+    - "obs_1"
+    - "obs_5"
+    - "obs_9"
+
 # basic RL params
 num_steps: 3000000
 online_num_steps: 10000

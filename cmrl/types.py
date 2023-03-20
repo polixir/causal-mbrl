@@ -8,3 +8,4 @@ RewardFnType = Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor
 TermFnType = Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]
 InitObsFnType = Callable[[int], torch.Tensor]
 Obs2StateFnType = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+State2ObsFnType = Callable[[torch.Tensor], torch.Tensor]

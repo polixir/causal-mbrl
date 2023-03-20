@@ -10,7 +10,7 @@ from cmrl.utils.variables import to_dict_by_space
 
 
 def buffer_to_dict(
-        observation_space,
+        state_space,
         action_space,
         obs2state_fn,
         replay_buffer: ReplayBuffer,
@@ -25,38 +25,38 @@ def buffer_to_dict(
     real_buffer_size = replay_buffer.buffer_size if replay_buffer.full else replay_buffer.pos
 
     if hasattr(replay_buffer, "extra_obs"):
-        observations = obs2state_fn(replay_buffer.observations[: real_buffer_size, 0],
+        states = obs2state_fn(replay_buffer.observations[: real_buffer_size, 0],
                                      replay_buffer.extra_obs[: real_buffer_size, 0])
     else:
-        observations = replay_buffer.observations[: real_buffer_size, 0]
-    obs_dict = to_dict_by_space(observations, observation_space, prefix="obs", )
+        states = replay_buffer.observations[: real_buffer_size, 0]
+    state_dict = to_dict_by_space(states, state_space, prefix="obs", )
     act_dict = to_dict_by_space(
         replay_buffer.actions[: real_buffer_size, 0],
         action_space,
         prefix="act",
     )
     if hasattr(replay_buffer, "next_extra_obs"):
-        next_observations = obs2state_fn(replay_buffer.next_observations[: real_buffer_size, 0],
+        next_states = obs2state_fn(replay_buffer.next_observations[: real_buffer_size, 0],
                                           replay_buffer.next_extra_obs[: real_buffer_size, 0])
     else:
-        next_observations = replay_buffer.next_observations[: real_buffer_size, 0]
-    next_obs_dict = to_dict_by_space(next_observations, observation_space, prefix="next_obs")
+        next_states = replay_buffer.next_observations[: real_buffer_size, 0]
+    next_state_dict = to_dict_by_space(next_states, state_space, prefix="next_obs")
 
     inputs = {}
-    inputs.update(obs_dict)
+    inputs.update(state_dict)
     inputs.update(act_dict)
 
     if mech == "transition":
-        outputs = next_obs_dict
+        outputs = next_state_dict
     elif mech == "reward_mech":
         rewards = replay_buffer.rewards[: real_buffer_size, 0]
         rewards_dict = {"reward": torch.from_numpy(rewards[:, None])}
-        inputs.update(next_obs_dict)
+        inputs.update(next_state_dict)
         outputs = rewards_dict
     elif mech == "termination_mech":
         terminals = replay_buffer.dones[: real_buffer_size, 0] * (1 - replay_buffer.timeouts[: real_buffer_size, 0])
         terminals_dict = {"terminal": torch.from_numpy(terminals[:, None])}
-        inputs.update(next_obs_dict)
+        inputs.update(next_state_dict)
         outputs = terminals_dict
     else:
         raise NotImplementedError("support mechs in [transition, reward_mech, termination_mech] only")

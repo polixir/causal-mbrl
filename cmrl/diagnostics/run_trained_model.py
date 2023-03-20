@@ -34,7 +34,7 @@ class Runner:
 
         self.dynamics = cmrl.util.creator.create_dynamics(
             self.cfg.dynamics,
-            self.env.observation_space.shape,
+            self.env.state_space.shape,
             self.env.action_space.shape,
             load_dir=self.model_path,
             load_device=device,

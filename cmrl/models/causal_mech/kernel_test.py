@@ -9,7 +9,8 @@ import torch
 from omegaconf import DictConfig
 from stable_baselines3.common.logger import Logger
 from hydra.utils import instantiate
-from causallearn.utils.KCI.KCI import KCI_CInd
+from cmrl.utils.RCIT import KCI_CInd
+# from causallearn.utils.KCI.KCI import KCI_CInd
 from tqdm import tqdm
 
 from cmrl.models.causal_mech.base import EnsembleNeuralMech
@@ -116,7 +117,7 @@ class KernelTestMech(EnsembleNeuralMech):
         #  [0, 0, 1, 1]]
 
         length = next(iter(inputs.values())).shape[0]
-        sample_length = min(length, self.sample_num)
+        sample_length = min(length, self.sample_num) if self.sample_num > 0 else length
 
         init_pvalues_array = np.empty((self.kci_times, self.input_var_num, self.output_var_num))
         with tqdm(
@@ -225,23 +226,28 @@ if __name__ == "__main__":
     from cmrl.sb3_extension.logger import configure as logger_configure
     from cmrl.models.causal_mech.util import variable_loss_func
 
+
     def unwrap_env(env):
         while isinstance(env, gym.Wrapper):
             env = env.env
         return env
 
-    env = unwrap_env(gym.make("ParallelContinuousCartPoleSwingUp-v0"))
+
+    env = unwrap_env(gym.make("ContinuousCartPoleSwingUp-v0"))
     real_replay_buffer = ReplayBuffer(
         int(1e6), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
     )
-    load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=0.1)
+    load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=1)
 
-    input_variables = parse_space(env.state_space, "obs") + parse_space(env.action_space, "act")
-    output_variables = parse_space(env.state_space, "next_obs")
+    # extra_info = {"Radian": ["obs_1", "obs_5", "obs_9"]}
+    extra_info = {"Radian": ["obs_1"]}
+
+    input_variables = parse_space(env.state_space, "obs", extra_info=extra_info) + parse_space(env.action_space, "act")
+    output_variables = parse_space(env.state_space, "next_obs", extra_info=extra_info)
 
     logger = logger_configure("kci-log", ["tensorboard", "stdout"])
 
-    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=256, kci_times=5,
+    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=1000, kci_times=20,
                           logger=logger)
 
     inputs, outputs = buffer_to_dict(env.state_space, env.action_space, env.obs2state, real_replay_buffer, "transition")

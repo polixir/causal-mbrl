@@ -19,9 +19,9 @@ def test_callback():
     termination_fn = env.get_terminal
     get_init_obs_fn = env.get_batch_init_obs
 
-    obs_variables = parse_space(env.observation_space, "obs")
+    obs_variables = parse_space(env.state_space, "obs")
     act_variables = parse_space(env.action_space, "act")
-    next_obs_variables = parse_space(env.observation_space, "next_obs")
+    next_obs_variables = parse_space(env.state_space, "next_obs")
 
     transition = PlainMech(
         name="transition",
@@ -29,14 +29,14 @@ def test_callback():
         output_variables=next_obs_variables,
     )
 
-    dynamics = Dynamics(transition, env.observation_space, env.action_space)
+    dynamics = Dynamics(transition, env.state_space, env.action_space)
     real_replay_buffer = ReplayBuffer(
-        100, env.observation_space, env.action_space, device="cpu", handle_timeout_termination=False
+        100, env.state_space, env.action_space, device="cpu", handle_timeout_termination=False
     )
 
     fake_env = VecFakeEnv(
         num_envs=1,
-        observation_space=env.observation_space,
+        observation_space=env.state_space,
         action_space=env.action_space,
         dynamics=dynamics,
         reward_fn=reward_fn,

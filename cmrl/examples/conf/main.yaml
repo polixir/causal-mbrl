@@ -1,7 +1,7 @@
 defaults:
   - algorithm: off_dyna
-  - task: parallel_cart_pole
-  - transition: plain
+  - task: continuous_cart_pole_swingup
+  - transition: kernel_test
   - reward_mech: plain
   - termination_mech: plain
   - _self_

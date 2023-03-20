@@ -12,19 +12,21 @@ from cmrl.types import TermFnType, RewardFnType, InitObsFnType, Obs2StateFnType
 
 def make_env(
         cfg: omegaconf.DictConfig,
-) -> Tuple[emei.EmeiEnv, TermFnType, Optional[RewardFnType], Optional[InitObsFnType],Optional[Obs2StateFnType],]:
+) -> Tuple[emei.EmeiEnv, tuple]:
     env = cast(emei.EmeiEnv, gym.make(cfg.task.env_id, **cfg.task.params))
-
-    reward_fn = env.get_batch_reward
-    term_fn = env.get_batch_terminal
-    init_obs_fn = env.get_batch_init_obs
-    obs2state_fn = env.obs2state
+    fns = (
+        env.get_batch_reward,
+        env.get_batch_terminal,
+        env.get_batch_init_obs,
+        env.obs2state,
+        env.state2obs
+    )
 
     # set seed
     env.reset(seed=cfg.seed)
-    env.observation_space.seed(cfg.seed + 1)
+    env.state_space.seed(cfg.seed + 1)
     env.action_space.seed(cfg.seed + 2)
-    return env, reward_fn, term_fn, init_obs_fn, obs2state_fn
+    return env, fns
 
 
 def load_offline_data(env, replay_buffer: ReplayBuffer, dataset_name: str, use_ratio: float = 1):

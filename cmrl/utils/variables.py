@@ -34,14 +34,21 @@ class DiscreteVariable(Variable):
     n: int
 
 
-def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
+def parse_space(
+        space: spaces.Space,
+        prefix="obs",
+        extra_info=None
+) -> List[Variable]:
+    extra_info = extra_info if extra_info is not None else {}
+
     variables = []
     if isinstance(space, spaces.Box):
         for i, (low, high) in enumerate(zip(space.low, space.high)):
-            if np.isclose(low, -np.pi) and np.isclose(high, np.pi):
-                variables.append(RadianVariable(dim=1, name="{}_{}".format(prefix, i)))
+            name = "{}_{}".format(prefix, i)
+            if "Radian" in extra_info and name in extra_info["Radian"]:
+                variables.append(RadianVariable(dim=1, name=name))
             else:
-                variables.append(ContinuousVariable(dim=1, low=low, high=high, name="{}_{}".format(prefix, i)))
+                variables.append(ContinuousVariable(dim=1, low=low, high=high, name=name))
     elif isinstance(space, spaces.Discrete):
         variables.append(DiscreteVariable(n=space.n, name="{}_0".format(prefix)))
     elif isinstance(space, spaces.MultiDiscrete):
@@ -58,11 +65,11 @@ def parse_space(space: spaces.Space, prefix="obs") -> List[Variable]:
 
 
 def to_dict_by_space(
-    data: np.ndarray,
-    space: spaces.Space,
-    prefix="obs",
-    repeat: Optional[int] = None,
-    to_tensor: bool = False,
+        data: np.ndarray,
+        space: spaces.Space,
+        prefix="obs",
+        repeat: Optional[int] = None,
+        to_tensor: bool = False,
 ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
     """Transform the interaction data from its own type to python's dict, by the signature of space.
 
@@ -101,6 +108,6 @@ def to_dict_by_space(
 
 
 def dict2space(
-    data: Dict[str, Union[np.ndarray, torch.Tensor]], space: spaces.Space
+        data: Dict[str, Union[np.ndarray, torch.Tensor]], space: spaces.Space
 ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
     pass

@@ -8,7 +8,7 @@ from stable_baselines3.common.vec_env import VecMonitor
 from stable_baselines3.common.logger import Logger
 from stable_baselines3.common.base_class import BaseAlgorithm
 
-from cmrl.types import Obs2StateFnType
+from cmrl.types import Obs2StateFnType, State2ObsFnType
 from cmrl.models.dynamics import Dynamics
 from cmrl.models.fake_env import VecFakeEnv
 from cmrl.models.causal_mech.base import BaseCausalMech
@@ -25,14 +25,16 @@ def create_agent(cfg: DictConfig, fake_env: VecFakeEnv, logger: Optional[Logger]
 
 def create_dynamics(
         cfg: DictConfig,
-        observation_space: spaces.Space,
+        state_space: spaces.Space,
         action_space: spaces.Space,
         obs2state_fn: Obs2StateFnType,
+        state2obs_fn: State2ObsFnType,
         logger: Optional[Logger] = None,
 ):
-    obs_variables = parse_space(observation_space, "obs")
-    act_variables = parse_space(action_space, "act")
-    next_obs_variables = parse_space(observation_space, "next_obs")
+    extra_info = cfg.task.get("extra_variable_info", {})
+    obs_variables = parse_space(state_space, "obs", extra_info=extra_info)
+    act_variables = parse_space(action_space, "act", extra_info=extra_info)
+    next_obs_variables = parse_space(state_space, "next_obs", extra_info=extra_info)
 
     # transition
     assert cfg.transition.learn, "transition must be learned, or you should try model-free RL:)"
@@ -71,9 +73,10 @@ def create_dynamics(
         transition=transition,
         reward_mech=reward_mech,
         termination_mech=termination_mech,
-        observation_space=observation_space,
+        state_space=state_space,
         action_space=action_space,
         obs2state_fn=obs2state_fn,
+        state2obs_fn=state2obs_fn,
         logger=logger,
     )
 

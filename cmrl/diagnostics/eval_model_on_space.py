@@ -75,7 +75,7 @@ class DatasetEvaluator:
 
         self.dynamics = create_dynamics(
             self.cfg,
-            self.env.observation_space,
+            self.env.state_space,
             self.env.action_space,
         )
         if not self.cfg.transition.discovery:
@@ -90,7 +90,7 @@ class DatasetEvaluator:
         self.obs_range, self.action_range = self.get_range()
 
         self.range = np.concatenate([self.obs_range, self.action_range], axis=0)
-        self.real_obs_dim_num = self.env.observation_space.shape[0]
+        self.real_obs_dim_num = self.env.state_space.shape[0]
         self.compact_obs_dim_num, self.action_dim_num = (
             self.obs_range.shape[0],
             self.action_range.shape[0],

@@ -25,7 +25,9 @@ class BaseAlgorithm:
         self.cfg = cfg
         self.work_dir = work_dir or os.getcwd()
 
-        self.env, self.reward_fn, self.termination_fn, self.get_init_obs_fn, self.obs2state_fn = make_env(self.cfg)
+        self.env, fns = make_env(self.cfg)
+        self.reward_fn, self.termination_fn, self.get_init_obs_fn, self.obs2state_fn, self.state2obs_fn = fns
+
         self.eval_env, *_ = make_env(self.cfg)
         np.random.seed(self.cfg.seed)
         torch.manual_seed(self.cfg.seed)
@@ -41,7 +43,11 @@ class BaseAlgorithm:
             )
 
         # create ``cmrl`` dynamics
-        self.dynamics = create_dynamics(self.cfg, self.env.observation_space, self.env.action_space, self.obs2state_fn,
+        self.dynamics = create_dynamics(self.cfg,
+                                        self.env.state_space,
+                                        self.env.action_space,
+                                        self.obs2state_fn,
+                                        self.state2obs_fn,
                                         logger=self.logger)
 
         if not self.cfg.transition.discovery:
@@ -63,7 +69,7 @@ class BaseAlgorithm:
         self.partial_fake_env = partial(
             VecFakeEnv,
             self.cfg.algorithm.num_envs,
-            self.env.observation_space,
+            self.env.state_space,
             self.env.action_space,
             self.dynamics,
             self.reward_fn,
@@ -86,7 +92,9 @@ class BaseAlgorithm:
     @property
     def callback(self) -> BaseCallback:
         fake_eval_env = self.partial_fake_env(
-            deterministic=True, max_episode_steps=self.env.spec.max_episode_steps, branch_rollout=False
+            deterministic=True,
+            max_episode_steps=self.env.spec.max_episode_steps,
+            branch_rollout=False
         )
         return EvalCallback(
             self.eval_env,

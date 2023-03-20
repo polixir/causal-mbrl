@@ -117,16 +117,38 @@ conda install pytorch -c pytorch
 pip install -e .
 ```
 
-If there is no `cuda` in your device, it's convenient to install `cuda` and `pytorch` from conda directly (refer
-to [pytorch](https://pytorch.org/get-started/locally/)):
+for pytorch
 
-````shell
+```shell
 # for MacOS
 conda install pytorch -c pytorch
 # for Linux
 conda install pytorch pytorch-cuda=11.6 -c pytorch -c nvidia
-````
+```
 
+for KCIT and RCIT
+
+```shell
+conda install -c conda-forge r-base
+conda install -c conda-forge r-devtools
+R
+```
+
+```shell
+# Install the RCIT from Github. 
+install.packages("devtools")
+library(devtools)
+install_github("ericstrobl/RCIT")
+library(RCIT)
+
+# Install R libraries for RCIT
+install.packages("MASS")
+install.packages("momentchi2")
+install.packages("devtools")
+
+# test RCIT
+RCIT(rnorm(1000),rnorm(1000),rnorm(1000))
+```
 ## install using pip
 
 coming soon.
