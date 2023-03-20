@@ -18,28 +18,29 @@ from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_fu
 
 class CMITestMech(EnsembleNeuralMech):
     def __init__(
-            self,
-            name: str,
-            input_variables: List[Variable],
-            output_variables: List[Variable],
-            logger: Optional[Logger] = None,
-            # model learning
-            longest_epoch: int = -1,
-            improvement_threshold: float = 0.01,
-            patience: int = 5,
-            # ensemble
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            # cfgs
-            network_cfg: Optional[DictConfig] = None,
-            encoder_cfg: Optional[DictConfig] = None,
-            decoder_cfg: Optional[DictConfig] = None,
-            optimizer_cfg: Optional[DictConfig] = None,
-            # forward method
-            residual: bool = True,
-            encoder_reduction: str = "sum",
-            # others
-            device: Union[str, torch.device] = "cpu",
+        self,
+        name: str,
+        input_variables: List[Variable],
+        output_variables: List[Variable],
+        logger: Optional[Logger] = None,
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
+        batch_size: int = 256,
+        # ensemble
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        # cfgs
+        network_cfg: Optional[DictConfig] = None,
+        encoder_cfg: Optional[DictConfig] = None,
+        decoder_cfg: Optional[DictConfig] = None,
+        optimizer_cfg: Optional[DictConfig] = None,
+        # forward method
+        residual: bool = True,
+        encoder_reduction: str = "sum",
+        # others
+        device: Union[str, torch.device] = "cpu",
     ):
         EnsembleNeuralMech.__init__(
             self,
@@ -50,6 +51,7 @@ class CMITestMech(EnsembleNeuralMech):
             longest_epoch=longest_epoch,
             improvement_threshold=improvement_threshold,
             patience=patience,
+            batch_size=batch_size,
             ensemble_num=ensemble_num,
             elite_num=elite_num,
             network_cfg=network_cfg,
@@ -73,26 +75,6 @@ class CMITestMech(EnsembleNeuralMech):
     def build_graph(self):
         self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
 
-    def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        batch_size, _ = self.get_inputs_batch_size(inputs)
-
-        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
-            self.device)
-        for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
-            inputs_tensor[:, :, i] = out
-
-        output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
-
-        outputs = {}
-        for i, var in enumerate(self.output_variables):
-            hid = output_tensor[i]
-            outputs[var.name] = self.variable_decoders[var.name](hid)
-
-        if self.residual:
-            outputs = self.residual_outputs(inputs, outputs)
-        return outputs
-
     @property
     def CMI_mask(self) -> torch.Tensor:
         mask = torch.zeros(self.input_var_num + 1, self.output_var_num, self.input_var_num, dtype=torch.long)
@@ -115,9 +97,9 @@ class CMITestMech(EnsembleNeuralMech):
         """
         batch_size, extra_dim = self.get_inputs_info(inputs)
 
-        inputs_tensor = torch.empty(*extra_dim, self.ensemble_num, batch_size, self.input_var_num,
-                                    self.encoder_output_dim).to(
-            self.device)
+        inputs_tensor = torch.empty(*extra_dim, self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
+            self.device
+        )
         for i, var in enumerate(self.input_variables):
             out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[..., i, :] = out
@@ -163,7 +145,7 @@ class CMITestMech(EnsembleNeuralMech):
         mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
         reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor, mask)
         assert (
-                not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
+            not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
         ), "tensor must not be inf or nan"
         output_tensor = self.network(reduced_inputs_tensor)
 
@@ -176,46 +158,18 @@ class CMITestMech(EnsembleNeuralMech):
             outputs = self.residual_outputs(inputs, outputs)
         return outputs
 
-    # def CMI_forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-    #     """inputs should be dict of str and Tensor with (ensemble-num, batch-size, specific-dim) shape
-    #
-    #     Args:
-    #         inputs:
-    #
-    #     Returns:
-    #
-    #     """
-    #     if self.multi_step.startswith("forward-euler"):
-    #         step_num = int(self.multi_step.split()[-1])
-    #
-    #         outputs = {}
-    #         for step in range(step_num):
-    #             outputs = self.CMI_single_step_forward(inputs)
-    #             # outputs shape: (input-var-num + 1, ensemble-num, batch-size, specific-dim * 2)
-    #             # new inputs shape: (input-var-num + 1, ensemble-num, batch-size, specific-dim)
-    #             if step == 0:
-    #                 for name in filter(lambda s: s.startswith("act"), inputs.keys()):
-    #                     inputs[name] = inputs[name][None, ...].repeat([self.input_var_num + 1, 1, 1, 1])
-    #             if step < step_num - 1:
-    #                 for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
-    #                     inputs[name] = outputs["next_{}".format(name)][..., : inputs[name].shape[-1]]
-    #     else:
-    #         raise NotImplementedError("multi-step method {} is not supported".format(self.multi_step))
-    #
-    #     return outputs
-
     def calculate_CMI(self, nll_loss: torch.Tensor, threshold=1):
         nll_loss_diff = nll_loss[:-1] - nll_loss[-1]
         graph_data = (nll_loss_diff.mean(dim=(1, 2)) > threshold).to(torch.long)
         return graph_data, nll_loss_diff.mean(dim=(1, 2))
 
     def learn(
-            self,
-            # loader
-            inputs: MutableMapping[str, np.ndarray],
-            outputs: MutableMapping[str, np.ndarray],
-            work_dir: Optional[Union[str, pathlib.Path]] = None,
-            **kwargs
+        self,
+        # loader
+        inputs: MutableMapping[str, np.ndarray],
+        outputs: MutableMapping[str, np.ndarray],
+        work_dir: Optional[Union[str, pathlib.Path]] = None,
+        **kwargs
     ):
         if self.discovery:
             train_loader, valid_loader = self.get_data_loaders(inputs, outputs)
@@ -275,7 +229,7 @@ class CMITestMech(EnsembleNeuralMech):
         super(CMITestMech, self).learn(inputs, outputs, work_dir=work_dir, **kwargs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import gym
     from stable_baselines3.common.buffers import ReplayBuffer
     from torch.utils.data import DataLoader
@@ -283,29 +237,29 @@ if __name__ == '__main__':
     from cmrl.models.causal_mech.reinforce import ReinforceCausalMech
     from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn, buffer_to_dict
     from cmrl.utils.creator import parse_space
+    from cmrl.sb3_extension.logger import configure as logger_configure
+
     from cmrl.utils.env import load_offline_data
     from cmrl.models.causal_mech.util import variable_loss_func
 
-    env = gym.make("ContinuousCartPoleSwingUp-v0", real_time_scale=0.02)
-    real_replay_buffer = ReplayBuffer(int(1e6), env.observation_space, env.action_space, "cpu",
-                                      handle_timeout_termination=False)
-    load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=1)
+    def unwrap_env(env):
+        while isinstance(env, gym.Wrapper):
+            env = env.env
+        return env
 
-    input_variables = parse_space(env.observation_space, "obs") + parse_space(env.action_space, "act")
-    output_variables = parse_space(env.observation_space, "next_obs")
-
-    mech = CMITestMech(
-        "kernel_test_mech",
-        input_variables,
-        output_variables,
+    env = unwrap_env(gym.make("ParallelContinuousCartPoleSwingUp-v0"))
+    real_replay_buffer = ReplayBuffer(
+        int(1e6), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
     )
+    load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=0.1)
 
-    inputs, outputs = buffer_to_dict(
-        env.observation_space,
-        env.action_space,
-        env.obs2state,
-        real_replay_buffer,
-        "transition"
-    )
+    input_variables = parse_space(env.state_space, "obs") + parse_space(env.action_space, "act")
+    output_variables = parse_space(env.state_space, "next_obs")
+
+    logger = logger_configure("kci-log", ["tensorboard", "stdout"])
+
+    mech = CMITestMech("kernel_test_mech", input_variables, output_variables, device="cuda")
+
+    inputs, outputs = buffer_to_dict(env.state_space, env.action_space, env.obs2state, real_replay_buffer, "transition")
 
     mech.learn(inputs, outputs)
