@@ -8,7 +8,7 @@ from stable_baselines3.common.buffers import ReplayBuffer
 
 from cmrl.sb3_extension.online_mb_callback import OnlineModelBasedCallback
 from cmrl.utils.creator import parse_space
-from cmrl.models.causal_mech.plain_mech import PlainMech
+from cmrl.models.causal_mech.oracle_mech import OracleMech
 from cmrl.models.dynamics import Dynamics
 from cmrl.models.fake_env import VecFakeEnv
 
@@ -23,7 +23,7 @@ def test_callback():
     act_variables = parse_space(env.action_space, "act")
     next_obs_variables = parse_space(env.state_space, "next_obs")
 
-    transition = PlainMech(
+    transition = OracleMech(
         name="transition",
         input_variables=obs_variables + act_variables,
         output_variables=next_obs_variables,

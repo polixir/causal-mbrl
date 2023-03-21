@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Union, MutableMapping
 
+import numpy
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
@@ -9,35 +10,36 @@ from stable_baselines3.common.logger import Logger
 
 from cmrl.utils.variables import Variable
 from cmrl.models.causal_mech.base import EnsembleNeuralMech
+from cmrl.models.graphs.binary_graph import BinaryGraph
 from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn
 
 
-class PlainMech(EnsembleNeuralMech):
+class OracleMech(EnsembleNeuralMech):
     def __init__(
-        self,
-        name: str,
-        input_variables: List[Variable],
-        output_variables: List[Variable],
-        logger: Optional[Logger] = None,
-        # model learning
-        longest_epoch: int = -1,
-        improvement_threshold: float = 0.01,
-        patience: int = 5,
-        batch_size: int = 256,
-        # ensemble
-        ensemble_num: int = 7,
-        elite_num: int = 5,
-        # cfgs
-        network_cfg: Optional[DictConfig] = None,
-        encoder_cfg: Optional[DictConfig] = None,
-        decoder_cfg: Optional[DictConfig] = None,
-        optimizer_cfg: Optional[DictConfig] = None,
-        scheduler_cfg: Optional[DictConfig] = None,
-        # forward method
-        residual: bool = True,
-        encoder_reduction: str = "sum",
-        # others
-        device: Union[str, torch.device] = "cpu",
+            self,
+            name: str,
+            input_variables: List[Variable],
+            output_variables: List[Variable],
+            logger: Optional[Logger] = None,
+            # model learning
+            longest_epoch: int = -1,
+            improvement_threshold: float = 0.01,
+            patience: int = 5,
+            batch_size: int = 256,
+            # ensemble
+            ensemble_num: int = 7,
+            elite_num: int = 5,
+            # cfgs
+            network_cfg: Optional[DictConfig] = None,
+            encoder_cfg: Optional[DictConfig] = None,
+            decoder_cfg: Optional[DictConfig] = None,
+            optimizer_cfg: Optional[DictConfig] = None,
+            scheduler_cfg: Optional[DictConfig] = None,
+            # forward method
+            residual: bool = True,
+            encoder_reduction: str = "sum",
+            # others
+            device: Union[str, torch.device] = "cpu",
     ):
         EnsembleNeuralMech.__init__(
             self,
@@ -61,9 +63,12 @@ class PlainMech(EnsembleNeuralMech):
             device=device,
         )
 
-    @property
-    def forward_mask(self):
-        return torch.ones(self.output_var_num, self.input_var_num).to(self.device)
+    def set_oracle_graph(self, graph_data: Optional[numpy.ndarray]):
+        self.graph = BinaryGraph(self.input_var_num, self.output_var_num, device=self.device)
+        if graph_data is None:
+            graph_data = np.ones([self.input_var_num, self.output_var_num])
+        self.graph.set_data(graph_data=graph_data)
+        print("set oracle causal graph successfully: \n{}".format(graph_data))
 
 
 if __name__ == "__main__":
@@ -78,10 +83,12 @@ if __name__ == "__main__":
     from cmrl.models.causal_mech.util import variable_loss_func
     from cmrl.sb3_extension.logger import configure as logger_configure
 
+
     def unwrap_env(env):
         while isinstance(env, gym.Wrapper):
             env = env.env
         return env
+
 
     env = unwrap_env(gym.make("ParallelContinuousCartPoleSwingUp-v0"))
     real_replay_buffer = ReplayBuffer(
@@ -94,13 +101,14 @@ if __name__ == "__main__":
 
     logger = logger_configure("kci-log", ["tensorboard", "stdout"])
 
-    mech = PlainMech(
+    mech = OracleMech(
         "plain_mech",
         input_variables,
         output_variables,
         logger=logger,
     )
 
-    inputs, outputs = buffer_to_dict(env.observation_space, env.action_space, env.obs2state, real_replay_buffer, "transition")
+    inputs, outputs = buffer_to_dict(env.observation_space, env.action_space, env.obs2state, real_replay_buffer,
+                                     "transition")
 
     mech.learn(inputs, outputs)

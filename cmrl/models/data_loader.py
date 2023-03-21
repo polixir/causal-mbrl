@@ -15,6 +15,7 @@ def buffer_to_dict(
         obs2state_fn,
         replay_buffer: ReplayBuffer,
         mech: str,
+        device: str = "cpu"
 ):
     assert mech in ["transition", "reward_mech", "termination_mech"]
     # dict action is not supported by SB3(so not done by cmrl)
@@ -26,21 +27,21 @@ def buffer_to_dict(
 
     if hasattr(replay_buffer, "extra_obs"):
         states = obs2state_fn(replay_buffer.observations[: real_buffer_size, 0],
-                                     replay_buffer.extra_obs[: real_buffer_size, 0])
+                              replay_buffer.extra_obs[: real_buffer_size, 0])
     else:
         states = replay_buffer.observations[: real_buffer_size, 0]
-    state_dict = to_dict_by_space(states, state_space, prefix="obs", )
+    state_dict = to_dict_by_space(states, state_space, prefix="obs", to_tensor=True, device=device)
     act_dict = to_dict_by_space(
         replay_buffer.actions[: real_buffer_size, 0],
         action_space,
-        prefix="act",
-    )
+        prefix="act", to_tensor=True, device=device)
+
     if hasattr(replay_buffer, "next_extra_obs"):
         next_states = obs2state_fn(replay_buffer.next_observations[: real_buffer_size, 0],
-                                          replay_buffer.next_extra_obs[: real_buffer_size, 0])
+                                   replay_buffer.next_extra_obs[: real_buffer_size, 0])
     else:
         next_states = replay_buffer.next_observations[: real_buffer_size, 0]
-    next_state_dict = to_dict_by_space(next_states, state_space, prefix="next_obs")
+    next_state_dict = to_dict_by_space(next_states, state_space, prefix="next_obs", to_tensor=True, device=device)
 
     inputs = {}
     inputs.update(state_dict)

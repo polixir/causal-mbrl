@@ -1,9 +1,9 @@
 defaults:
   - algorithm: off_dyna
   - task: continuous_cart_pole_swingup
-  - transition: kernel_test
-  - reward_mech: plain
-  - termination_mech: plain
+  - transition: oracle
+  - reward_mech: oracle
+  - termination_mech: oracle
   - _self_
 
 seed: 0

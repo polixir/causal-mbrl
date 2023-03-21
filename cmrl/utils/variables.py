@@ -70,6 +70,7 @@ def to_dict_by_space(
         prefix="obs",
         repeat: Optional[int] = None,
         to_tensor: bool = False,
+        device: str = "cpu"
 ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
     """Transform the interaction data from its own type to python's dict, by the signature of space.
 
@@ -79,6 +80,8 @@ def to_dict_by_space(
         prefix: prefix of the key in dict
         repeat: copy data in a new dimension
         to_tensor: transform the data from numpy's ndarray to torch's tensor
+        device: device
+
 
     Returns: interaction data organized in dictionary form
 
@@ -102,7 +105,7 @@ def to_dict_by_space(
             # specific-dim is 1 for the case of spaces.Box
             dict_data[name] = np.tile(dict_data[name][None, :, :], [repeat, 1, 1])
         if to_tensor:
-            dict_data[name] = torch.from_numpy(dict_data[name])
+            dict_data[name] = torch.from_numpy(dict_data[name]).to(device)
 
     return dict_data
 

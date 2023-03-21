@@ -1,4 +1,4 @@
-name: "plain_termination_mech"
+name: "oracle_termination_mech"
 learn: false
 discovery: false
 
@@ -41,7 +41,7 @@ optimizer_cfg:
 mech:
   _partial_: true
   _recursive_: false
-  _target_: cmrl.models.causal_mech.PlainMech
+  _target_: cmrl.models.causal_mech.OracleMech
   # base causal-mech params
   name: termination_mech
   input_variables: ???

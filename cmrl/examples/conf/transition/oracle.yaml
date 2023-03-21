@@ -1,12 +1,12 @@
-name: "plain_reward_mech"
-learn: false
-discovery: false
+name: "oracle_transition"
+learn: true
+oracle: "truth"
 
 encoder_cfg:
   _partial_: true
   _recursive_: false
   _target_: cmrl.models.networks.VariableEncoder
-  output_dim: 100
+  output_dim: 200
   hidden_dims: [ 100 ]
   bias: true
   activation_fn_cfg:
@@ -26,7 +26,7 @@ network_cfg:
   _partial_: true
   _recursive_: false
   _target_: cmrl.models.networks.ParallelMLP
-  hidden_dims: [ 200, 200 ]
+  hidden_dims: [ 100, 100]
   bias: true
   activation_fn_cfg:
     _target_: torch.nn.SiLU
@@ -38,14 +38,26 @@ optimizer_cfg:
   weight_decay: 1e-5
   eps: 1e-8
 
+scheduler_cfg:
+  _partial_: true
+  _target_: torch.optim.lr_scheduler.StepLR
+  step_size: 1
+  gamma: 1
+
 mech:
   _partial_: true
   _recursive_: false
-  _target_: cmrl.models.causal_mech.PlainMech
+  _target_: cmrl.models.causal_mech.OracleMech
   # base causal-mech params
-  name: reward_mech
+  name: transition
   input_variables: ???
   output_variables: ???
+  # model learning
+  patience: 5
+  longest_epoch: -1
+  improvement_threshold: 0.01
+  batch_size: 256
+  # ensemble
   ensemble_num: 7
   elite_num: 5
   # cfgs
@@ -55,7 +67,6 @@ mech:
   optimizer_cfg: ${transition.optimizer_cfg}
   # forward method
   residual: true
-  multi_step: "none"
   # logger
   logger: ???
   # others

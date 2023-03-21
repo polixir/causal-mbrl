@@ -1,6 +1,5 @@
 name: "CMI_test_transition"
 learn: true
-discovery: true
 
 encoder_cfg:
   _partial_: true

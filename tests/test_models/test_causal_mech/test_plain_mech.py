@@ -2,7 +2,7 @@ import gym
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.data import DataLoader
 
-from cmrl.models.causal_mech.plain_mech import PlainMech
+from cmrl.models.causal_mech.oracle_mech import OracleMech
 from cmrl.models.data_loader import EnsembleBufferDataset, EnsembleBufferDataset, collate_fn
 from cmrl.utils.creator import parse_space
 from cmrl.utils.env import load_offline_data
@@ -40,7 +40,7 @@ def prepare(freq_rate):
 def test_inv_pendulum_single_step():
     input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=1)
 
-    mech = PlainMech(
+    mech = OracleMech(
         name="test",
         input_variables=input_variables,
         output_variables=output_variables,
@@ -52,7 +52,7 @@ def test_inv_pendulum_single_step():
 def test_inv_pendulum_multi_step():
     input_variables, output_variables, train_loader, valid_loader = prepare(freq_rate=2)
 
-    mech = PlainMech(
+    mech = OracleMech(
         name="test",
         input_variables=input_variables,
         output_variables=output_variables,

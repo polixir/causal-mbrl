@@ -153,8 +153,8 @@ class VecFakeEnv(VecEnv):
         self._envs_length[idx] = 0
         if self.branch_rollout:
             upper_bound = self.replay_buffer.buffer_size if self.replay_buffer.full else self.replay_buffer.pos
-            batch_inds = np.random.randint(0, upper_bound)
-            self._current_batch_obs[idx] = self.replay_buffer.observations[batch_inds, 0]
+            batch_idxs = np.random.randint(0, upper_bound)
+            self._current_batch_obs[idx] = self.replay_buffer.observations[batch_idxs, 0]
         else:
             assert self.get_init_obs_fn is not None
             self._current_batch_obs[idx] = self.get_init_obs_fn(1)

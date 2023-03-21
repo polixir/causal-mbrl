@@ -50,12 +50,15 @@ class BaseAlgorithm:
                                         self.state2obs_fn,
                                         logger=self.logger)
 
-        if not self.cfg.transition.discovery:
-            self.dynamics.transition.set_oracle_graph(self.env.get_transition_graph())
-        if self.cfg.reward_mech.learn and not self.cfg.reward_mech.discovery:
-            self.dynamics.reward_mech.set_oracle_graph(self.env.get_reward_mech_graph())
-        if self.cfg.termination_mech.learn and not self.cfg.termination_mech.discovery:
-            self.dynamics.termination_mech.set_oracle_graph(self.env.get_termination_mech_graph())
+        if self.cfg.transition.name == "oracle_transition":
+            graph = self.env.get_transition_graph() if self.cfg.transition.oracle == "truth" else None
+            self.dynamics.transition.set_oracle_graph(graph)
+        if self.cfg.reward_mech.learn and not self.cfg.reward_mech.name == "oracle_reward_mech":
+            graph = self.env.get_reward_mech_graph() if self.cfg.transition.oracle == "truth" else None
+            self.dynamics.reward_mech.set_oracle_graph(graph)
+        if self.cfg.termination_mech.learn and not self.cfg.termination_mech.name == "oracle_termination_mech":
+            graph = self.env.get_termination_mech_graph() if self.cfg.transition.oracle == "truth" else None
+            self.dynamics.termination_mech.set_oracle_graph(graph)
 
         # create sb3's replay buffer for real offline data
         self.real_replay_buffer = ReplayBuffer(

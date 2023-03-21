@@ -53,6 +53,7 @@ class Dynamics:
             action_space=self.action_space,
             obs2state_fn=self.obs2state_fn,
             replay_buffer=real_replay_buffer,
+            device=self.device
         )
 
         # transition
