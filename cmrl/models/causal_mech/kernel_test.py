@@ -46,9 +46,10 @@ class KernelTestMech(EnsembleNeuralMech):
             # others
             device: Union[str, torch.device] = "cpu",
             # KCI
-            sample_num=2000,
-            kci_times=10,
-            not_confident_bound=0.2,
+            sample_num: int = 2000,
+            kci_times: int = 10,
+            not_confident_bound: float = 0.25,
+            longest_sample: int = 5000
     ):
         EnsembleNeuralMech.__init__(
             self,
@@ -74,6 +75,7 @@ class KernelTestMech(EnsembleNeuralMech):
         self.sample_num = sample_num
         self.kci_times = kci_times
         self.not_confident_bound = not_confident_bound
+        self.longest_sample = longest_sample
 
     def kci(
             self,
@@ -109,14 +111,14 @@ class KernelTestMech(EnsembleNeuralMech):
         return p_value
 
     def kci_compute_graph(
-            self, inputs: MutableMapping[str, numpy.ndarray], outputs: MutableMapping[str, numpy.ndarray], **kwargs
+            self,
+            inputs: MutableMapping[str, numpy.ndarray],
+            outputs: MutableMapping[str, numpy.ndarray],
+            work_dir: Optional[pathlib.Path] = None,
+            **kwargs
     ):
 
-        # [[0, 0, 0, 0],
-        #  [0, 0, 1, 1],
-        #  [1, 0, 0, 0],
-        #  [0, 1, 1, 1],
-        #  [0, 0, 1, 1]]
+        open(work_dir / "history_vote.txt", "w")
 
         length = next(iter(inputs.values())).shape[0]
         sample_length = min(length, self.sample_num) if self.sample_num > 0 else length
@@ -138,12 +140,14 @@ class KernelTestMech(EnsembleNeuralMech):
         is_not_confident = np.logical_and(votes > self.not_confident_bound, votes < 1 - self.not_confident_bound)
         not_confident_list = np.array(np.where(is_not_confident)).T
 
-        print(votes)
-
         recompute_times = 1
         while len(not_confident_list) != 0:
+            with open(work_dir / "history_vote.txt", "a") as f:
+                f.write(str(votes) + "\n")
+            print(votes)
+
             new_sample_length = int(sample_length * 1.5 ** recompute_times)
-            if new_sample_length > length:
+            if new_sample_length > min(self.longest_sample, length):
                 break
 
             pvalues_dict = defaultdict(list)
@@ -165,7 +169,6 @@ class KernelTestMech(EnsembleNeuralMech):
                     not_confident_list.append(key)
                 else:
                     votes[key] = vote
-            print(votes)
             recompute_times += 1
 
         return votes > 0.5
@@ -204,12 +207,12 @@ class KernelTestMech(EnsembleNeuralMech):
             self,
             inputs: MutableMapping[str, np.ndarray],
             outputs: MutableMapping[str, np.ndarray],
-            work_dir: Optional[Union[str, pathlib.Path]] = None,
+            work_dir: Optional[pathlib.Path] = None,
             **kwargs
     ):
-        if self.discovery:
-            graph = self.kci_compute_graph(inputs, outputs)
-            self.graph.set_data(graph)
+        work_dir = pathlib.Path(".") if work_dir is None else work_dir
+        graph = self.kci_compute_graph(inputs, outputs, work_dir)
+        self.graph.set_data(graph)
 
         super(KernelTestMech, self).learn(inputs, outputs, work_dir=work_dir, **kwargs)
 
