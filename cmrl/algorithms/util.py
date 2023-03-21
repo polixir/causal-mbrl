@@ -32,9 +32,9 @@ def compare_dict(dict1, dict2):
 
 
 def maybe_load_offline_model(
-    dynamics: Dynamics,
-    cfg: DictConfig,
-    work_dir,
+        dynamics: Dynamics,
+        cfg: DictConfig,
+        work_dir,
 ):
     work_dir = pathlib.Path(work_dir)
     if "." not in work_dir.name:  # exp by hydra's MULTIRUN mode
@@ -57,9 +57,10 @@ def maybe_load_offline_model(
 
             exp_transition_dir = OmegaConf.to_container(exp_cfg.transition, resolve=True)
             if (
-                cfg.seed == exp_cfg.seed
-                and compare_dict(exp_transition_dir, transition_cfg)
-                and (exp_dir / "transition").exists()
+                    cfg.seed == exp_cfg.seed
+                    and cfg.task.use_ratio == exp_cfg.task.use_ratio
+                    and compare_dict(exp_transition_dir, transition_cfg)
+                    and (exp_dir / "transition").exists()
             ):
                 dynamics.transition.load(exp_dir / "transition")
                 print("loaded dynamics from {}".format(exp_dir))

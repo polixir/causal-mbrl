@@ -221,7 +221,6 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from typing import cast
 
-    from cmrl.models.causal_mech.reinforce import ReinforceCausalMech
     from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn, buffer_to_dict
     from cmrl.utils.creator import parse_space
     from cmrl.utils.env import load_offline_data
@@ -235,21 +234,21 @@ if __name__ == "__main__":
         return env
 
 
-    env = unwrap_env(gym.make("ContinuousCartPoleSwingUp-v0"))
+    env = unwrap_env(gym.make("ParallelContinuousCartPoleSwingUp-v0"))
     real_replay_buffer = ReplayBuffer(
         int(1e6), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
     )
     load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=1)
 
-    # extra_info = {"Radian": ["obs_1", "obs_5", "obs_9"]}
-    extra_info = {"Radian": ["obs_1"]}
+    extra_info = {"Radian": ["obs_1", "obs_5", "obs_9"]}
+    # extra_info = {"Radian": ["obs_1"]}
 
     input_variables = parse_space(env.state_space, "obs", extra_info=extra_info) + parse_space(env.action_space, "act")
     output_variables = parse_space(env.state_space, "next_obs", extra_info=extra_info)
 
     logger = logger_configure("kci-log", ["tensorboard", "stdout"])
 
-    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=1000, kci_times=20,
+    mech = KernelTestMech("kernel_test_mech", input_variables, output_variables, sample_num=100, kci_times=20,
                           logger=logger)
 
     inputs, outputs = buffer_to_dict(env.state_space, env.action_space, env.obs2state, real_replay_buffer, "transition")
