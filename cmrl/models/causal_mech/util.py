@@ -1,6 +1,7 @@
 from typing import Callable, Dict, List, Union, MutableMapping
 from collections import defaultdict
 import math
+import time
 
 import torch
 from torch import Tensor
@@ -13,12 +14,12 @@ from cmrl.utils.variables import Variable, ContinuousVariable, DiscreteVariable,
 
 
 def von_mises_nll_loss(
-    input: Tensor,
-    target: Tensor,
-    var: Tensor,
-    full: bool = False,
-    eps: float = 1e-6,
-    reduction: str = "mean",
+        input: Tensor,
+        target: Tensor,
+        var: Tensor,
+        full: bool = False,
+        eps: float = 1e-6,
+        reduction: str = "mean",
 ) -> Tensor:
     r"""Von Mises negative log likelihood loss.
 
@@ -58,12 +59,12 @@ def von_mises_nll_loss(
 
 
 def circular_gaussian_nll_loss(
-    input: Tensor,
-    target: Tensor,
-    var: Tensor,
-    full: bool = False,
-    eps: float = 1e-6,
-    reduction: str = "mean",
+        input: Tensor,
+        target: Tensor,
+        var: Tensor,
+        full: bool = False,
+        eps: float = 1e-6,
+        reduction: str = "mean",
 ) -> Tensor:
     # Entries of var must be non-negative
     if torch.any(var < 0):
@@ -76,7 +77,7 @@ def circular_gaussian_nll_loss(
 
     diff = torch.remainder(input - target, 2 * torch.pi)
     diff[diff > torch.pi] = 2 * torch.pi - diff[diff > torch.pi]
-    loss = 0.5 * (torch.log(var) + diff**2 / var)
+    loss = 0.5 * (torch.log(var) + diff ** 2 / var)
     if full:
         loss += 0.5 * math.log(2 * math.pi)
 
@@ -89,10 +90,10 @@ def circular_gaussian_nll_loss(
 
 
 def variable_loss_func(
-    outputs: Dict[str, torch.Tensor],
-    targets: Dict[str, torch.Tensor],
-    output_variables: List[Variable],
-    device: Union[str, torch.device] = "cpu",
+        outputs: Dict[str, torch.Tensor],
+        targets: Dict[str, torch.Tensor],
+        output_variables: List[Variable],
+        device: Union[str, torch.device] = "cpu",
 ):
     dims = list(outputs.values())[0].shape[:-1]
     total_loss = torch.zeros(*dims, len(outputs)).to(device)
@@ -124,10 +125,10 @@ def variable_loss_func(
 
 
 def train_func(
-    loader: DataLoader,
-    forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
-    optimizer: Optimizer,
-    loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
+        loader: DataLoader,
+        forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
+        optimizer: Optimizer,
+        loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
 ):
     """train for data
 
@@ -150,13 +151,14 @@ def train_func(
         optimizer.step()
 
         batch_loss_list.append(loss)
+
     return torch.cat(batch_loss_list, dim=-2).detach().cpu()
 
 
 def eval_func(
-    loader: DataLoader,
-    forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
-    loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
+        loader: DataLoader,
+        forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
+        loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
 ):
     """evaluate for data
 

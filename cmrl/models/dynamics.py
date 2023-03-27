@@ -67,8 +67,10 @@ class Dynamics:
 
     def step(self, batch_obs, batch_action):
         with torch.no_grad():
-            obs_dict = to_dict_by_space(batch_obs, self.state_space, "obs", repeat=7, to_tensor=True)
-            act_dict = to_dict_by_space(batch_action, self.action_space, "act", repeat=7, to_tensor=True)
+            obs_dict = to_dict_by_space(batch_obs, self.state_space, "obs",
+                                        repeat=7, to_tensor=True, device=self.device)
+            act_dict = to_dict_by_space(batch_action, self.action_space, "act",
+                                        repeat=7, to_tensor=True, device=self.device)
 
             inputs = ChainMap(obs_dict, act_dict)
             outputs = self.transition.forward(inputs)
