@@ -16,30 +16,30 @@ from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn
 
 class OracleMech(EnsembleNeuralMech):
     def __init__(
-            self,
-            name: str,
-            input_variables: List[Variable],
-            output_variables: List[Variable],
-            logger: Optional[Logger] = None,
-            # model learning
-            longest_epoch: int = -1,
-            improvement_threshold: float = 0.01,
-            patience: int = 5,
-            batch_size: int = 256,
-            # ensemble
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            # cfgs
-            network_cfg: Optional[DictConfig] = None,
-            encoder_cfg: Optional[DictConfig] = None,
-            decoder_cfg: Optional[DictConfig] = None,
-            optimizer_cfg: Optional[DictConfig] = None,
-            scheduler_cfg: Optional[DictConfig] = None,
-            # forward method
-            residual: bool = True,
-            encoder_reduction: str = "sum",
-            # others
-            device: Union[str, torch.device] = "cpu",
+        self,
+        name: str,
+        input_variables: List[Variable],
+        output_variables: List[Variable],
+        logger: Optional[Logger] = None,
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
+        batch_size: int = 256,
+        # ensemble
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        # cfgs
+        network_cfg: Optional[DictConfig] = None,
+        encoder_cfg: Optional[DictConfig] = None,
+        decoder_cfg: Optional[DictConfig] = None,
+        optimizer_cfg: Optional[DictConfig] = None,
+        scheduler_cfg: Optional[DictConfig] = None,
+        # forward method
+        residual: bool = True,
+        encoder_reduction: str = "sum",
+        # others
+        device: Union[str, torch.device] = "cpu",
     ):
         EnsembleNeuralMech.__init__(
             self,
@@ -72,43 +72,32 @@ class OracleMech(EnsembleNeuralMech):
 
 
 if __name__ == "__main__":
+    from typing import cast
+
     import gym
     from stable_baselines3.common.buffers import ReplayBuffer
     from torch.utils.data import DataLoader
+    from emei import EmeiEnv
 
-    from cmrl.models.causal_mech.reinforce import ReinforceCausalMech
     from cmrl.models.data_loader import EnsembleBufferDataset, collate_fn, buffer_to_dict
     from cmrl.utils.creator import parse_space
     from cmrl.utils.env import load_offline_data
     from cmrl.models.causal_mech.util import variable_loss_func
     from cmrl.sb3_extension.logger import configure as logger_configure
 
-
-    def unwrap_env(env):
-        while isinstance(env, gym.Wrapper):
-            env = env.env
-        return env
-
-
-    env = unwrap_env(gym.make("ParallelContinuousCartPoleSwingUp-v0"))
+    env = cast(EmeiEnv, gym.make("ParallelContinuousCartPoleSwingUp-v0"))
     real_replay_buffer = ReplayBuffer(
         int(1e6), env.observation_space, env.action_space, "cpu", handle_timeout_termination=False
     )
-    load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=0.1)
+    load_offline_data(env, real_replay_buffer, "SAC-expert", use_ratio=1)
 
     input_variables = parse_space(env.state_space, "obs") + parse_space(env.action_space, "act")
     output_variables = parse_space(env.state_space, "next_obs")
 
     logger = logger_configure("kci-log", ["tensorboard", "stdout"])
 
-    mech = OracleMech(
-        "plain_mech",
-        input_variables,
-        output_variables,
-        logger=logger,
-    )
+    mech = OracleMech("plain_mech", input_variables, output_variables, logger=logger, device="cuda:1")
 
-    inputs, outputs = buffer_to_dict(env.observation_space, env.action_space, env.obs2state, real_replay_buffer,
-                                     "transition")
+    inputs, outputs = buffer_to_dict(env.observation_space, env.action_space, env.obs2state, real_replay_buffer, "transition")
 
     mech.learn(inputs, outputs)

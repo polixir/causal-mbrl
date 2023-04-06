@@ -9,17 +9,18 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 from torch.distributions.von_mises import _log_modified_bessel_fn
+from tqdm import tqdm
 
 from cmrl.utils.variables import Variable, ContinuousVariable, DiscreteVariable, BinaryVariable, RadianVariable
 
 
 def von_mises_nll_loss(
-        input: Tensor,
-        target: Tensor,
-        var: Tensor,
-        full: bool = False,
-        eps: float = 1e-6,
-        reduction: str = "mean",
+    input: Tensor,
+    target: Tensor,
+    var: Tensor,
+    full: bool = False,
+    eps: float = 1e-6,
+    reduction: str = "mean",
 ) -> Tensor:
     r"""Von Mises negative log likelihood loss.
 
@@ -59,12 +60,12 @@ def von_mises_nll_loss(
 
 
 def circular_gaussian_nll_loss(
-        input: Tensor,
-        target: Tensor,
-        var: Tensor,
-        full: bool = False,
-        eps: float = 1e-6,
-        reduction: str = "mean",
+    input: Tensor,
+    target: Tensor,
+    var: Tensor,
+    full: bool = False,
+    eps: float = 1e-6,
+    reduction: str = "mean",
 ) -> Tensor:
     # Entries of var must be non-negative
     if torch.any(var < 0):
@@ -77,7 +78,7 @@ def circular_gaussian_nll_loss(
 
     diff = torch.remainder(input - target, 2 * torch.pi)
     diff[diff > torch.pi] = 2 * torch.pi - diff[diff > torch.pi]
-    loss = 0.5 * (torch.log(var) + diff ** 2 / var)
+    loss = 0.5 * (torch.log(var) + diff**2 / var)
     if full:
         loss += 0.5 * math.log(2 * math.pi)
 
@@ -90,10 +91,10 @@ def circular_gaussian_nll_loss(
 
 
 def variable_loss_func(
-        outputs: Dict[str, torch.Tensor],
-        targets: Dict[str, torch.Tensor],
-        output_variables: List[Variable],
-        device: Union[str, torch.device] = "cpu",
+    outputs: Dict[str, torch.Tensor],
+    targets: Dict[str, torch.Tensor],
+    output_variables: List[Variable],
+    device: Union[str, torch.device] = "cpu",
 ):
     dims = list(outputs.values())[0].shape[:-1]
     total_loss = torch.zeros(*dims, len(outputs)).to(device)
@@ -121,14 +122,17 @@ def variable_loss_func(
             total_loss[..., i] = F.binary_cross_entropy(output, target, reduction="none")
         else:
             raise NotImplementedError
+
+        if torch.isnan(total_loss[..., i]).any():
+            raise ValueError(f"nan loss for {var.name}")
     return total_loss
 
 
 def train_func(
-        loader: DataLoader,
-        forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
-        optimizer: Optimizer,
-        loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
+    loader: DataLoader,
+    forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
+    optimizer: Optimizer,
+    loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
 ):
     """train for data
 
@@ -142,7 +146,7 @@ def train_func(
 
     """
     batch_loss_list = []
-    for inputs, targets in loader:
+    for inputs, targets in tqdm(loader, desc="train"):
         outputs = forward(inputs)
         loss = loss_func(outputs, targets)  # ensemble-num, batch-size, output-var-num
 
@@ -156,9 +160,9 @@ def train_func(
 
 
 def eval_func(
-        loader: DataLoader,
-        forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
-        loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
+    loader: DataLoader,
+    forward: Callable[[MutableMapping[str, torch.Tensor]], Dict[str, torch.Tensor]],
+    loss_func: Callable[[MutableMapping[str, torch.Tensor], MutableMapping[str, torch.Tensor]], torch.Tensor],
 ):
     """evaluate for data
 
@@ -172,7 +176,7 @@ def eval_func(
     """
     batch_loss_list = []
     with torch.no_grad():
-        for inputs, targets in loader:
+        for inputs, targets in tqdm(loader, desc="eval"):
             outputs = forward(inputs)
             loss = loss_func(outputs, targets)  # ensemble-num, batch-size, output-var-num
 

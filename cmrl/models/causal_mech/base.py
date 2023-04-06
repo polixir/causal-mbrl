@@ -4,6 +4,7 @@ from itertools import chain, count
 import pathlib
 from functools import partial
 import copy
+from multiprocessing import cpu_count
 
 import numpy as np
 import torch
@@ -31,11 +32,11 @@ class BaseCausalMech(ABC):
     """
 
     def __init__(
-            self,
-            name: str,
-            input_variables: List[Variable],
-            output_variables: List[Variable],
-            logger: Optional[Logger] = None,
+        self,
+        name: str,
+        input_variables: List[Variable],
+        output_variables: List[Variable],
+        logger: Optional[Logger] = None,
     ):
         self.name = name
         self.input_variables = input_variables
@@ -51,11 +52,11 @@ class BaseCausalMech(ABC):
 
     @abstractmethod
     def learn(
-            self,
-            inputs: MutableMapping[str, np.ndarray],
-            outputs: MutableMapping[str, np.ndarray],
-            work_dir: Optional[Union[str, pathlib.Path]] = None,
-            **kwargs
+        self,
+        inputs: MutableMapping[str, np.ndarray],
+        outputs: MutableMapping[str, np.ndarray],
+        work_dir: Optional[Union[str, pathlib.Path]] = None,
+        **kwargs
     ):
         raise NotImplementedError
 
@@ -67,8 +68,7 @@ class BaseCausalMech(ABC):
     def causal_graph(self) -> torch.Tensor:
         """property causal graph"""
         if self.graph is None:
-            return torch.ones(len(self.input_variables), len(self.output_variables), dtype=torch.int,
-                              device=self.device)
+            return torch.ones(len(self.input_variables), len(self.output_variables), dtype=torch.int, device=self.device)
         else:
             return self.graph.get_binary_adj_matrix()
 
@@ -81,31 +81,31 @@ class BaseCausalMech(ABC):
 
 class EnsembleNeuralMech(BaseCausalMech):
     def __init__(
-            self,
-            # base
-            name: str,
-            input_variables: List[Variable],
-            output_variables: List[Variable],
-            logger: Optional[Logger] = None,
-            # model learning
-            longest_epoch: int = -1,
-            improvement_threshold: float = 0.01,
-            patience: int = 5,
-            batch_size: int = 256,
-            # ensemble
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            # cfgs
-            network_cfg: Optional[DictConfig] = None,
-            encoder_cfg: Optional[DictConfig] = None,
-            decoder_cfg: Optional[DictConfig] = None,
-            optimizer_cfg: Optional[DictConfig] = None,
-            scheduler_cfg: Optional[DictConfig] = None,
-            # forward method
-            residual: bool = True,
-            encoder_reduction: str = "sum",
-            # others
-            device: Union[str, torch.device] = "cpu",
+        self,
+        # base
+        name: str,
+        input_variables: List[Variable],
+        output_variables: List[Variable],
+        logger: Optional[Logger] = None,
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
+        batch_size: int = 256,
+        # ensemble
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        # cfgs
+        network_cfg: Optional[DictConfig] = None,
+        encoder_cfg: Optional[DictConfig] = None,
+        decoder_cfg: Optional[DictConfig] = None,
+        optimizer_cfg: Optional[DictConfig] = None,
+        scheduler_cfg: Optional[DictConfig] = None,
+        # forward method
+        residual: bool = True,
+        encoder_reduction: str = "sum",
+        # others
+        device: Union[str, torch.device] = "cpu",
     ):
         BaseCausalMech.__init__(
             self, name=name, input_variables=input_variables, output_variables=output_variables, logger=logger
@@ -164,9 +164,9 @@ class EnsembleNeuralMech(BaseCausalMech):
         assert self.network, "you must build network first"
         assert self.variable_encoders and self.variable_decoders, "you must build coders first"
         params = (
-                [self.network.parameters()]
-                + [encoder.parameters() for encoder in self.variable_encoders.values()]
-                + [decoder.parameters() for decoder in self.variable_decoders.values()]
+            [self.network.parameters()]
+            + [encoder.parameters() for encoder in self.variable_encoders.values()]
+            + [decoder.parameters() for decoder in self.variable_decoders.values()]
         )
 
         self.optimizer = instantiate(self.optimizer_cfg)(params=chain(*params))
@@ -175,10 +175,9 @@ class EnsembleNeuralMech(BaseCausalMech):
     def forward(self, inputs: MutableMapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         batch_size, _ = self.get_inputs_batch_size(inputs)
 
-        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
-            self.device)
+        inputs_tensor = torch.zeros(self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(self.device)
         for i, var in enumerate(self.input_variables):
-            out = self.variable_encoders[var.name](inputs[var.name])
+            out = self.variable_encoders[var.name](inputs[var.name].to(self.device))
             inputs_tensor[:, :, i] = out
 
         output_tensor = self.network(self.reduce_encoder_output(inputs_tensor))
@@ -243,9 +242,9 @@ class EnsembleNeuralMech(BaseCausalMech):
         return batch_size, data_shape[:-3]
 
     def residual_outputs(
-            self,
-            inputs: MutableMapping[str, torch.Tensor],
-            outputs: MutableMapping[str, torch.Tensor],
+        self,
+        inputs: MutableMapping[str, torch.Tensor],
+        outputs: MutableMapping[str, torch.Tensor],
     ) -> MutableMapping[str, torch.Tensor]:
         for name in filter(lambda s: s.startswith("obs"), inputs.keys()):
             # assert inputs[name].shape[:2] == outputs["next_{}".format(name)].shape[:2]
@@ -255,9 +254,9 @@ class EnsembleNeuralMech(BaseCausalMech):
         return outputs
 
     def reduce_encoder_output(
-            self,
-            encoder_output: torch.Tensor,
-            mask: Optional[torch.Tensor] = None,
+        self,
+        encoder_output: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         assert len(encoder_output.shape) == 4, (
             "shape of `encoder_output` should be (ensemble-num, batch-size, input-var-num, encoder-output-dim), "
@@ -273,7 +272,7 @@ class EnsembleNeuralMech(BaseCausalMech):
 
         # mask shape [..., ensemble-num, batch-size, input-var-num]
         assert (
-                mask.shape[-3:] == encoder_output.shape[:-1]
+            mask.shape[-3:] == encoder_output.shape[:-1]
         ), "mask shape should be (..., ensemble-num, batch-size, input-var-num)"
 
         # [*mask-extra-dims, ensemble-num, batch-size, input-var-num, encoder-output-dim]
@@ -302,9 +301,9 @@ class EnsembleNeuralMech(BaseCausalMech):
         return self.causal_graph.T
 
     def get_data_loaders(
-            self,
-            inputs: MutableMapping[str, np.ndarray],
-            outputs: MutableMapping[str, np.ndarray],
+        self,
+        inputs: MutableMapping[str, np.ndarray],
+        outputs: MutableMapping[str, np.ndarray],
     ):
         train_set = EnsembleBufferDataset(
             inputs=inputs, outputs=outputs, training=True, train_ratio=0.8, ensemble_num=self.ensemble_num, seed=1
@@ -313,17 +312,17 @@ class EnsembleNeuralMech(BaseCausalMech):
             inputs=inputs, outputs=outputs, training=False, train_ratio=0.8, ensemble_num=self.ensemble_num, seed=1
         )
 
-        train_loader = DataLoader(train_set, batch_size=self.batch_size, collate_fn=collate_fn)
-        valid_loader = DataLoader(valid_set, batch_size=self.batch_size, collate_fn=collate_fn)
+        train_loader = DataLoader(train_set, batch_size=self.batch_size, collate_fn=collate_fn, num_workers=cpu_count())
+        valid_loader = DataLoader(valid_set, batch_size=self.batch_size, collate_fn=collate_fn, num_workers=cpu_count())
 
         return train_loader, valid_loader
 
     def learn(
-            self,
-            inputs: MutableMapping[str, np.ndarray],
-            outputs: MutableMapping[str, np.ndarray],
-            work_dir: Optional[Union[str, pathlib.Path]] = None,
-            **kwargs
+        self,
+        inputs: MutableMapping[str, np.ndarray],
+        outputs: MutableMapping[str, np.ndarray],
+        work_dir: Optional[Union[str, pathlib.Path]] = None,
+        **kwargs
     ):
         train_loader, valid_loader = self.get_data_loaders(inputs, outputs)
 
@@ -377,10 +376,10 @@ class EnsembleNeuralMech(BaseCausalMech):
         self.save(save_dir=work_dir)
 
     def _maybe_get_best_weights(
-            self,
-            best_val_loss: torch.Tensor,
-            val_loss: torch.Tensor,
-            threshold: float = 0.01,
+        self,
+        best_val_loss: torch.Tensor,
+        val_loss: torch.Tensor,
+        threshold: float = 0.01,
     ) -> Optional[Dict]:
         """Return the current model state dict  if the validation score improves.
         For ensembles, this checks the validation for each ensemble member separately.
