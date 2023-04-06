@@ -106,7 +106,9 @@ def variable_loss_func(
             dim = target.shape[-1]  # (xxx, ensemble-num, batch-size, dim)
             assert output.shape[-1] == 2 * dim
             mean, log_var = output[..., :dim], output[..., dim:]
-            loss = F.gaussian_nll_loss(mean, target, log_var.exp(), reduction="none", full=True).mean(dim=-1)
+            # clip log_var to avoid nan loss
+            log_var = torch.clamp(log_var, min=-10, max=10)
+            loss = F.gaussian_nll_loss(mean, target, log_var.exp(), reduction="none", full=True, eps=1e-4).mean(dim=-1)
             total_loss[..., i] = loss
         elif isinstance(var, RadianVariable):
             dim = target.shape[-1]  # (xxx, ensemble-num, batch-size, dim)
@@ -117,14 +119,15 @@ def variable_loss_func(
         elif isinstance(var, DiscreteVariable):
             # TODO: onehot to int?
             raise NotImplementedError
-            total_loss[..., i] = F.cross_entropy(output, target, reduction="none")
         elif isinstance(var, BinaryVariable):
             total_loss[..., i] = F.binary_cross_entropy(output, target, reduction="none")
         else:
             raise NotImplementedError
 
         if torch.isnan(total_loss[..., i]).any():
-            raise ValueError(f"nan loss for {var.name}")
+            raise ValueError(f"nan loss for {var.name} ({type(var)})")
+        elif torch.isinf(total_loss[..., i]).any():
+            raise ValueError(f"inf loss for {var.name} ({type(var)})")
     return total_loss
 
 
@@ -146,15 +149,18 @@ def train_func(
 
     """
     batch_loss_list = []
-    for inputs, targets in tqdm(loader, desc="train"):
-        outputs = forward(inputs)
-        loss = loss_func(outputs, targets)  # ensemble-num, batch-size, output-var-num
+    with tqdm(loader) as pbar:
+        for inputs, targets in loader:
+            outputs = forward(inputs)
+            loss = loss_func(outputs, targets)  # ensemble-num, batch-size, output-var-num
 
-        optimizer.zero_grad()
-        loss.mean().backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.mean().backward()
+            optimizer.step()
+            batch_loss_list.append(loss)
 
-        batch_loss_list.append(loss)
+            pbar.set_description(f"train loss: {loss.mean().item():.4f}")
+            pbar.update()
 
     return torch.cat(batch_loss_list, dim=-2).detach().cpu()
 
@@ -176,9 +182,12 @@ def eval_func(
     """
     batch_loss_list = []
     with torch.no_grad():
-        for inputs, targets in tqdm(loader, desc="eval"):
-            outputs = forward(inputs)
-            loss = loss_func(outputs, targets)  # ensemble-num, batch-size, output-var-num
+        with tqdm(loader) as pbar:
+            for inputs, targets in loader:
+                outputs = forward(inputs)
+                loss = loss_func(outputs, targets)  # ensemble-num, batch-size, output-var-num
+                batch_loss_list.append(loss)
 
-            batch_loss_list.append(loss)
+                pbar.set_description(f"eval loss: {loss.mean().item():.4f}")
+                pbar.update()
     return torch.cat(batch_loss_list, dim=-2).detach().cpu()
