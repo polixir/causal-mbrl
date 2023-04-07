@@ -10,9 +10,9 @@ from cmrl.algorithms.util import maybe_load_offline_model
 
 class MOPO(BaseAlgorithm):
     def __init__(
-            self,
-            cfg: DictConfig,
-            work_dir: Optional[str] = None,
+        self,
+        cfg: DictConfig,
+        work_dir: Optional[str] = None,
     ):
         super(MOPO, self).__init__(cfg, work_dir)
 
@@ -29,7 +29,7 @@ class MOPO(BaseAlgorithm):
 
         existed_trained_model = maybe_load_offline_model(self.dynamics, self.cfg, work_dir=self.work_dir)
 
-        if not existed_trained_model:
+        if not existed_trained_model and self.cfg.task.get("auto_load_offline_model", False):
             self.dynamics.learn(
                 real_replay_buffer=self.real_replay_buffer,
                 work_dir=self.work_dir,

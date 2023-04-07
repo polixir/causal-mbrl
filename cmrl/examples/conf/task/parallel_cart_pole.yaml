@@ -16,7 +16,7 @@ extra_variable_info:
     - "obs_9"
 
 # basic RL params
-num_steps: 3000000
+num_steps: 10000000
 online_num_steps: 10000
 n_eval_episodes: 5
 eval_freq: 10000

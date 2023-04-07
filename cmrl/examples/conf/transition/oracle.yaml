@@ -42,7 +42,7 @@ scheduler_cfg:
   _partial_: true
   _target_: torch.optim.lr_scheduler.StepLR
   step_size: 1
-  gamma: 1
+  gamma: 0.9
 
 mech:
   _partial_: true

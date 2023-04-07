@@ -18,9 +18,9 @@ from cmrl.utils.env import make_env
 
 class BaseAlgorithm:
     def __init__(
-            self,
-            cfg: DictConfig,
-            work_dir: Optional[str] = None,
+        self,
+        cfg: DictConfig,
+        work_dir: Optional[str] = None,
     ):
         self.cfg = cfg
         self.work_dir = work_dir or os.getcwd()
@@ -32,7 +32,10 @@ class BaseAlgorithm:
         np.random.seed(self.cfg.seed)
         torch.manual_seed(self.cfg.seed)
 
-        self.logger = logger_configure("log", ["tensorboard", "multi_csv", "stdout"])
+        format_strings = ["tensorboard", "multi_csv"]
+        if self.cfg.verbose:
+            format_strings += ["stdout"]
+        self.logger = logger_configure("log", format_strings)
 
         if cfg.wandb:
             wandb.init(
@@ -43,12 +46,9 @@ class BaseAlgorithm:
             )
 
         # create ``cmrl`` dynamics
-        self.dynamics = create_dynamics(self.cfg,
-                                        self.env.state_space,
-                                        self.env.action_space,
-                                        self.obs2state_fn,
-                                        self.state2obs_fn,
-                                        logger=self.logger)
+        self.dynamics = create_dynamics(
+            self.cfg, self.env.state_space, self.env.action_space, self.obs2state_fn, self.state2obs_fn, logger=self.logger
+        )
 
         if self.cfg.transition.name == "oracle_transition":
             graph = self.env.get_transition_graph() if self.cfg.transition.oracle == "truth" else None
@@ -95,9 +95,7 @@ class BaseAlgorithm:
     @property
     def callback(self) -> BaseCallback:
         fake_eval_env = self.partial_fake_env(
-            deterministic=True,
-            max_episode_steps=self.env.spec.max_episode_steps,
-            branch_rollout=False
+            deterministic=True, max_episode_steps=self.env.spec.max_episode_steps, branch_rollout=False
         )
         return EvalCallback(
             self.eval_env,
