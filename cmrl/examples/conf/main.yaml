@@ -10,8 +10,8 @@ seed: 0
 device: "cpu"
 
 exp_name: default
-wandb: true
-verbose: true
+wandb: false
+verbose: false
 
 root_dir: "./exp"
 hydra:

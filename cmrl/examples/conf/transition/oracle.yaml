@@ -42,7 +42,7 @@ scheduler_cfg:
   _partial_: true
   _target_: torch.optim.lr_scheduler.StepLR
   step_size: 1
-  gamma: 0.9
+  gamma: 0.8
 
 mech:
   _partial_: true
@@ -65,6 +65,7 @@ mech:
   encoder_cfg: ${transition.encoder_cfg}
   decoder_cfg: ${transition.decoder_cfg}
   optimizer_cfg: ${transition.optimizer_cfg}
+  scheduler_cfg: ${transition.scheduler_cfg}
   # forward method
   residual: true
   # logger

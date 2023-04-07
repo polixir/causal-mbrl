@@ -18,8 +18,10 @@ class OfflineDyna(BaseAlgorithm):
     def _setup_learn(self):
         load_offline_data(self.env, self.real_replay_buffer, self.cfg.task.dataset, self.cfg.task.use_ratio)
 
-        existed_trained_model = maybe_load_offline_model(self.dynamics, self.cfg, work_dir=self.work_dir)
-
+        if self.cfg.task.get("auto_load_offline_model", False):
+            existed_trained_model = maybe_load_offline_model(self.dynamics, self.cfg, work_dir=self.work_dir)
+        else:
+            existed_trained_model = None
         if not existed_trained_model:
             self.dynamics.learn(
                 real_replay_buffer=self.real_replay_buffer,

@@ -18,29 +18,29 @@ from cmrl.models.causal_mech.util import variable_loss_func, train_func, eval_fu
 
 class CMITestMech(EnsembleNeuralMech):
     def __init__(
-            self,
-            name: str,
-            input_variables: List[Variable],
-            output_variables: List[Variable],
-            logger: Optional[Logger] = None,
-            # model learning
-            longest_epoch: int = -1,
-            improvement_threshold: float = 0.01,
-            patience: int = 5,
-            batch_size: int = 256,
-            # ensemble
-            ensemble_num: int = 7,
-            elite_num: int = 5,
-            # cfgs
-            network_cfg: Optional[DictConfig] = None,
-            encoder_cfg: Optional[DictConfig] = None,
-            decoder_cfg: Optional[DictConfig] = None,
-            optimizer_cfg: Optional[DictConfig] = None,
-            # forward method
-            residual: bool = True,
-            encoder_reduction: str = "sum",
-            # others
-            device: Union[str, torch.device] = "cpu",
+        self,
+        name: str,
+        input_variables: List[Variable],
+        output_variables: List[Variable],
+        logger: Optional[Logger] = None,
+        # model learning
+        longest_epoch: int = -1,
+        improvement_threshold: float = 0.01,
+        patience: int = 5,
+        batch_size: int = 256,
+        # ensemble
+        ensemble_num: int = 7,
+        elite_num: int = 5,
+        # cfgs
+        network_cfg: Optional[DictConfig] = None,
+        encoder_cfg: Optional[DictConfig] = None,
+        decoder_cfg: Optional[DictConfig] = None,
+        optimizer_cfg: Optional[DictConfig] = None,
+        # forward method
+        residual: bool = True,
+        encoder_reduction: str = "sum",
+        # others
+        device: Union[str, torch.device] = "cpu",
     ):
         EnsembleNeuralMech.__init__(
             self,
@@ -97,8 +97,7 @@ class CMITestMech(EnsembleNeuralMech):
         """
         batch_size, extra_dim = self.get_inputs_info(inputs)
 
-        inputs_tensor = torch.empty(*extra_dim, self.ensemble_num, batch_size, self.input_var_num,
-                                    self.encoder_output_dim).to(
+        inputs_tensor = torch.empty(*extra_dim, self.ensemble_num, batch_size, self.input_var_num, self.encoder_output_dim).to(
             self.device
         )
         for i, var in enumerate(self.input_variables):
@@ -146,7 +145,7 @@ class CMITestMech(EnsembleNeuralMech):
         mask = mask.repeat((1,) * len(mask.shape[:-3]) + (self.ensemble_num, batch_size, 1))
         reduced_inputs_tensor = self.reduce_encoder_output(inputs_tensor, mask)
         assert (
-                not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
+            not torch.isinf(reduced_inputs_tensor).any() and not torch.isnan(reduced_inputs_tensor).any()
         ), "tensor must not be inf or nan"
         output_tensor = self.network(reduced_inputs_tensor)
 
@@ -165,11 +164,11 @@ class CMITestMech(EnsembleNeuralMech):
         return graph_data, nll_loss_diff.mean(dim=(1, 2))
 
     def learn(
-            self,
-            inputs: MutableMapping[str, np.ndarray],
-            outputs: MutableMapping[str, np.ndarray],
-            work_dir: Optional[pathlib.Path] = None,
-            **kwargs
+        self,
+        inputs: MutableMapping[str, np.ndarray],
+        outputs: MutableMapping[str, np.ndarray],
+        work_dir: Optional[pathlib.Path] = None,
+        **kwargs
     ):
         work_dir = pathlib.Path(".") if work_dir is None else work_dir
 
@@ -228,6 +227,7 @@ class CMITestMech(EnsembleNeuralMech):
                 break
 
             self.scheduler.step()
+            print(self.optimizer)
 
         assert final_graph_data is not None
         self.graph.set_data(final_graph_data)
@@ -248,12 +248,10 @@ if __name__ == "__main__":
     from cmrl.utils.env import load_offline_data
     from cmrl.models.causal_mech.util import variable_loss_func
 
-
     def unwrap_env(env):
         while isinstance(env, gym.Wrapper):
             env = env.env
         return env
-
 
     env = unwrap_env(gym.make("ParallelContinuousCartPoleSwingUp-v0"))
     real_replay_buffer = ReplayBuffer(
