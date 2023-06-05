@@ -17,9 +17,9 @@ from stable_baselines3.common.callbacks import EvalCallback
 import cmrl
 import cmrl.agent
 import cmrl.models
-import cmrl.util.creator
-from cmrl.util.config import load_hydra_cfg
-from cmrl.util.env import make_env
+import cmrl.utils.creator
+from cmrl.utils.config import load_hydra_cfg
+from cmrl.utils.env import make_env
 
 
 class Runner:
@@ -34,7 +34,7 @@ class Runner:
 
         self.dynamics = cmrl.util.creator.create_dynamics(
             self.cfg.dynamics,
-            self.env.observation_space.shape,
+            self.env.state_space.shape,
             self.env.action_space.shape,
             load_dir=self.model_path,
             load_device=device,
@@ -61,7 +61,7 @@ class Runner:
         self.agent = agent_class.load(self.model_path / "best_model")
 
     def run(self):
-        # from emei.util import random_policy_test
+        # from emei.utils import random_policy_test
         obs = self.fake_eval_env.reset()
         if self.render:
             self.fake_eval_env.render()

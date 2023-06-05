@@ -1,0 +1,62 @@
+name: "oracle_termination_mech"
+learn: false
+discovery: false
+
+encoder_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.VariableEncoder
+  output_dim: 100
+  hidden_dims: [ 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+decoder_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.VariableDecoder
+  input_dim: 100
+  hidden_dims: [ 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+network_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.ParallelMLP
+  hidden_dims: [ 200, 200 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+optimizer_cfg:
+  _partial_: true
+  _target_: torch.optim.Adam
+  lr: 1e-4
+  weight_decay: 1e-5
+  eps: 1e-8
+
+mech:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.causal_mech.OracleMech
+  # base causal-mech params
+  name: termination_mech
+  input_variables: ???
+  output_variables: ???
+  ensemble_num: 7
+  elite_num: 5
+  # cfgs
+  network_cfg: ${transition.network_cfg}
+  encoder_cfg: ${transition.encoder_cfg}
+  decoder_cfg: ${transition.decoder_cfg}
+  optimizer_cfg: ${transition.optimizer_cfg}
+  # forward method
+  residual: true
+  multi_step: "none"
+  # logger
+  logger: ???
+  # others
+  device: ${device}

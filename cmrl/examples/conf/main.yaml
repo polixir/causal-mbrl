@@ -1,20 +1,23 @@
 defaults:
   - algorithm: off_dyna
-  - dynamics: constraint_based_dynamics
-  - task: BIPS
+  - task: continuous_cart_pole_swingup
+  - transition: oracle
+  - reward_mech: oracle
+  - termination_mech: oracle
   - _self_
 
 seed: 0
-device: "cuda:0"
+device: "cpu"
 
 exp_name: default
 wandb: false
+verbose: false
 
 root_dir: "./exp"
 hydra:
   run:
-    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+    dir: ${root_dir}/${exp_name}/${task.env_id}/${to_str:${task.params}}/${task.dataset}/${now:%Y.%m.%d.%H%M%S}
   sweep:
-    dir: ${root_dir}/${exp_name}/${task.env}/${dynamics.name}/${now:%Y.%m.%d}/${now:%H.%M.%S}
+    dir: ${root_dir}/${exp_name}/${task.env_id}/${to_str:${task.params}}/${task.dataset}/${now:%Y.%m.%d.%H%M%S}
   job:
     chdir: true

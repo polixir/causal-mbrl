@@ -1,4 +1,4 @@
-![](/img/cmrl_logo.png)
+![](/docs/cmrl_logo.png)
 
 # Causal-MBRL
 
@@ -10,7 +10,7 @@
 <a href="https://www.python.org/downloads/release/python-380/"><img src="https://img.shields.io/badge/python-3.8-brightgreen"></a>
 
 `cmrl`(short for `Causal-MBRL`) is a toolbox for facilitating the development of Causal Model-based Reinforcement
-learning algorithms. It use [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3) as model-free engine and
+learning algorithms. It uses [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3) as model-free engine and
 allows flexible use of causal models.
 
 `cmrl` is inspired by [MBRL-Lib](https://github.com/facebookresearch/mbrl-lib). Unlike MBRL-Lib, `cmrl` focuses on the
@@ -111,18 +111,44 @@ cd causal-mbrl
 # create conda env
 conda create -n cmrl python=3.8
 conda activate cmrl
+# install torch
+conda install pytorch -c pytorch
 # install cmrl and its dependent packages
 pip install -e .
 ```
 
-If there is no `cuda` in your device, it's convenient to install `cuda` and `pytorch` from conda directly (refer
-to [pytorch](https://pytorch.org/get-started/locally/)):
+for pytorch
 
-````shell
-# for example, in the case of cuda=11.3
-conda install pytorch cudatoolkit=11.3 -c pytorch
-````
+```shell
+# for MacOS
+conda install pytorch -c pytorch
+# for Linux
+conda install pytorch pytorch-cuda=11.6 -c pytorch -c nvidia
+```
 
+for KCIT and RCIT
+
+```shell
+conda install -c conda-forge r-base
+conda install -c conda-forge r-devtools
+R
+```
+
+```shell
+# Install the RCIT from Github. 
+install.packages("devtools")
+library(devtools)
+install_github("ericstrobl/RCIT")
+library(RCIT)
+
+# Install R libraries for RCIT
+install.packages("MASS")
+install.packages("momentchi2")
+install.packages("devtools")
+
+# test RCIT
+RCIT(rnorm(1000),rnorm(1000),rnorm(1000))
+```
 ## install using pip
 
 coming soon.

@@ -1,0 +1,81 @@
+name: "reinforce_transition"
+learn: true
+discovery: true
+
+encoder_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.VariableEncoder
+  output_dim: 100
+  hidden_dims: [ 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+decoder_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.VariableDecoder
+  input_dim: 100
+  hidden_dims: [ 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+network_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.ParallelMLP
+  hidden_dims: [ 200, 200 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+optimizer_cfg:
+  _partial_: true
+  _target_: torch.optim.Adam
+  lr: 1e-4
+  weight_decay: 1e-5
+  eps: 1e-8
+
+graph_optimizer_cfg:
+  _partial_: true
+  _target_: torch.optim.Adam
+  lr: 1e-3
+  weight_decay: 0.0
+  eps: 1e-8
+
+mech:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.causal_mech.ReinforceCausalMech
+  # base causal-mech params
+  name: transition
+  input_variables: ???
+  output_variables: ???
+  # model learning
+  patience: 5
+  longest_epoch: -1
+  improvement_threshold: 0.01
+  # ensemble
+  ensemble_num: 7
+  elite_num: 5
+  # cfgs
+  network_cfg: ${transition.network_cfg}
+  encoder_cfg: ${transition.encoder_cfg}
+  decoder_cfg: ${transition.decoder_cfg}
+  optimizer_cfg: ${transition.optimizer_cfg}
+  graph_optimizer_cfg: ${transition.graph_optimizer_cfg}
+  # graph params
+  concat_mask: true
+  graph_MC_samples: 20
+  graph_max_stack: 20
+  lambda_sparse: 5e-2
+  # forward method
+  residual: true
+  encoder_reduction: "sum"
+  multi_step: "forward-euler 1"
+  # logger
+  logger: ???
+  # others
+  device: ${device}

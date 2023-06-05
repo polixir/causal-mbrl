@@ -1,54 +1,135 @@
 from unittest import TestCase
 
 import torch
+from torch.nn import Linear
 
-from cmrl.models.layers import EnsembleLinearLayer, ParallelEnsembleLinearLayer
-
-
-class TestParallelEnsembleLinearLayer(TestCase):
-    def setUp(self) -> None:
-        self.in_size = 5
-        self.out_size = 6
-        self.use_bias = True
-        self.parallel_num = 3
-        self.ensemble_num = 4
-        self.batch_size = 128
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.layer = ParallelEnsembleLinearLayer(
-            in_size=self.in_size,
-            out_size=self.out_size,
-            use_bias=self.use_bias,
-            parallel_num=self.parallel_num,
-            ensemble_num=self.ensemble_num,
-        ).to(self.device)
-
-    def test_forward(self):
-        model_in = torch.rand((self.parallel_num, self.ensemble_num, self.batch_size, self.in_size)).to(self.device)
-        model_out = self.layer(model_in)
-        assert model_out.shape == (
-            self.parallel_num,
-            self.ensemble_num,
-            self.batch_size,
-            self.out_size,
-        )
+from cmrl.models.layers import ParallelLinear
 
 
-class TestEnsembleLinearLayer(TestCase):
-    def setUp(self) -> None:
-        self.in_size = 5
-        self.out_size = 6
-        self.use_bias = True
-        self.ensemble_num = 4
-        self.batch_size = 128
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.layer = EnsembleLinearLayer(
-            in_size=self.in_size,
-            out_size=self.out_size,
-            use_bias=self.use_bias,
-            ensemble_num=self.ensemble_num,
-        ).to(self.device)
+def test_origin_layer():
+    input_dim = 5
+    output_dim = 6
+    bias = True
+    batch_size = 128
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    def test_forward(self):
-        model_in = torch.rand((self.ensemble_num, self.batch_size, self.in_size)).to(self.device)
-        model_out = self.layer(model_in)
-        assert model_out.shape == (self.ensemble_num, self.batch_size, self.out_size)
+    layer = ParallelLinear(
+        input_dim=input_dim,
+        output_dim=output_dim,
+        bias=bias,
+    ).to(device)
+
+    model_in = torch.rand((batch_size, input_dim)).to(device)
+    model_out = layer(model_in)
+    assert model_out.shape == (
+        batch_size,
+        output_dim,
+    )
+
+
+def test_one_extra_dims_linear():
+    input_dim = 5
+    output_dim = 6
+    bias = True
+    extra_dims = [7]
+    batch_size = 128
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    layer = ParallelLinear(
+        input_dim=input_dim,
+        output_dim=output_dim,
+        bias=bias,
+        extra_dims=extra_dims,
+    ).to(device)
+
+    model_in = torch.rand((*extra_dims, batch_size, input_dim)).to(device)
+    model_out = layer(model_in)
+    assert model_out.shape == (
+        extra_dims[0],
+        batch_size,
+        output_dim,
+    )
+
+
+def test_two_extra_dims_linear():
+    input_dim = 5
+    output_dim = 1
+    bias = True
+    extra_dims = [6, 7]
+    batch_size = 128
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    layer = ParallelLinear(
+        input_dim=input_dim,
+        output_dim=output_dim,
+        bias=bias,
+        extra_dims=extra_dims,
+    ).to(device)
+
+    model_in = torch.rand((*extra_dims, batch_size, input_dim)).to(device)
+    model_out = layer(model_in)
+    assert model_out.shape == (
+        extra_dims[0],
+        extra_dims[1],
+        batch_size,
+        output_dim,
+    )
+
+
+def test_broadcast_two_extra_dims_linear():
+    input_dim = 5
+    output_dim = 1
+    bias = True
+    extra_dims = [6, 7]
+    batch_size = 128
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    layer = ParallelLinear(
+        input_dim=input_dim,
+        output_dim=output_dim,
+        bias=bias,
+        extra_dims=extra_dims,
+    ).to(device)
+
+    broadcast_dim = 10
+
+    model_in = torch.rand((broadcast_dim, *extra_dims, batch_size, input_dim)).to(device)
+    model_out = layer(model_in)
+    assert model_out.shape == (
+        broadcast_dim,
+        extra_dims[0],
+        extra_dims[1],
+        batch_size,
+        output_dim,
+    )
+
+
+def test_broadcast_linear():
+    input_dim = 5
+    output_dim = 1
+    bias = True
+    batch_size = 128
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    layer = Linear(input_dim, output_dim, bias=bias).to(device)
+
+    broadcast_dim = 10
+
+    model_in = torch.rand((broadcast_dim, batch_size, input_dim)).to(device)
+    model_out = layer(model_in)
+    assert model_out.shape == (
+        broadcast_dim,
+        batch_size,
+        output_dim,
+    )
+
+
+def test_repr():
+    layer = ParallelLinear(3, 5)
+    print(repr(layer))
+    assert True
+
+
+def test_device():
+    layer = ParallelLinear(3, 5).to("cpu")
+    assert str(layer.device) == "cpu"
