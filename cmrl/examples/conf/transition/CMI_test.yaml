@@ -1,0 +1,74 @@
+name: "CMI_test_transition"
+learn: true
+
+encoder_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.VariableEncoder
+  output_dim: 200
+  hidden_dims: [ 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+decoder_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.VariableDecoder
+  input_dim: 100
+  hidden_dims: [ 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+network_cfg:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.networks.ParallelMLP
+  hidden_dims: [ 100, 100 ]
+  bias: true
+  activation_fn_cfg:
+    _target_: torch.nn.SiLU
+
+optimizer_cfg:
+  _partial_: true
+  _target_: torch.optim.Adam
+  lr: 1e-4
+  weight_decay: 1e-5
+  eps: 1e-8
+
+scheduler_cfg:
+  _partial_: true
+  _target_: torch.optim.lr_scheduler.StepLR
+  step_size: 1
+  gamma: 1
+
+mech:
+  _partial_: true
+  _recursive_: false
+  _target_: cmrl.models.causal_mech.CMITestMEch
+  # base causal-mech params
+  name: transition
+  input_variables: ???
+  output_variables: ???
+  # model learning
+  patience: 5
+  longest_epoch: -1
+  improvement_threshold: 0.01
+  batch_size: 256
+  # ensemble
+  ensemble_num: 7
+  elite_num: 5
+  # cfgs
+  network_cfg: ${transition.network_cfg}
+  encoder_cfg: ${transition.encoder_cfg}
+  decoder_cfg: ${transition.decoder_cfg}
+  optimizer_cfg: ${transition.optimizer_cfg}
+  scheduler_cfg: ${transition.scheduler_cfg}
+  # forward method
+  residual: true
+  encoder_reduction: "sum"
+  # logger
+  logger: ???
+  # others
+  device: ${device}

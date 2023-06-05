@@ -1,0 +1,43 @@
+# env parameters
+env_id: "HopperRunning-v0"
+
+params:
+  freq_rate: 1
+  real_time_scale: 0.01
+  integrator: "euler"
+
+dataset: "SAC-medium"
+
+# basic RL params
+num_steps: 10000000
+online_num_steps: 10000
+epoch_length: 10000
+n_eval_episodes: 8
+eval_freq: 100
+
+# dynamics
+learning_reward: false
+learning_terminal: false
+ensemble_num: 7
+elite_num: 5
+multi_step: "none"
+
+# conditional mutual information test(causal discovery)
+oracle: true
+cit_threshold: 0.02
+test_freq: 100
+# causal
+update_causal_mask_ratio: 0.25
+discovery_schedule: [ 1, 30, 250, 250 ]
+
+# offline
+penalty_coeff: 1.0
+use_ratio: 1
+
+# dyna
+freq_train_model: 100
+
+# model learning
+patience: 10
+longest_epoch: -1
+improvement_threshold: 0.01

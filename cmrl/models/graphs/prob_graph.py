@@ -1,11 +1,12 @@
 from abc import abstractmethod
-import math
 from typing import Union, Tuple, Optional
 
 import torch
-import torch.nn as nn
+import numpy as np
+import torch.nn.functional as F
 
 from cmrl.models.graphs.base_graph import BaseGraph
+from cmrl.models.graphs.weight_graph import WeightGraph
 
 
 class BaseProbGraph(BaseGraph):
@@ -13,12 +14,14 @@ class BaseProbGraph(BaseGraph):
 
     All classes derived from `BaseProbGraph` must implement the following additional methods:
 
-        - ``sample``: sample graphs from given (or current) graph probability.
+        - ``sample``: sample graphs from current (or given) graph probability.
     """
 
     @abstractmethod
-    def sample(self, graph: Optional[torch.Tensor], sample_size: Union[Tuple[int], int], *args, **kwargs) -> torch.Tensor:
-        """sample from given or current graph probability.
+    def sample(
+        self, prob_matrix: Optional[torch.Tensor], sample_size: Union[Tuple[int], int], *args, **kwargs
+    ) -> torch.Tensor:
+        """sample from given or current probability adjacency matrix.
 
         Args:
             graph (tensor), graph probability, use current graph parameter when given `None`.
@@ -30,57 +33,62 @@ class BaseProbGraph(BaseGraph):
         pass
 
 
-class BernoulliGraph(BaseProbGraph):
-    """Probability (Bernoulli dist.) modeled graphs, store the graph with the
-        probability parameter of the existence/orientation of edges.
+class BernoulliGraph(WeightGraph, BaseProbGraph):
+    """Probability (Bernoulli dist.) graph models, store the graph with the
+        probability parameter of the existence of edges.
 
     Args:
         in_dim (int): input dimension.
         out_dim (int): output dimension.
-        init_param (float or torch.Tensor): initial parameter of the graph
-            (sigmoid(init_param) representing the initial edge probabilities).
-        device (str or torch.device): device to use for the structural parameters.
+        extra_dim (int | tuple(int) | None): extra dimensions (multi-graph).
+        include_input (bool): whether inlcude input variables in the output variables.
+        init_param (int | Tensor | ndarray): initial parameter of the bernoulli graph。
+        requires_grad (bool): whether the graph parameters require gradient computation.
+        device (str or torch.device): device to use for the graph parameters.
     """
+
+    _MASK_VALUE = -9e15
 
     def __init__(
         self,
         in_dim: int,
         out_dim: int,
-        init_param: Union[float, torch.Tensor] = 1e-6,
+        extra_dim: Optional[Union[int, Tuple[int]]] = None,
+        include_input: bool = False,
+        init_param: Union[float, torch.Tensor, np.ndarray] = 1e-6,
+        requires_grad: bool = False,
         device: Union[str, torch.device] = "cpu",
         *args,
         **kwargs
-    ):
-        super().__init__(in_dim, out_dim, device, *args, **kwargs)
+    ) -> None:
+        super().__init__(
+            in_dim=in_dim,
+            out_dim=out_dim,
+            extra_dim=extra_dim,
+            include_input=include_input,
+            init_param=init_param,
+            requires_grad=requires_grad,
+            device=device,
+            *args,
+            **kwargs
+        )
 
-        if isinstance(init_param, float):
-            init_param = torch.ones(in_dim, out_dim) * init_param
-        self.graph = nn.Parameter(init_param, requires_grad=True)
-
-        self.to(device)
-
-    def forward(self, *args, **kwargs) -> Tuple[torch.Tensor, ...]:
-        """Computes the graph parameters.
-
-        Returns:
-            (tuple of tensors): all tensors representing the output
-                graph (e.g. existence and orientation)
-        """
+    def get_adj_matrix(self, *args, **kwargs) -> torch.Tensor:
         return torch.sigmoid(self.graph)
 
-    def get_binary_graph(self, thresh: float = 0.5) -> torch.Tensor:
-        """Gets the binary graph.
+    def get_binary_adj_matrix(self, threshold: float = 0.5, *args, **kwargs) -> torch.Tensor:
+        assert 0 <= threshold <= 1, "threshold of bernoulli graph should be in [0, 1]"
 
-        Returns:
-            (tensor): the binary graph tensor, shape [in_dim, out_dim];
-            graph[i, j] == 1 represents i causes j
-        """
-        assert 0 <= thresh <= 1
+        return super().get_binary_adj_matrix(threshold, *args, **kwargs)
 
-        prob_graph = self()
-        return prob_graph > thresh
-
-    def sample(self, graph: Optional[torch.Tensor], sample_size: Union[Tuple[int], int], *args, **kwargs):
+    def sample(
+        self,
+        prob_matrix: Optional[torch.Tensor],
+        sample_size: Union[Tuple[int], int],
+        reparameterization: Optional[str] = None,
+        *args,
+        **kwargs
+    ):
         """sample from given or current graph probability (Bernoulli distribution).
 
         Args:
@@ -88,14 +96,19 @@ class BernoulliGraph(BaseProbGraph):
             sample_size (tuple(int) or int), extra size of sampled graphs.
 
         Return:
-            (tensor): [*sample_size, in_dim, out_dim] shaped multiple graphs.
+            (tensor): [*sample_size, *extra_dim, in_dim, out_dim] shaped multiple graphs.
         """
-        if graph is None:
-            graph = self()
+        if prob_matrix is None:
+            prob_matrix = self.get_adj_matrix()
 
         if isinstance(sample_size, int):
             sample_size = (sample_size,)
 
-        sample_prob = graph[None].expand(*sample_size, -1, -1)
+        sample_prob = prob_matrix[None].expand(*sample_size, *((-1,) * len(prob_matrix.shape)))
 
-        return torch.bernoulli(sample_prob)
+        if reparameterization is None:
+            return torch.bernoulli(sample_prob)
+        elif reparameterization == "gumbel-softmax":
+            return F.gumbel_softmax(torch.stack((sample_prob, 1 - sample_prob)), hard=True, dim=0)[0]
+        else:
+            raise NotImplementedError

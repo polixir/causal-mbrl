@@ -10,8 +10,8 @@ from stable_baselines3.common.base_class import BaseAlgorithm
 import cmrl
 import cmrl.agent
 import cmrl.models
-from cmrl.util.config import load_hydra_cfg
-from cmrl.util.env import make_env
+from cmrl.utils.config import load_hydra_cfg
+from cmrl.utils.env import make_env
 
 
 class Runner:
@@ -26,7 +26,7 @@ class Runner:
         self.agent = agent_class.load(self.agent_dir / "best_model")
 
     def run(self):
-        # from emei.util import random_policy_test
+        # from emei.utils import random_policy_test
         obs = self.env.reset()
         self.env.render()
         total_reward = 0

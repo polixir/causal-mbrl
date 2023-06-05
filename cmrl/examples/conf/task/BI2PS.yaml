@@ -1,5 +1,12 @@
-env: "emei___BoundaryInvertedDoublePendulumSwingUp-v0___freq_rate=1&time_step=0.02___${task.dataset}"
-dataset: "expert-replay"
+# env parameters
+env_id: "BoundaryInvertedDoublePendulumSwingUp-v0"
+
+params:
+  freq_rate: 1
+  real_time_scale: 0.02
+  integrator: "euler"
+
+dataset: "SAC-expert-replay"
 
 # basic RL params
 num_steps: 1000000

@@ -2,7 +2,6 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
-
 def parse_requirements_file(path):
     return [line.rstrip() for line in open(path, "r")]
 
@@ -25,7 +24,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/FrankTianTT/causal-mbrl",
-    packages=find_packages(),
+    packages=[package for package in find_packages() if package.startswith("cmrl")],
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",

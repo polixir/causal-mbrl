@@ -11,20 +11,14 @@ import matplotlib.pylab as plt
 import numpy as np
 from matplotlib.widgets import Button, RadioButtons, Slider
 
-import cmrl.util.creator
-import cmrl.util.env
-from cmrl.util.config import load_hydra_cfg
+import cmrl.utils.creator
+import cmrl.utils.env
+from cmrl.utils.config import load_hydra_cfg
+from cmrl.utils.creator import create_dynamics, create_agent
+from cmrl.models.fake_env import get_penalty
 
-mpl.use("Qt5Agg")
+mpl.use("TKAgg")
 SIN_COS_BINDINGS = {"BoundaryInvertedPendulumSwingUp-v0": [1]}
-
-
-def calculate_penalty(ensemble_mean):
-    avg_ensemble_mean = np.mean(ensemble_mean, axis=0)  # average predictions over models
-    diffs = ensemble_mean - avg_ensemble_mean
-    dists = np.linalg.norm(diffs, axis=2)  # distance in obs space
-    penalty = np.max(dists, axis=0)  # max distances over models
-    return penalty
 
 
 def set_ylim(y_min, y_max, ax):
@@ -73,25 +67,30 @@ class DatasetEvaluator:
 
         self.cfg = load_hydra_cfg(self.model_path)
         self.cfg.device = device
-        self.env, *_ = cmrl.util.env.make_env(self.cfg)
+        self.env, *_ = cmrl.utils.env.make_env(self.cfg)
         if penalty_coeff is None:
             self.penalty_coeff = self.cfg.task.penalty_coeff
         else:
             self.penalty_coeff = penalty_coeff
 
-        self.dynamics = cmrl.util.creator.create_dynamics(
-            self.cfg.dynamics,
-            self.env.observation_space.shape,
-            self.env.action_space.shape,
-            load_dir=self.model_path,
-            load_device=device,
+        self.dynamics = create_dynamics(
+            self.cfg,
+            self.env.state_space,
+            self.env.action_space,
         )
+        if not self.cfg.transition.discovery:
+            self.dynamics.transition.set_oracle_graph(self.env.get_transition_graph())
+        if self.cfg.reward_mech.learn and not self.cfg.reward_mech.discovery:
+            self.dynamics.reward_mech.set_oracle_graph(self.env.get_reward_mech_graph())
+        if self.cfg.termination_mech.learn and not self.cfg.termination_mech.discovery:
+            self.dynamics.termination_mech.set_oracle_graph(self.env.get_termination_mech_graph())
+        self.dynamics.transition.load(self.model_path / "transition")
 
         self.bindings = []
         self.obs_range, self.action_range = self.get_range()
 
         self.range = np.concatenate([self.obs_range, self.action_range], axis=0)
-        self.real_obs_dim_num = self.env.observation_space.shape[0]
+        self.real_obs_dim_num = self.env.state_space.shape[0]
         self.compact_obs_dim_num, self.action_dim_num = (
             self.obs_range.shape[0],
             self.action_range.shape[0],
@@ -213,20 +212,19 @@ class DatasetEvaluator:
         self.draw_button.on_clicked(self.draw)
 
     def get_range(self, dataset_type="SAC-expert-replay"):
-        universe, basic_env_name, params, origin_dataset_type = self.cfg.task.env.split("___")
-        data_dict = self.env.get_dataset("{}-{}".format(params, dataset_type))
+        data_dict = self.env.get_dataset(dataset_type)
         obs_min = np.percentile(data_dict["observations"], self.range_quantile, axis=0)
         obs_max = np.percentile(data_dict["observations"], 100 - self.range_quantile, axis=0)
         action_min = np.percentile(data_dict["actions"], self.range_quantile, axis=0)
         action_max = np.percentile(data_dict["actions"], 100 - self.range_quantile, axis=0)
         obs_range, action_range = np.array(list(zip(obs_min, obs_max))), np.array(list(zip(action_min, action_max)))
 
-        if basic_env_name in SIN_COS_BINDINGS:
-            self.bindings = SIN_COS_BINDINGS[basic_env_name]
-            for idx, binding_idx in enumerate(self.bindings):
-                theta_idx = binding_idx - idx
-                obs_range = np.delete(obs_range, [binding_idx, binding_idx + 1], axis=0)
-                obs_range = np.insert(obs_range, theta_idx, np.array([0, 2 * np.pi]), axis=0)
+        # if basic_env_name in SIN_COS_BINDINGS:
+        #     self.bindings = SIN_COS_BINDINGS[basic_env_name]
+        #     for idx, binding_idx in enumerate(self.bindings):
+        #         theta_idx = binding_idx - idx
+        #         obs_range = np.delete(obs_range, [binding_idx, binding_idx + 1], axis=0)
+        #         obs_range = np.insert(obs_range, theta_idx, np.array([0, 2 * np.pi]), axis=0)
         return obs_range, action_range
 
     def build_model_in(self):
@@ -250,7 +248,7 @@ class DatasetEvaluator:
                     real_model_in[:, dim] = np.cos(compact_model_in[:, compact_dim].copy())
             else:  # is an action
                 compact_dim = dim - (self.real_obs_dim_num - self.compact_obs_dim_num)
-                real_model_in[:, dim] = np.cos(compact_model_in[:, compact_dim].copy())
+                real_model_in[:, dim] = compact_model_in[:, compact_dim].copy()
         return x, real_model_in
 
     def draw(self, event):
@@ -285,32 +283,29 @@ class DatasetEvaluator:
         penalized_reward = np.empty(self.plot_dot_num)
 
         for batch_idx in range(batch_num):
+            f, t = self.batch_size * batch_idx, self.batch_size * (batch_idx + 1)
+
             batch_input = model_in[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)]
             batch_obs, batch_action = (
                 batch_input[:, : self.real_obs_dim_num],
                 batch_input[:, self.real_obs_dim_num :],
             )
-            dynamics_result = self.dynamics.query(batch_obs, batch_action, return_as_np=True)
-            gt_next_obs, gt_reward, gt_terminal, gt_truncated, _ = self.env.query(batch_obs, batch_action)
-            # predict and ground truth
-            batch_predict_obs = dynamics_result["batch_next_obs"]["mean"].mean(0)
-            batch_gt_obs = gt_next_obs
-            if self.draw_diff:
-                batch_predict_obs -= batch_obs
-                batch_gt_obs -= batch_obs
-            batch_predict = batch_predict_obs[:, self.current_out_dim]
-            batch_ground_truth = batch_gt_obs[:, self.current_out_dim]
-            # reward
-            # batch_reward = dynamics_result["batch_reward"]["mean"].mean(0)[:, 0]
-            batch_reward = gt_reward
-            # penalized_reward
-            batch_penalty = calculate_penalty(dynamics_result["batch_next_obs"]["mean"])
-            batch_penalized_reward = batch_reward - batch_penalty * self.penalty_coeff
 
-            predict[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_predict
-            ground_truth[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_ground_truth
-            reward[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_reward
-            penalized_reward[self.batch_size * batch_idx : self.batch_size * (batch_idx + 1)] = batch_penalized_reward
+            predict_next_obs, predict_reward, terminal, info = self.dynamics.step(batch_obs, batch_action)
+            gt_next_obs = self.env.get_batch_next_obs(batch_obs, batch_action)
+            gt_reward = self.env.get_batch_reward(gt_next_obs)
+
+            if self.draw_diff:
+                predict_next_obs -= batch_obs
+                gt_next_obs -= batch_obs
+
+            batch_penalty = get_penalty(info["origin-next_obs"])
+
+            predict[f:t] = predict_next_obs[:, self.current_out_dim]
+            ground_truth[f:t] = gt_next_obs[:, self.current_out_dim]
+            reward[f:t] = gt_reward[:, 0]
+            penalized_reward[f:t] = gt_reward[:, 0] - batch_penalty * self.penalty_coeff
+
         return predict, ground_truth, reward, penalized_reward
 
     def run(self):
@@ -326,7 +321,7 @@ class DatasetEvaluator:
             np.linspace(0, 1, 100),
             color="black",
             lw=2,
-            label="gt",
+            label="ground truth",
         )
         (self.reward_line,) = self.reward_ax.plot(
             np.linspace(0, 1, 100),
@@ -358,10 +353,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("model_dir", type=str, default=None)
     parser.add_argument("--penalty_coeff", type=float, default=None)
-    parser.add_argument("--draw_diff", action="store_true")
+    parser.add_argument("--not_draw_diff", action="store_true", default=False)
     args = parser.parse_args()
 
-    evaluator = DatasetEvaluator(args.model_dir, penalty_coeff=args.penalty_coeff, draw_diff=args.draw_diff)
+    evaluator = DatasetEvaluator(args.model_dir, penalty_coeff=args.penalty_coeff, draw_diff=not args.not_draw_diff)
 
     mpl.rcParams["figure.facecolor"] = "white"
     mpl.rcParams["font.size"] = 14

@@ -1,117 +1,92 @@
+from typing import Optional, List
+
 import numpy as np
 import torch
 from torch import nn as nn
+from torch import Tensor
+from itertools import product
 
-import cmrl.models.util as model_util
-
-
-def truncated_normal_init(m: nn.Module):
-    """Initializes the weights of the given module using a truncated normal distribution."""
-
-    if isinstance(m, nn.Linear):
-        input_dim = m.weight.data.shape[0]
-        stddev = 1 / (2 * np.sqrt(input_dim))
-        model_util.truncated_normal_(m.weight.data, std=stddev)
-        m.bias.data.fill_(0.0)
-    elif isinstance(m, EnsembleLinearLayer):
-        num_members, input_dim, _ = m.weight.data.shape
-        stddev = 1 / (2 * np.sqrt(input_dim))
-        for i in range(num_members):
-            model_util.truncated_normal_(m.weight.data[i], std=stddev)
-        m.bias.data.fill_(0.0)
-    elif isinstance(m, ParallelEnsembleLinearLayer):
-        num_parallel, num_members, input_dim, _ = m.weight.data.shape
-        stddev = 1 / (2 * np.sqrt(input_dim))
-        for i in range(num_parallel):
-            for j in range(num_members):
-                model_util.truncated_normal_(m.weight.data[i, j], std=stddev)
-        m.bias.data.fill_(0.0)
+from cmrl.models.util import truncated_normal_
 
 
-class EnsembleLinearLayer(nn.Module):
-    """Implements an ensemble of layers.
-
-    Args:
-        in_size (int): the input size of this layer.
-        out_size (int): the output size of this layer.
-        use_bias (bool): use bias in this layer or not.
-        ensemble_num (int): the ensemble dimension of this layer,
-            the corresponding part of each dimension is called a "member".
-    """
-
+# partial from https://github.com/phlippe/ENCO/blob/main/causal_discovery/multivariable_mlp.py
+class ParallelLinear(nn.Module):
     def __init__(
         self,
-        in_size: int,
-        out_size: int,
-        use_bias: bool = True,
-        ensemble_num: int = 1,
+        input_dim: int,
+        output_dim: int,
+        extra_dims: Optional[List[int]] = None,
+        bias: bool = True,
+        init_type: str = "truncated_normal",
     ):
+        """Linear layer with the same properties as Parallel MLP. It effectively applies N independent linear layers
+        in parallel.
+
+        Args:
+            input_dim: Number of input dimensions per layer.
+            output_dim: Number of output dimensions per layer.
+            extra_dims: Number of neural networks to have in parallel (e.g. number of variables). Can have multiple
+                dimensions if needed.
+            bias: Weather using bias in this layer.
+            init_type: How to initialize weights and biases.
+        """
         super().__init__()
-        self.ensemble_num = ensemble_num
-        self.in_size = in_size
-        self.out_size = out_size
-        self.weight = nn.Parameter(torch.rand(self.ensemble_num, self.in_size, self.out_size))
-        if use_bias:
-            self.bias = nn.Parameter(torch.rand(self.ensemble_num, 1, self.out_size))
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.extra_dims = [] if extra_dims is None else extra_dims
+        self.init_type = init_type
+
+        self.weight = nn.Parameter(torch.zeros(*self.extra_dims, self.input_dim, self.output_dim))
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(*self.extra_dims, 1, self.output_dim))
             self.use_bias = True
         else:
             self.use_bias = False
 
-    def forward(self, x):
+        self.init_params()
+
+    def init_params(self):
+        """Initialize weights and biases. Currently, only `kaiming_uniform` and `truncated_normal` are supported.
+
+        Returns: None
+
+        """
+        if self.init_type == "kaiming_uniform":
+            nn.init.kaiming_uniform_(self.weight, nonlinearity="relu")
+        elif self.init_type == "truncated_normal":
+            stddev = 1 / (2 * np.sqrt(self.input_dim))
+            for dims in product(*map(range, self.extra_dims)):
+                truncated_normal_(self.weight.data[dims], std=stddev)
+        else:
+            raise NotImplementedError
+
+    def forward(self, x: Tensor) -> Tensor:
         xw = x.matmul(self.weight)
         if self.use_bias:
             return xw + self.bias
         else:
             return xw
 
-    def __repr__(self) -> str:
-        return (
-            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}, " f"ensemble_num={self.ensemble_num}"
+    @property
+    def device(self) -> torch.device:
+        """Infer which device this policy lives on by inspecting its parameters.
+        If it has no parameters, the 'cpu' device is used as a fallback.
+
+        Returns: device
+        """
+        for param in self.parameters():
+            return param.device
+        return torch.device("cpu")
+
+    def extra_repr(self):
+        return 'input_dims={}, output_dims={}, extra_dims={}, bias={}, init_type="{}"'.format(
+            self.input_dim, self.output_dim, str(self.extra_dims), self.use_bias, self.init_type
         )
 
 
-class ParallelEnsembleLinearLayer(nn.Module):
-    """Implements an ensemble of parallel layers.
+class RadianLayer(nn.Module):
+    def __init__(self) -> None:
+        super(RadianLayer, self).__init__()
 
-    Args:
-        in_size (int): the input size of this layer.
-        out_size (int): the output size of this layer.
-        use_bias (bool): use bias in this layer or not.
-        parallel_num (int): the parallel dimension of this layer,
-            the corresponding part of each dimension is called a "sub-network".
-        ensemble_num (int): the ensemble dimension of this layer,
-            the corresponding part of each dimension is called a "member".
-    """
-
-    def __init__(
-        self,
-        in_size: int,
-        out_size: int,
-        use_bias: bool = True,
-        parallel_num: int = 1,
-        ensemble_num: int = 1,
-    ):
-        super().__init__()
-        self.parallel_num = parallel_num
-        self.ensemble_num = ensemble_num
-        self.in_size = in_size
-        self.out_size = out_size
-        self.weight = nn.Parameter(torch.rand(self.parallel_num, self.ensemble_num, self.in_size, self.out_size))
-        if use_bias:
-            self.bias = nn.Parameter(torch.rand(self.parallel_num, self.ensemble_num, 1, self.out_size))
-            self.use_bias = True
-        else:
-            self.use_bias = False
-
-    def forward(self, x):
-        xw = x.matmul(self.weight)
-        if self.use_bias:
-            return xw + self.bias
-        else:
-            return xw
-
-    def __repr__(self) -> str:
-        return (
-            f"in_size={self.in_size}, out_size={self.out_size}, use_bias={self.use_bias}, "
-            f"parallel_num={self.parallel_num}, ensemble_num={self.ensemble_num}"
-        )
+    def forward(self, input: Tensor) -> Tensor:
+        return torch.remainder(input + torch.pi, 2 * torch.pi) - torch.pi

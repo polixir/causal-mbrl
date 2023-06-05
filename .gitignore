@@ -138,6 +138,4 @@ cython_debug/
 .vscode
 .idea
 
-/cmrl.egg-info/
 /exp/
-/stable-baselines3/
